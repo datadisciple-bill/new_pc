@@ -1,0 +1,52 @@
+#Install New apps
+#
+$apps = @(
+    @{name = "Microsoft.PowerToys" },
+    @{name = "Mozilla.Firefox" }, 
+    @{name = "Google.Chrome" }, 
+    @{name = "Valve.Steam" }, 
+    @{name = "AgileBits.1Password" }, 
+    @{name = "ShareX.ShareX" }, 
+    @{name = "Telegram.TelegramDesktop" }, 
+    @{name = "Zoom.Zoom" }, 
+    @{name = "Discord.Discord" }, 
+    @{name = "Brave.Brave" }, 
+    @{name = "Logitech.GHUB" }, 
+    @{name = "VideoLAN.VLC" }, 
+    @{name = "Cisco.CiscoWebexMeetings" }, 
+    @{name = "GitHub.GitHubDesktop" }, 
+    @{name = "GitHub.Atom" }, 
+    @{name = "Microsoft.VisualStudioCode" }, 
+    @{name = "OBSProject.OBSStudio" }, 
+    @{name = "Prusa3D.PrusaSlicer" }, 
+    @{name = "WinDirStat.WinDirStat" }, 
+    @{name = "Notion.Notion" }, 
+    @{name = "7zip.7zip" }, 
+    @{name = "9PMMSR1CGPWG" }, 
+    @{name = "Microsoft.PowerShell" }, 
+    @{name = "Microsoft.VisualStudioCode" }, 
+    @{name = "Microsoft.WindowsTerminal"; source = "msstore" },
+    @{name = "Git.Git" }, 
+    @{name = "Docker.DockerDesktop" },
+    @{name = "Microsoft.dotnet" },
+    @{name = "GitHub.cli" },
+    @{name = "Apple.iTunes"},
+    @{name = "Microsoft.Office"},
+    @{name = "JanDeDobbeleer.OhMyPosh"}
+);
+Foreach ($app in $apps) {
+    #check if the app is already installed
+    $listApp = winget list --exact -q $app.name
+    if (![String]::Join("", $listApp).Contains($app.name)) {
+        Write-host "Installing:" $app.name
+        if ($null -ne $app.source) {
+            winget install --exact --silent $app.name --source $app.source
+        }
+        else {
+            winget install --exact --silent $app.name 
+        }
+    }
+    else {
+        Write-host "Skipping Install of " $app.name
+    }
+}
