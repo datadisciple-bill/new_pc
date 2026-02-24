@@ -151,14 +151,20 @@ Each service type has its own configuration options:
 | `/fabric/v4/routers` | POST | Create a Fabric Cloud Router |
 | `/fabric/v4/routers/{id}` | GET | Get FCR details |
 | `/fabric/v4/routers/search` | POST | Search for FCRs |
+| `/fabric/v4/routerPackages` | GET | **List all router packages (LAB, STANDARD, ADVANCED, PREMIUM)** |
+| `/fabric/v4/routerPackages/{code}` | GET | Get details of a specific router package |
 | `/fabric/v4/prices/search` | POST | **Retrieve pricing for Fabric products** |
 
 #### Pricing Endpoint (Critical):
-`POST /fabric/v4/prices/search` — This is the primary pricing endpoint. Use it to get prices for:
-- Fabric Ports (by speed, type, metro)
-- Virtual Connections (by bandwidth, type)
-- Fabric Cloud Router (by package)
+`POST /fabric/v4/prices/search` — This is the unified pricing endpoint. Use it to get prices for:
+- Fabric Ports — filter type: `VIRTUAL_PORT_PRODUCT`
+- Virtual Connections — filter type: `VIRTUAL_CONNECTION_PRODUCT`
+- Fabric Cloud Router — filter type: `CLOUD_ROUTER_PRODUCT`
+- Fabric Gateways — filter type: `FABRIC_GATEWAY_PRODUCT`
+- IP Blocks — filter type: `IP_BLOCK_PRODUCT`
 - Network Edge Device Link Groups
+
+Response includes charges broken down by `MONTHLY_RECURRING` and `NON_RECURRING` amounts with currency.
 
 ### 3.3 Network Edge API
 
@@ -173,6 +179,7 @@ Each service type has its own configuration options:
 | `/ne/v1/devices/{uuid}` | GET | Get device details |
 | `/ne/v1/devices/types` | GET | **List available device types (vendors, models)** |
 | `/ne/v1/devices/types/{deviceTypeCode}/interfaces` | GET | Get interface details for a device type |
+| `/ne/v1/prices` | GET | **Get device and license pricing by account and configuration** |
 | `/ne/v1/metros` | GET | **List metros where Network Edge is available** |
 
 #### Network Edge Pricing:
@@ -194,6 +201,9 @@ Each service type has its own configuration options:
 | `/internetAccess/v2/services` | POST | Order an EIA service instance |
 | `/internetAccess/v2/services/{id}` | GET | Get service instance details |
 | `/internetAccess/v1/services/{id}` | GET | Get v1 service instance details |
+
+#### EIA Pricing:
+**Important**: The EIA API does NOT have a dedicated pricing endpoint. Pricing for Internet Access is handled through Equinix billing documentation and sales, not a queryable API. The application should display "Quote Required — Contact Equinix" for EIA pricing and allow the user to manually enter a price.
 
 #### EIA Configuration:
 - Connection type: `IA_VC`
@@ -836,5 +846,19 @@ These are explicitly NOT part of the initial build but documented for future con
 ```
 
 ---
+
+## Appendix C: Important Notes on Equinix API Documentation
+
+- As of September 2024, Equinix migrated all API documentation from `developer.equinix.com` to `docs.equinix.com`
+- The legacy developer portal was frozen in October 2024 and became inaccessible after December 31, 2024
+- Always use `docs.equinix.com` for the most current API documentation
+- Key documentation links:
+  - Full API Catalog: https://docs.equinix.com/api-catalog/
+  - Fabric v4 API Reference: https://docs.equinix.com/api-catalog/fabricv4/
+  - Network Edge v1 API Reference: https://docs.equinix.com/api-catalog/network-edgev1/
+  - Internet Access API Reference: https://docs.equinix.com/api-catalog/internetaccessv2/
+  - Authentication: https://docs.equinix.com/equinix-api/api-authentication/
+  - Fabric Pricing: https://docs.equinix.com/fabric/fabric-api/determine-connection-price/
+- Equinix Metal is being **sunset on June 30, 2026** — it was intentionally excluded from this spec
 
 *This document was generated on 2026-02-24 from analysis of the Equinix Solution Diagrams PPTX branding guide and Equinix Developer API documentation.*
