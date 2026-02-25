@@ -14,9 +14,10 @@ export async function fetchDeviceTypes(): Promise<DeviceType[]> {
     return types;
   }
 
-  const response = await apiRequest<DeviceType[]>('/ne/v1/devices/types');
-  useConfigStore.getState().setDeviceTypes(response);
-  return response;
+  const response = await apiRequest<{ data: DeviceType[] } | DeviceType[]>('/ne/v1/deviceTypes?limit=200');
+  const types = Array.isArray(response) ? response : response.data;
+  useConfigStore.getState().setDeviceTypes(types);
+  return types;
 }
 
 export async function fetchDeviceTypesForMetro(_metroCode: string): Promise<DeviceType[]> {
@@ -34,7 +35,11 @@ export async function fetchNetworkEdgePricing(
     return mockNetworkEdgePricing(deviceTypeCode, packageCode, termLength);
   }
 
-  return apiRequest<NetworkEdgePriceResponse>(
-    `/ne/v1/prices?deviceTypeCode=${deviceTypeCode}&packageCode=${packageCode}&termLength=${termLength}&metroCode=${metroCode}`
-  );
+  const qs = new URLSearchParams({
+    vendorPackage: deviceTypeCode,
+    softwarePackage: packageCode,
+    termLength: String(termLength),
+    metro: metroCode,
+  });
+  return apiRequest<NetworkEdgePriceResponse>(`/ne/v1/prices?${qs}`);
 }

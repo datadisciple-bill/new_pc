@@ -27,35 +27,24 @@ export function mockMetros(): Metro[] {
 }
 
 // Realistic pricing based on type
-// Key format: PORT_{speed}_{product}_{redundancy}
+// Port prices are per-port; redundant pairs are 2x the single port price in the app layer.
+// Key format: PORT_{bandwidthMbps}_{product}
 const PRICING: Record<string, { mrc: number; nrc: number }> = {
   // Fabric Ports — Standard
-  'PORT_1G_STANDARD_SINGLE': { mrc: 250, nrc: 0 },
-  'PORT_1G_STANDARD_REDUNDANT': { mrc: 500, nrc: 0 },
-  'PORT_10G_STANDARD_SINGLE': { mrc: 1500, nrc: 0 },
-  'PORT_10G_STANDARD_REDUNDANT': { mrc: 3000, nrc: 0 },
-  'PORT_100G_STANDARD_SINGLE': { mrc: 7500, nrc: 0 },
-  'PORT_100G_STANDARD_REDUNDANT': { mrc: 15000, nrc: 0 },
-  'PORT_400G_STANDARD_SINGLE': { mrc: 22500, nrc: 0 },
-  'PORT_400G_STANDARD_REDUNDANT': { mrc: 45000, nrc: 0 },
+  'PORT_1000_STANDARD': { mrc: 250, nrc: 0 },
+  'PORT_10000_STANDARD': { mrc: 1500, nrc: 0 },
+  'PORT_100000_STANDARD': { mrc: 7500, nrc: 0 },
+  'PORT_400000_STANDARD': { mrc: 22500, nrc: 0 },
   // Fabric Ports — Unlimited
-  'PORT_1G_UNLIMITED_SINGLE': { mrc: 500, nrc: 0 },
-  'PORT_1G_UNLIMITED_REDUNDANT': { mrc: 1000, nrc: 0 },
-  'PORT_10G_UNLIMITED_SINGLE': { mrc: 3000, nrc: 0 },
-  'PORT_10G_UNLIMITED_REDUNDANT': { mrc: 6000, nrc: 0 },
-  'PORT_100G_UNLIMITED_SINGLE': { mrc: 15000, nrc: 0 },
-  'PORT_100G_UNLIMITED_REDUNDANT': { mrc: 30000, nrc: 0 },
-  'PORT_400G_UNLIMITED_SINGLE': { mrc: 45000, nrc: 0 },
-  'PORT_400G_UNLIMITED_REDUNDANT': { mrc: 90000, nrc: 0 },
+  'PORT_1000_UNLIMITED': { mrc: 500, nrc: 0 },
+  'PORT_10000_UNLIMITED': { mrc: 3000, nrc: 0 },
+  'PORT_100000_UNLIMITED': { mrc: 15000, nrc: 0 },
+  'PORT_400000_UNLIMITED': { mrc: 45000, nrc: 0 },
   // Fabric Ports — Unlimited Plus
-  'PORT_1G_UNLIMITED_PLUS_SINGLE': { mrc: 750, nrc: 0 },
-  'PORT_1G_UNLIMITED_PLUS_REDUNDANT': { mrc: 1500, nrc: 0 },
-  'PORT_10G_UNLIMITED_PLUS_SINGLE': { mrc: 4500, nrc: 0 },
-  'PORT_10G_UNLIMITED_PLUS_REDUNDANT': { mrc: 9000, nrc: 0 },
-  'PORT_100G_UNLIMITED_PLUS_SINGLE': { mrc: 22500, nrc: 0 },
-  'PORT_100G_UNLIMITED_PLUS_REDUNDANT': { mrc: 45000, nrc: 0 },
-  'PORT_400G_UNLIMITED_PLUS_SINGLE': { mrc: 67500, nrc: 0 },
-  'PORT_400G_UNLIMITED_PLUS_REDUNDANT': { mrc: 135000, nrc: 0 },
+  'PORT_1000_UNLIMITED_PLUS': { mrc: 750, nrc: 0 },
+  'PORT_10000_UNLIMITED_PLUS': { mrc: 4500, nrc: 0 },
+  'PORT_100000_UNLIMITED_PLUS': { mrc: 22500, nrc: 0 },
+  'PORT_400000_UNLIMITED_PLUS': { mrc: 67500, nrc: 0 },
   // Virtual Connections (by bandwidth)
   'VC_50': { mrc: 150, nrc: 0 },
   'VC_100': { mrc: 250, nrc: 0 },
@@ -73,20 +62,17 @@ const PRICING: Record<string, { mrc: number; nrc: number }> = {
 
 export function mockPriceSearch(
   filterType: string,
-  properties: Record<string, string | number | boolean>
+  properties: Record<string, string | number | boolean | (string | number | boolean)[]>
 ): PriceSearchResponse {
   let key = '';
   let price = { mrc: 500, nrc: 0 };
 
   switch (filterType) {
     case 'VIRTUAL_PORT_PRODUCT': {
-      const speed = String(properties['/port/bandwidth'] ?? '10G');
-      const portType = String(properties['/port/type'] ?? 'SINGLE');
-      const rawProduct = String(properties['/port/connectivitySourceType'] ?? 'STANDARD');
-      // Normalize "UNLIMITED PLUS" → "UNLIMITED_PLUS" for key lookup
-      const product = rawProduct.replace(/\s+/g, '_');
-      key = `PORT_${speed}_${product}_${portType}`;
-      price = lookupPortPrice(speed, product, portType) ?? PRICING[key] ?? price;
+      const bw = Number(properties['/port/bandwidth'] ?? 10000);
+      const product = String(properties['/port/package/code'] ?? 'STANDARD');
+      key = `PORT_${bw}_${product}`;
+      price = lookupPortPrice(String(bw), product) ?? PRICING[key] ?? price;
       break;
     }
     case 'VIRTUAL_CONNECTION_PRODUCT': {

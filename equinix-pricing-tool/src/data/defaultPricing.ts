@@ -25,12 +25,11 @@ export function hasDefaultPricing(): boolean {
   return pricing !== null;
 }
 
-/** Lookup Fabric Port price by speed, port product, and redundancy type */
-export function lookupPortPrice(speed: string, portProduct: string, portType: string): PriceEntry | null {
-  // Try new key format first (speed_product_redundancy), then legacy (speed_redundancy)
-  return pricing?.fabricPorts[`${speed}_${portProduct}_${portType}`]
-    ?? pricing?.fabricPorts[`${speed}_${portType}`]
-    ?? null;
+/** Lookup Fabric Port price by bandwidth (Mbps or "10G" label) and package code */
+export function lookupPortPrice(bandwidth: string, portProduct: string): PriceEntry | null {
+  // Key format from fetch script: "{speedLabel}_{product}" e.g. "10G_STANDARD"
+  // Also try raw bandwidth in Mbps: "{mbps}_{product}" e.g. "10000_STANDARD"
+  return pricing?.fabricPorts[`${bandwidth}_${portProduct}`] ?? null;
 }
 
 /** Lookup Virtual Connection price by bandwidth in Mbps */

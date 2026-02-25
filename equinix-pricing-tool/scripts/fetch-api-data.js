@@ -209,6 +209,22 @@ async function authenticate() {
   console.log(`\r  ${CHECK} Authenticated as ${c.bold}${data.user_name}${c.reset} ${elapsed(t)}`);
 }
 
+/**
+ * Build a Fabric v4 price search filter body in the required {filter: {and: [...]}} format.
+ * @param {Record<string, *>} props - key/value pairs; arrays use IN operator, scalars use =
+ */
+function priceFilter(props) {
+  const and = [];
+  for (const [property, val] of Object.entries(props)) {
+    if (Array.isArray(val)) {
+      and.push({ property, operator: 'IN', values: val });
+    } else {
+      and.push({ property, operator: '=', values: [val] });
+    }
+  }
+  return { filter: { and } };
+}
+
 // ── Fetch Options ────────────────────────────────────────────────────────────
 
 async function fetchWithStatus(label, fn, fallback = []) {
@@ -232,7 +248,7 @@ async function fetchMetros() {
 }
 
 async function fetchDeviceTypes() {
-  const res = await apiGet('/ne/v1/devices/types');
+  const res = await apiGet('/ne/v1/deviceTypes?limit=200');
   return Array.isArray(res) ? res : res.data ?? [];
 }
 
@@ -248,7 +264,8 @@ async function fetchRouterPackages() {
 
 async function fetchEIALocations() {
   try {
-    const res = await apiGet('/internetAccess/v2/ibxs');
+    // IA_VC = virtual (Fabric port), IA_C = dedicated physical port
+    const res = await apiGet('/internetAccess/v2/ibxs?service.connection.type=IA_VC&limit=200');
     return res.data ?? res;
   } catch {
     return [];
@@ -258,13 +275,16 @@ async function fetchEIALocations() {
 // ── Fetch Pricing ────────────────────────────────────────────────────────────
 
 async function fetchFabricPortPricing() {
-  const speeds = ['1G', '10G', '100G', '400G'];
+  // Bandwidth in Mbps as required by the API; label is human-friendly key
+  const speeds = [
+    { label: '1G', mbps: 1000 },
+    { label: '10G', mbps: 10000 },
+    { label: '100G', mbps: 100000 },
+    { label: '400G', mbps: 400000 },
+  ];
   const portProducts = ['STANDARD', 'UNLIMITED', 'UNLIMITED_PLUS'];
-  const redundancies = ['SINGLE', 'REDUNDANT'];
   const combos = speeds.flatMap((s) =>
-    portProducts.flatMap((p) =>
-      redundancies.map((r) => ({ speed: s, portProduct: p, redundancy: r }))
-    )
+    portProducts.map((p) => ({ ...s, portProduct: p }))
   );
   const total = combos.length;
   const pricing = {};
@@ -272,19 +292,18 @@ async function fetchFabricPortPricing() {
   let fail = 0;
 
   for (let i = 0; i < combos.length; i++) {
-    const { speed, portProduct, redundancy } = combos[i];
-    const key = `${speed}_${portProduct}_${redundancy}`;
+    const { label, mbps, portProduct } = combos[i];
+    const key = `${label}_${portProduct}`;
     process.stdout.write(`\r${progressBar(i + 1, total)} ${c.dim}${key}${c.reset}       `);
     try {
-      const res = await apiPost('/fabric/v4/prices/search', {
-        filter: {
-          '/type': 'VIRTUAL_PORT_PRODUCT',
-          '/port/bandwidth': speed,
-          '/port/connectivitySourceType': portProduct === 'UNLIMITED_PLUS' ? 'UNLIMITED PLUS' : portProduct,
-          '/port/type': redundancy,
-          '/port/settings/buyout': false,
-        },
-      });
+      const res = await apiPost('/fabric/v4/prices/search', priceFilter({
+        '/type': 'VIRTUAL_PORT_PRODUCT',
+        '/port/type': 'XF_PORT',
+        '/port/bandwidth': mbps,
+        '/port/package/code': portProduct,
+        '/port/connectivitySource/type': 'COLO',
+        '/port/settings/buyout': false,
+      }));
       const charges = res.data?.[0]?.charges ?? [];
       const mrc = charges.find((ch) => ch.type === 'MONTHLY_RECURRING')?.price ?? 0;
       const nrc = charges.find((ch) => ch.type === 'NON_RECURRING')?.price ?? 0;
@@ -316,12 +335,11 @@ async function fetchVCPricing() {
     const label = bw >= 1000 ? `${bw / 1000}G` : `${bw}M`;
     process.stdout.write(`\r${progressBar(i + 1, total)} ${c.dim}${label}${c.reset}       `);
     try {
-      const res = await apiPost('/fabric/v4/prices/search', {
-        filter: {
-          '/type': 'VIRTUAL_CONNECTION_PRODUCT',
-          '/connection/bandwidth': bw,
-        },
-      });
+      const res = await apiPost('/fabric/v4/prices/search', priceFilter({
+        '/type': 'VIRTUAL_CONNECTION_PRODUCT',
+        '/connection/type': 'EVPL_VC',
+        '/connection/bandwidth': bw,
+      }));
       const charges = res.data?.[0]?.charges ?? [];
       const mrc = charges.find((ch) => ch.type === 'MONTHLY_RECURRING')?.price ?? 0;
       const nrc = charges.find((ch) => ch.type === 'NON_RECURRING')?.price ?? 0;
@@ -347,13 +365,11 @@ async function fetchCloudRouterPricing(routerPackages, referenceMetro) {
     const pkg = routerPackages[i];
     process.stdout.write(`\r${progressBar(i + 1, total)} ${c.dim}${pkg.code}${c.reset}       `);
     try {
-      const res = await apiPost('/fabric/v4/prices/search', {
-        filter: {
-          '/type': 'CLOUD_ROUTER_PRODUCT',
-          '/router/package/code': pkg.code,
-          '/router/location/metroCode': referenceMetro,
-        },
-      });
+      const res = await apiPost('/fabric/v4/prices/search', priceFilter({
+        '/type': 'CLOUD_ROUTER_PRODUCT',
+        '/router/package/code': pkg.code,
+        '/router/location/metroCode': referenceMetro,
+      }));
       const charges = res.data?.[0]?.charges ?? [];
       const mrc = charges.find((ch) => ch.type === 'MONTHLY_RECURRING')?.price ?? 0;
       const nrc = charges.find((ch) => ch.type === 'NON_RECURRING')?.price ?? 0;
@@ -393,20 +409,23 @@ async function fetchNetworkEdgePricing(deviceTypes, referenceMetro) {
 
   for (let i = 0; i < combos.length; i++) {
     const { dt, pkg, term } = combos[i];
-    const key = `${dt.deviceTypeCode}_${pkg.code}_${term}`;
-    process.stdout.write(`\r${progressBar(i + 1, total)} ${c.dim}${dt.deviceTypeCode} ${pkg.code} ${term}mo${c.reset}       `);
+    const key = `${dt.deviceTypeCode}_${pkg.packageCode}_${term}`;
+    process.stdout.write(`\r${progressBar(i + 1, total)} ${c.dim}${dt.deviceTypeCode} ${pkg.packageCode} ${term}mo${c.reset}       `);
     try {
       const qs = new URLSearchParams({
-        deviceTypeCode: dt.deviceTypeCode,
-        packageCode: pkg.code,
+        vendorPackage: dt.deviceTypeCode,
+        softwarePackage: pkg.packageCode,
         termLength: String(term),
-        metroCode: referenceMetro,
+        metro: referenceMetro,
       });
       const res = await apiGet(`/ne/v1/prices?${qs}`);
-      pricing[key] = {
-        mrc: res.monthlyRecurring ?? 0,
-        nrc: res.nonRecurring ?? 0,
-      };
+      // Response has primary.charges[] with description and monthlyRecurringCharges
+      const charges = res.primary?.charges ?? [];
+      const deviceCharge = charges.find((ch) => ch.description === 'VIRTUAL_DEVICE');
+      const licenseCharge = charges.find((ch) => ch.description === 'DEVICE_LICENSE');
+      const mrc = Number(deviceCharge?.monthlyRecurringCharges ?? 0) +
+                  Number(licenseCharge?.monthlyRecurringCharges ?? 0);
+      pricing[key] = { mrc, nrc: 0 };
       ok++;
     } catch {
       fail++;

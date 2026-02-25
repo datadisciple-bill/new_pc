@@ -34,8 +34,11 @@ describe('fabricMock', () => {
   describe('mockPriceSearch', () => {
     it('returns pricing for fabric ports', () => {
       const result = mockPriceSearch('VIRTUAL_PORT_PRODUCT', {
-        '/port/bandwidth': '10G',
-        '/port/type': 'SINGLE',
+        '/port/type': 'XF_PORT',
+        '/port/bandwidth': 10000,
+        '/port/package/code': 'STANDARD',
+        '/port/connectivitySource/type': 'COLO',
+        '/port/settings/buyout': false,
       });
       expect(result.data).toHaveLength(1);
       expect(result.data[0].charges.length).toBeGreaterThan(0);
