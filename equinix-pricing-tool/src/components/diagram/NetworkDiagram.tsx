@@ -5,8 +5,6 @@ import {
   Controls,
   MiniMap,
   applyNodeChanges,
-  getNodesBounds,
-  getViewportForBounds,
   type NodeTypes,
   type EdgeTypes,
   type NodeChange,
@@ -42,6 +40,74 @@ const edgeTypes: EdgeTypes = {
 // Node types that can be freely repositioned by dragging
 const DRAGGABLE_NODE_TYPES = new Set(['priceTableNode', 'nePriceTableNode', 'cloudNode', 'textBoxNode']);
 
+const METRO_PAD = 16;
+const METRO_HEADER_H = 48;
+
+/**
+ * Recompute a metro node's position and size to encompass all its children.
+ * Handles expansion in all directions (left/up/right/down) and shrinks back
+ * to at least `minWidth`/`minHeight` (the layout-computed floor).
+ *
+ * If children have been dragged to negative relative positions, the metro
+ * shifts its absolute position and all children shift to compensate.
+ */
+function fitMetroToChildren(
+  metro: Node,
+  allNodes: Node[],
+  minWidth: number,
+  minHeight: number
+): Node[] {
+  const children = allNodes.filter((n) => n.parentId === metro.id);
+  if (children.length === 0) return allNodes;
+
+  // Bounding box of all children (relative to metro)
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxRight = -Infinity;
+  let maxBottom = -Infinity;
+
+  for (const child of children) {
+    const cw = child.width ?? 204;
+    const ch = child.height ?? 72;
+    minX = Math.min(minX, child.position.x);
+    minY = Math.min(minY, child.position.y);
+    maxRight = Math.max(maxRight, child.position.x + cw);
+    maxBottom = Math.max(maxBottom, child.position.y + ch);
+  }
+
+  // How much to shift children to keep them inside the metro
+  const shiftX = minX < METRO_PAD ? METRO_PAD - minX : 0;
+  const shiftY = minY < METRO_HEADER_H + METRO_PAD ? (METRO_HEADER_H + METRO_PAD) - minY : 0;
+
+  // Needed metro size after shifting children
+  const neededWidth = maxRight + shiftX + METRO_PAD;
+  const neededHeight = maxBottom + shiftY + METRO_PAD;
+  const newWidth = Math.max(neededWidth, minWidth);
+  const newHeight = Math.max(neededHeight, minHeight);
+
+  // Build updated node list
+  return allNodes.map((node) => {
+    if (node.id === metro.id) {
+      return {
+        ...node,
+        position: {
+          x: metro.position.x - shiftX,
+          y: metro.position.y - shiftY,
+        },
+        style: { ...node.style, width: newWidth, height: newHeight },
+        width: newWidth,
+        height: newHeight,
+      };
+    }
+    // Shift child positions
+    if (node.parentId === metro.id && (shiftX || shiftY)) {
+      const newPos = { x: node.position.x + shiftX, y: node.position.y + shiftY };
+      return { ...node, position: newPos };
+    }
+    return node;
+  });
+}
+
 export function NetworkDiagram() {
   const metros = useConfigStore((s) => s.project.metros);
   const connections = useConfigStore((s) => s.project.connections);
@@ -53,7 +119,7 @@ export function NetworkDiagram() {
   const addTextBox = useConfigStore((s) => s.addTextBox);
   const updateTextBox = useConfigStore((s) => s.updateTextBox);
 
-  // Controlled nodes state — lets price tables, cloud nodes, and text boxes be dragged freely
+  // Controlled nodes state
   const [reactFlowNodes, setReactFlowNodes] = useState<Node[]>([]);
   // Persist positions for draggable nodes across layout recomputes
   const savedPositions = useRef<Map<string, { x: number; y: number }>>(new Map());
@@ -65,9 +131,23 @@ export function NetworkDiagram() {
     [metros, connections, showPricing, textBoxes]
   );
 
+  // Store layout-computed metro sizes as minimum floors
+  const layoutMetroSizes = useRef<Map<string, { w: number; h: number }>>(new Map());
+  useEffect(() => {
+    layoutMetroSizes.current.clear();
+    for (const node of layoutNodes) {
+      if (node.type === 'metroNode') {
+        layoutMetroSizes.current.set(node.id, {
+          w: node.width ?? 252,
+          h: node.height ?? 120,
+        });
+      }
+    }
+  }, [layoutNodes]);
+
   // Merge saved positions into layout nodes whenever layout changes
   useEffect(() => {
-    const nodesWithSaved = layoutNodes.map((node) => {
+    let result = layoutNodes.map((node) => {
       const saved = savedPositions.current.get(node.id);
       if (saved && (DRAGGABLE_NODE_TYPES.has(node.type ?? '') || node.type === 'serviceNode')) {
         return { ...node, position: saved };
@@ -75,56 +155,37 @@ export function NetworkDiagram() {
       return node;
     });
 
-    // Recompute metro sizes to fit any saved child positions
-    const finalNodes = nodesWithSaved.map((node) => {
-      if (node.type !== 'metroNode') return node;
+    // Refit all metros to encompass any saved child positions
+    const metroIds = result.filter((n) => n.type === 'metroNode').map((n) => n.id);
+    for (const metroId of metroIds) {
+      const metro = result.find((n) => n.id === metroId);
+      if (!metro) continue;
+      const floor = layoutMetroSizes.current.get(metroId);
+      result = fitMetroToChildren(metro, result, floor?.w ?? 252, floor?.h ?? 120);
+    }
 
-      const children = nodesWithSaved.filter((n) => n.parentId === node.id);
-      if (children.length === 0) return node;
-
-      const PADDING = 16;
-      let maxRight = 0;
-      let maxBottom = 0;
-
-      for (const child of children) {
-        const cw = (child.style?.width as number) ?? child.width ?? 204;
-        const ch = (child.style?.height as number) ?? child.height ?? 72;
-        maxRight = Math.max(maxRight, child.position.x + cw);
-        maxBottom = Math.max(maxBottom, child.position.y + ch);
+    // Update savedPositions for shifted children
+    for (const node of result) {
+      if (node.type === 'serviceNode' && savedPositions.current.has(node.id)) {
+        savedPositions.current.set(node.id, node.position);
       }
+    }
 
-      const baseWidth = (node.style?.width as number) ?? node.width ?? 0;
-      const baseHeight = (node.style?.height as number) ?? node.height ?? 0;
-      const newWidth = Math.max(maxRight + PADDING, baseWidth);
-      const newHeight = Math.max(maxBottom + PADDING, baseHeight);
-
-      if (newWidth !== baseWidth || newHeight !== baseHeight) {
-        return {
-          ...node,
-          style: { ...node.style, width: newWidth, height: newHeight },
-          width: newWidth,
-          height: newHeight,
-        };
-      }
-      return node;
-    });
-
-    setReactFlowNodes(finalNodes);
+    setReactFlowNodes(result);
   }, [layoutNodes]);
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
       setReactFlowNodes((nds) => {
-        const applied = applyNodeChanges(changes, nds) as Node[];
+        let applied = applyNodeChanges(changes, nds) as Node[];
 
-        const metrosToResize = new Set<string>();
+        const metrosToRefit = new Set<string>();
 
         for (const change of changes) {
           if (change.type === 'position' && change.position) {
             const node = applied.find((n) => n.id === change.id);
             if (!node) continue;
 
-            // Persist positions for draggable standalone nodes
             if (DRAGGABLE_NODE_TYPES.has(node.type ?? '')) {
               savedPositions.current.set(change.id, change.position);
               if (node.type === 'textBoxNode' && change.dragging === false) {
@@ -133,43 +194,26 @@ export function NetworkDiagram() {
               }
             }
 
-            // Track service node position changes → resize parent metro
             if (node.type === 'serviceNode' && node.parentId) {
               savedPositions.current.set(change.id, change.position);
-              metrosToResize.add(node.parentId);
+              metrosToRefit.add(node.parentId);
             }
           }
         }
 
-        // Dynamically resize metro containers to fit all child service nodes
-        if (metrosToResize.size > 0) {
-          return applied.map((node) => {
-            if (!metrosToResize.has(node.id) || node.type !== 'metroNode') return node;
+        // Refit affected metro containers
+        for (const metroId of metrosToRefit) {
+          const metro = applied.find((n) => n.id === metroId);
+          if (!metro) continue;
+          const floor = layoutMetroSizes.current.get(metroId);
+          applied = fitMetroToChildren(metro, applied, floor?.w ?? 252, floor?.h ?? 120);
 
-            const children = applied.filter((n) => n.parentId === node.id);
-            if (children.length === 0) return node;
-
-            const PAD = 16;
-            let maxRight = 0;
-            let maxBottom = 0;
-
-            for (const child of children) {
-              const cw = child.width ?? 204;
-              const ch = child.height ?? 72;
-              maxRight = Math.max(maxRight, child.position.x + cw);
-              maxBottom = Math.max(maxBottom, child.position.y + ch);
+          // Sync shifted child positions to savedPositions
+          for (const node of applied) {
+            if (node.parentId === metroId && node.type === 'serviceNode') {
+              savedPositions.current.set(node.id, node.position);
             }
-
-            const newWidth = Math.max(maxRight + PAD, node.width ?? 0);
-            const newHeight = Math.max(maxBottom + PAD, node.height ?? 0);
-
-            return {
-              ...node,
-              style: { ...node.style, width: newWidth, height: newHeight },
-              width: newWidth,
-              height: newHeight,
-            };
-          });
+          }
         }
 
         return applied;
@@ -198,7 +242,6 @@ export function NetworkDiagram() {
       const wrapper = reactFlowWrapper.current;
       const centerX = wrapper ? wrapper.clientWidth / 2 : 400;
       const centerY = wrapper ? wrapper.clientHeight / 2 : 300;
-      // Convert screen coords to flow coords
       const flowX = (centerX - viewport.x) / viewport.zoom;
       const flowY = (centerY - viewport.y) / viewport.zoom;
       addTextBox(flowX - 80, flowY - 20);
@@ -207,35 +250,31 @@ export function NetworkDiagram() {
     }
   }, [addTextBox]);
 
-  // Export diagram as PNG — cropped to content bounds
+  // Export diagram as PNG — uses fitView for tight crop
   const handleExportPng = useCallback(async () => {
-    const el = reactFlowWrapper.current?.querySelector('.react-flow__viewport') as HTMLElement | null;
+    const viewportEl = reactFlowWrapper.current?.querySelector('.react-flow__viewport') as HTMLElement | null;
     const instance = rfInstanceRef.current;
-    if (!el || !instance) return;
+    const wrapper = reactFlowWrapper.current;
+    if (!viewportEl || !instance || !wrapper) return;
 
     const nodes = instance.getNodes();
     if (nodes.length === 0) return;
 
-    // Save current viewport to restore after export
     const prevViewport = instance.getViewport();
 
     try {
-      const PADDING = 40;
-      const bounds = getNodesBounds(nodes);
-      const exportWidth = bounds.width + PADDING * 2;
-      const exportHeight = bounds.height + PADDING * 2;
+      // Fit all nodes into the visible area with some padding
+      instance.fitView({ padding: 0.05 });
+      await new Promise((r) => setTimeout(r, 200));
 
-      // Compute viewport that fits all nodes into the export dimensions
-      const viewport = getViewportForBounds(bounds, exportWidth, exportHeight, 0.1, 2, PADDING);
-      instance.setViewport(viewport);
+      // Use the wrapper dimensions as the export canvas size
+      const w = wrapper.clientWidth;
+      const h = wrapper.clientHeight;
 
-      // Wait for the viewport change to render
-      await new Promise((r) => setTimeout(r, 100));
-
-      const dataUrl = await toPng(el, {
+      const dataUrl = await toPng(viewportEl, {
         backgroundColor: '#ffffff',
-        width: exportWidth,
-        height: exportHeight,
+        width: w,
+        height: h,
         pixelRatio: 2,
         filter: (node) => {
           if (node instanceof HTMLElement) {
@@ -257,7 +296,6 @@ export function NetworkDiagram() {
     } catch (err) {
       console.error('PNG export failed:', err);
     } finally {
-      // Restore previous viewport
       instance.setViewport(prevViewport);
     }
   }, []);

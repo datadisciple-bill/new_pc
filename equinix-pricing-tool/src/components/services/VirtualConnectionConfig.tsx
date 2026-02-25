@@ -74,15 +74,21 @@ export function VirtualConnectionConfig() {
     }))
   );
 
+  // Colocation can only connect to Fabric Port or Internet Access
+  const COLOCATION_ALLOWED_TYPES = new Set(['FABRIC_PORT', 'INTERNET_ACCESS']);
+
   // Z-Side services: exclude A-Side service itself + enforce connection rules
   const aSideService = allServices.find((s) => s.id === form.aSideServiceId);
   const zSideServices = allServices.filter((s) => {
     if (s.id === form.aSideServiceId) return false;
-    // Colocation cannot connect directly to Network Edge (must go via Fabric Port)
-    if (aSideService?.type === 'COLOCATION' && s.type === 'NETWORK_EDGE') return false;
-    if (aSideService?.type === 'NETWORK_EDGE' && s.type === 'COLOCATION') return false;
+    // Colocation ↔ only Fabric Port and Internet Access
+    if (aSideService?.type === 'COLOCATION' && !COLOCATION_ALLOWED_TYPES.has(s.type)) return false;
+    if (s.type === 'COLOCATION' && aSideService && !COLOCATION_ALLOWED_TYPES.has(aSideService.type)) return false;
     return true;
   });
+
+  // When A-side is Colocation, disable Cloud Provider z-side option
+  const canSelectCloudProvider = aSideService?.type !== 'COLOCATION';
 
   const resetForm = () => {
     setForm({ ...EMPTY_FORM });
@@ -325,7 +331,9 @@ export function VirtualConnectionConfig() {
                   className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md bg-white"
                 >
                   <option value="SERVICE">Equinix Service</option>
-                  <option value="SERVICE_PROFILE">Cloud Provider</option>
+                  {canSelectCloudProvider && (
+                    <option value="SERVICE_PROFILE">Cloud Provider</option>
+                  )}
                 </select>
               </div>
               <div>
