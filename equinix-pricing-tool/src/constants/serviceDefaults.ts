@@ -3,7 +3,7 @@ import type { FabricPortConfig, NetworkEdgeConfig, InternetAccessConfig, CloudRo
 export const DEFAULT_FABRIC_PORT: FabricPortConfig = {
   speed: '10G',
   portProduct: 'STANDARD',
-  type: 'SINGLE',
+  type: 'PRIMARY',
   encapsulation: 'DOT1Q',
   quantity: 1,
 };

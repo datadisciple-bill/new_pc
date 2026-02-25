@@ -36,7 +36,7 @@ export interface ServiceSelection {
 export interface FabricPortConfig {
   speed: PortSpeed;
   portProduct: PortProduct;
-  type: 'SINGLE' | 'REDUNDANT';
+  type: 'PRIMARY' | 'SECONDARY' | 'REDUNDANT';
   encapsulation: 'DOT1Q' | 'QINQ';
   quantity: number;
 }

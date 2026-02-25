@@ -80,6 +80,11 @@ export function NetworkEdgeConfig({ service, metroCode, deviceTypes, onUpdate, o
       <div className="space-y-3">
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">Device Type</label>
+          {deviceTypes.length === 0 ? (
+            <p className="text-xs text-gray-400 italic py-2">
+              No Network Edge device types available in this metro.
+            </p>
+          ) : (
           <select
             value={config.deviceTypeCode}
             onChange={(e) => {
@@ -101,6 +106,7 @@ export function NetworkEdgeConfig({ service, metroCode, deviceTypes, onUpdate, o
               </option>
             ))}
           </select>
+          )}
           {selectedDevice && (
             <div className="flex items-center gap-2 mt-1.5">
               <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded ${CATEGORY_COLORS[selectedDevice.category] ?? 'bg-gray-50 text-gray-700'}`}>

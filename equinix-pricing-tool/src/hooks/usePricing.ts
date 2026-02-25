@@ -44,7 +44,8 @@ export function usePricing() {
             const mrc = charge.find((ch) => ch.type === 'MONTHLY_RECURRING')?.price ?? 0;
             const nrc = charge.find((ch) => ch.type === 'NON_RECURRING')?.price ?? 0;
             const productLabel = c.portProduct === 'UNLIMITED_PLUS' ? 'Unlimited Plus' : c.portProduct === 'UNLIMITED' ? 'Unlimited' : 'Standard';
-            const desc = `${c.speed} ${productLabel} ${c.type === 'REDUNDANT' ? 'Redundant' : 'Single'} Port`;
+            const typeLabel = c.type === 'REDUNDANT' ? 'Redundant' : c.type === 'SECONDARY' ? 'Secondary' : 'Primary';
+            const desc = `${c.speed} ${productLabel} ${typeLabel} Port`;
             pricing = { mrc, nrc, currency: 'USD', isEstimate: false, breakdown: [{ description: desc, mrc, nrc }] };
             break;
           }

@@ -34,9 +34,12 @@ export const ServiceNode = memo(function ServiceNode({ data }: NodeProps) {
   let detail = '';
   let isHaPair = false;
 
+  let portRedundancy: string | null = null;
+
   if (serviceType === 'FABRIC_PORT') {
     const c = config as { speed?: string; type?: string };
-    detail = `${c.speed ?? ''} ${c.type === 'REDUNDANT' ? 'Redundant' : 'Single'}`;
+    portRedundancy = c.type ?? 'PRIMARY';
+    detail = c.speed ?? '';
   } else if (serviceType === 'NETWORK_EDGE') {
     const c = config as { deviceTypeName?: string; redundant?: boolean };
     detail = c.deviceTypeName ?? '';
@@ -75,7 +78,22 @@ export const ServiceNode = memo(function ServiceNode({ data }: NodeProps) {
         )}
       </div>
       <div className="bg-white px-2 py-1">
-        <p className="text-[9px] text-gray-600 truncate">{detail}</p>
+        <p className="text-[9px] text-gray-600 truncate">
+          {detail}
+          {portRedundancy === 'PRIMARY' && (
+            <span className="ml-1 font-bold" style={{ color: '#0067B8' }}>Primary</span>
+          )}
+          {portRedundancy === 'SECONDARY' && (
+            <span className="ml-1 font-bold" style={{ color: '#E91C24' }}>Secondary</span>
+          )}
+          {portRedundancy === 'REDUNDANT' && (
+            <>
+              <span className="ml-1 font-bold" style={{ color: '#0067B8' }}>Primary</span>
+              <span className="mx-0.5 text-gray-400">/</span>
+              <span className="font-bold" style={{ color: '#E91C24' }}>Secondary</span>
+            </>
+          )}
+        </p>
         {isHaPair && (
           <p className="text-[9px] text-equinix-red font-medium">HA Pair (2x devices)</p>
         )}

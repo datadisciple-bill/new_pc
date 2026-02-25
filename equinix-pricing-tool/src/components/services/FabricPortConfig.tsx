@@ -12,6 +12,25 @@ interface Props {
 export function FabricPortConfig({ service, onUpdate, onRemove }: Props) {
   const config = service.config as FPConfig;
 
+  const handleTypeChange = (newType: string) => {
+    const updates: Record<string, unknown> = { type: newType };
+    // Redundant means a pair (Primary + Secondary) — enforce even quantity
+    if (newType === 'REDUNDANT') {
+      const qty = config.quantity < 2 ? 2 : config.quantity % 2 !== 0 ? config.quantity + 1 : config.quantity;
+      updates.quantity = qty;
+    }
+    onUpdate(updates);
+  };
+
+  const handleQuantityChange = (raw: string) => {
+    let qty = Math.max(1, parseInt(raw) || 1);
+    // Redundant ports come in pairs — enforce multiples of 2
+    if (config.type === 'REDUNDANT') {
+      qty = Math.max(2, qty % 2 !== 0 ? qty + 1 : qty);
+    }
+    onUpdate({ quantity: Math.min(qty, 10) });
+  };
+
   return (
     <ServiceCard title="Fabric Port" pricing={service.pricing} onRemove={onRemove}>
       <div className="grid grid-cols-2 gap-3">
@@ -45,11 +64,12 @@ export function FabricPortConfig({ service, onUpdate, onRemove }: Props) {
           <label className="block text-xs font-medium text-gray-500 mb-1">Redundancy</label>
           <select
             value={config.type}
-            onChange={(e) => onUpdate({ type: e.target.value })}
+            onChange={(e) => handleTypeChange(e.target.value)}
             className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md bg-white"
           >
-            <option value="SINGLE">Single</option>
-            <option value="REDUNDANT">Redundant (Primary/Secondary)</option>
+            <option value="PRIMARY">Primary</option>
+            <option value="SECONDARY">Secondary</option>
+            <option value="REDUNDANT">Redundant</option>
           </select>
         </div>
 
@@ -69,12 +89,16 @@ export function FabricPortConfig({ service, onUpdate, onRemove }: Props) {
           <label className="block text-xs font-medium text-gray-500 mb-1">Quantity</label>
           <input
             type="number"
-            min={1}
+            min={config.type === 'REDUNDANT' ? 2 : 1}
             max={10}
+            step={config.type === 'REDUNDANT' ? 2 : 1}
             value={config.quantity}
-            onChange={(e) => onUpdate({ quantity: Math.max(1, parseInt(e.target.value) || 1) })}
+            onChange={(e) => handleQuantityChange(e.target.value)}
             className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md"
           />
+          {config.type === 'REDUNDANT' && (
+            <p className="text-[9px] text-gray-400 mt-0.5">Pairs of 2 (Primary + Secondary)</p>
+          )}
         </div>
       </div>
     </ServiceCard>

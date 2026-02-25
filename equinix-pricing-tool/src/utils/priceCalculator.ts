@@ -7,8 +7,8 @@ function formatServiceDescription(service: ServiceSelection): string {
     case 'FABRIC_PORT': {
       const c = service.config as { speed: string; portProduct: string; type: string; encapsulation: string; quantity: number };
       const productLabel = c.portProduct === 'UNLIMITED_PLUS' ? 'Unlimited Plus' : c.portProduct === 'UNLIMITED' ? 'Unlimited' : 'Standard';
-      const redundancy = c.type === 'REDUNDANT' ? 'Redundant' : 'Single';
-      return `${c.speed} ${productLabel} ${redundancy} Port, ${c.encapsulation}`;
+      const typeLabel = c.type === 'REDUNDANT' ? 'Redundant' : c.type === 'SECONDARY' ? 'Secondary' : 'Primary';
+      return `${c.speed} ${productLabel} ${typeLabel} Port, ${c.encapsulation}`;
     }
     case 'NETWORK_EDGE': {
       const c = service.config as { deviceTypeName: string; packageCode: string; licenseType: string; redundant: boolean };

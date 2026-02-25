@@ -49,9 +49,18 @@ export function lookupIbxForMetro(metroCode: string): string {
 
 /** Lookup Fabric Port price by bandwidth (Mbps or "10G" label) and package code */
 export function lookupPortPrice(bandwidth: string, portProduct: string): PriceEntry | null {
-  // Key format from fetch script: "{speedLabel}_{product}" e.g. "10G_STANDARD"
-  // Also try raw bandwidth in Mbps: "{mbps}_{product}" e.g. "10000_STANDARD"
-  return pricing?.fabricPorts[`${bandwidth}_${portProduct}`] ?? null;
+  if (!pricing) return null;
+  // Try the raw value first (might already be "10G" label or "10000" Mbps)
+  const direct = pricing.fabricPorts[`${bandwidth}_${portProduct}`];
+  if (direct) return direct;
+  // Fetch script stores keys as "10G_STANDARD"; mock layer passes "10000" (Mbps).
+  // Convert Mbps → label and retry.
+  const bwNum = Number(bandwidth);
+  if (!isNaN(bwNum) && bwNum >= 1000) {
+    const label = `${bwNum / 1000}G`;
+    return pricing.fabricPorts[`${label}_${portProduct}`] ?? null;
+  }
+  return null;
 }
 
 /** Lookup Virtual Connection price by bandwidth in Mbps */
