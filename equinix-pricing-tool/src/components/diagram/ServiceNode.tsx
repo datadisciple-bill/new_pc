@@ -3,6 +3,10 @@ import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { SERVICE_TYPE_LABELS } from '@/constants/brandColors';
 import type { PricingResult } from '@/types/config';
 import { formatCurrency } from '@/utils/priceCalculator';
+import fabricPortIcon from '@/assets/icons/fabric-port.svg';
+import networkEdgeIcon from '@/assets/icons/network-edge.svg';
+import internetAccessIcon from '@/assets/icons/internet-access.svg';
+import cloudRouterIcon from '@/assets/icons/cloud-router.svg';
 
 interface ServiceNodeData {
   serviceId: string;
@@ -13,17 +17,17 @@ interface ServiceNodeData {
   [key: string]: unknown;
 }
 
-const SERVICE_ICONS: Record<string, string> = {
-  FABRIC_PORT: 'FP',
-  NETWORK_EDGE: 'NE',
-  INTERNET_ACCESS: 'IA',
-  CLOUD_ROUTER: 'FCR',
+const SERVICE_ICON_URLS: Record<string, string> = {
+  FABRIC_PORT: fabricPortIcon,
+  NETWORK_EDGE: networkEdgeIcon,
+  INTERNET_ACCESS: internetAccessIcon,
+  CLOUD_ROUTER: cloudRouterIcon,
 };
 
 export const ServiceNode = memo(function ServiceNode({ data }: NodeProps) {
   const { serviceType, config, pricing, showPricing } = data as ServiceNodeData;
   const label = SERVICE_TYPE_LABELS[serviceType as string] ?? serviceType;
-  const icon = SERVICE_ICONS[serviceType as string] ?? '?';
+  const iconUrl = SERVICE_ICON_URLS[serviceType as string];
 
   let detail = '';
   let isHaPair = false;
@@ -48,7 +52,16 @@ export const ServiceNode = memo(function ServiceNode({ data }: NodeProps) {
     <div className="rounded-md overflow-hidden shadow-sm border border-gray-200" style={{ width: '100%', height: '100%' }}>
       {/* Black Equinix product bar */}
       <div className="bg-equinix-black text-white px-2 py-1 flex items-center gap-1.5">
-        <span className="text-[10px] font-bold bg-white text-black rounded px-1">{icon}</span>
+        {iconUrl ? (
+          <img
+            src={iconUrl}
+            alt={label}
+            className="w-4 h-4 flex-shrink-0"
+            style={{ filter: 'brightness(0) invert(1)' }}
+          />
+        ) : (
+          <span className="text-[10px] font-bold bg-white text-black rounded px-1">?</span>
+        )}
         <span className="text-[10px] font-bold truncate">{label}</span>
         {isHaPair && (
           <span className="ml-auto text-[8px] font-bold bg-equinix-red text-white rounded px-1 py-px flex-shrink-0">

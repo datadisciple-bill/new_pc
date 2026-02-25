@@ -9,7 +9,11 @@ const REGION_LABELS: Record<string, string> = {
   APAC: 'Asia Pacific',
 };
 
-export function MetroSelector() {
+interface MetroSelectorProps {
+  compact?: boolean;
+}
+
+export function MetroSelector({ compact = false }: MetroSelectorProps) {
   const { allMetros, isLoading, error, toggleMetro, isSelected } = useMetros();
   const [search, setSearch] = useState('');
   const [activeRegion, setActiveRegion] = useState<string>('ALL');
@@ -43,43 +47,46 @@ export function MetroSelector() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className={compact ? 'space-y-2' : 'space-y-4'}>
       {/* Search */}
-      <div className="px-4 pt-4">
+      <div className={compact ? 'px-3 pt-3' : 'px-4 pt-4'}>
         <input
           type="text"
           placeholder="Search metros..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-equinix-green focus:border-transparent"
+          className={`w-full border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-equinix-green focus:border-transparent ${compact ? 'px-2 py-1.5 text-xs' : 'px-3 py-2 text-sm'}`}
         />
       </div>
 
       {/* Region tabs */}
-      <div className="flex gap-1 px-4 overflow-x-auto">
+      <div className={`flex gap-1 overflow-x-auto ${compact ? 'px-3 flex-wrap' : 'px-4'}`}>
         {['ALL', ...REGIONS].map((region) => (
           <button
             key={region}
             onClick={() => setActiveRegion(region)}
-            className={`px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap transition-colors ${
+            className={`font-medium rounded-full whitespace-nowrap transition-colors ${
+              compact ? 'px-2 py-1 text-[10px]' : 'px-3 py-1.5 text-xs'
+            } ${
               activeRegion === region
                 ? 'bg-equinix-black text-white'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
-            {region === 'ALL' ? 'All' : REGION_LABELS[region]}
+            {region === 'ALL' ? 'All' : compact ? region : REGION_LABELS[region]}
           </button>
         ))}
       </div>
 
       {/* Metro grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 px-4 pb-4">
+      <div className={`grid gap-2 pb-3 ${compact ? 'grid-cols-1 px-3' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 px-4'}`}>
         {filteredMetros.map((metro) => (
           <MetroCard
             key={metro.code}
             metro={metro}
             selected={isSelected(metro.code)}
             onToggle={() => toggleMetro(metro)}
+            compact={compact}
           />
         ))}
       </div>

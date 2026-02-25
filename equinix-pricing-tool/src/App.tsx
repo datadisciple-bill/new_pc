@@ -37,7 +37,7 @@ function App() {
       <header className="bg-equinix-black text-white flex items-center justify-between px-4 py-2 flex-shrink-0">
         <div className="flex items-center gap-3">
           <h1 className="text-sm font-bold">Equinix</h1>
-          <span className="text-[10px] text-gray-500">v2</span>
+          <span className="text-[10px] text-gray-500">v3</span>
           <input
             type="text"
             value={projectName}
@@ -59,15 +59,23 @@ function App() {
         </div>
       </header>
 
-      {/* Desktop layout: 3-panel */}
+      {/* Desktop layout: 4-panel */}
       <div className="hidden lg:flex flex-1 overflow-hidden">
-        {/* Left: config */}
-        <div className="w-[380px] border-r border-gray-200 overflow-y-auto flex-shrink-0">
-          <MetroSelector />
-          {selectedMetros.length > 0 && (
-            <div className="border-t border-gray-200">
-              {/* Metro tabs for services */}
-              <div className="flex gap-1 px-4 pt-3 overflow-x-auto">
+        {/* Panel 1: Metro list (narrow) */}
+        <div className="w-[240px] border-r border-gray-200 overflow-y-auto flex-shrink-0">
+          <MetroSelector compact />
+        </div>
+
+        {/* Panel 2: Service config for selected metro */}
+        <div className="w-[360px] border-r border-gray-200 overflow-y-auto flex-shrink-0">
+          {selectedMetros.length === 0 ? (
+            <div className="flex items-center justify-center h-full">
+              <p className="text-gray-400 text-sm">Select a metro to configure services</p>
+            </div>
+          ) : (
+            <>
+              {/* Metro tabs */}
+              <div className="flex gap-1 px-3 py-3 overflow-x-auto border-b border-gray-200 bg-gray-50">
                 {selectedMetros.map((m) => (
                   <button
                     key={m.metroCode}
@@ -75,7 +83,7 @@ function App() {
                     className={`px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap transition-colors ${
                       selectedMetroCode === m.metroCode
                         ? 'bg-equinix-black text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        : 'bg-white text-gray-600 hover:bg-gray-200 border border-gray-200'
                     }`}
                   >
                     {m.metroCode}
@@ -88,17 +96,17 @@ function App() {
               <div className="border-t border-gray-200 pt-3">
                 <VirtualConnectionConfig />
               </div>
-            </div>
+            </>
           )}
         </div>
 
-        {/* Center: diagram */}
+        {/* Panel 3: Diagram */}
         <div className="flex-1 overflow-hidden">
           <NetworkDiagram />
         </div>
 
-        {/* Right: pricing */}
-        <div className="w-[400px] border-l border-gray-200 overflow-y-auto flex-shrink-0">
+        {/* Panel 4: Pricing */}
+        <div className="w-[380px] border-l border-gray-200 overflow-y-auto flex-shrink-0">
           <PriceSheet />
         </div>
       </div>

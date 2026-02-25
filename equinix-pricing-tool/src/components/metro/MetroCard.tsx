@@ -4,6 +4,7 @@ interface MetroCardProps {
   metro: Metro;
   selected: boolean;
   onToggle: () => void;
+  compact?: boolean;
 }
 
 const REGION_BADGE: Record<string, string> = {
@@ -12,7 +13,36 @@ const REGION_BADGE: Record<string, string> = {
   APAC: 'bg-purple-100 text-purple-700',
 };
 
-export function MetroCard({ metro, selected, onToggle }: MetroCardProps) {
+export function MetroCard({ metro, selected, onToggle, compact }: MetroCardProps) {
+  if (compact) {
+    return (
+      <button
+        onClick={onToggle}
+        className={`w-full text-left px-3 py-2 rounded-md border transition-all flex items-center justify-between gap-2 ${
+          selected
+            ? 'border-equinix-green bg-green-50'
+            : 'border-gray-200 bg-white hover:border-gray-300'
+        }`}
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="font-bold text-xs text-equinix-navy flex-shrink-0">{metro.code}</span>
+          <span className="text-xs text-gray-600 truncate">{metro.name}</span>
+        </div>
+        <div
+          className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+            selected ? 'border-equinix-green bg-equinix-green' : 'border-gray-300'
+          }`}
+        >
+          {selected && (
+            <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          )}
+        </div>
+      </button>
+    );
+  }
+
   return (
     <button
       onClick={onToggle}

@@ -218,11 +218,11 @@ export function VirtualConnectionConfig() {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between px-4">
+      <div className="flex items-center justify-between px-4 py-3">
         <h3 className="font-bold text-sm text-equinix-navy">Virtual Connections</h3>
         <button
           onClick={() => { resetForm(); setShowForm(!showForm); }}
-          className="px-3 py-1.5 text-xs font-medium bg-equinix-black text-white rounded-md hover:bg-gray-800"
+          className="px-2.5 py-1 text-xs font-medium bg-equinix-black text-white rounded-md hover:bg-gray-800"
         >
           + Add Connection
         </button>
