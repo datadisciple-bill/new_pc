@@ -34,6 +34,40 @@ const API_BASE = 'https://api.equinix.com';
 const MAX_RETRIES = 3;
 const RATE_LIMIT_MS = 200; // 5 requests/sec
 
+// ── ANSI helpers ─────────────────────────────────────────────────────────────
+
+const c = {
+  reset: '\x1b[0m',
+  bold: '\x1b[1m',
+  dim: '\x1b[2m',
+  green: '\x1b[32m',
+  yellow: '\x1b[33m',
+  red: '\x1b[31m',
+  cyan: '\x1b[36m',
+  white: '\x1b[37m',
+  bgGreen: '\x1b[42m',
+  bgRed: '\x1b[41m',
+};
+
+const CHECK = `${c.green}\u2714${c.reset}`;
+const CROSS = `${c.red}\u2718${c.reset}`;
+const ARROW = `${c.cyan}\u25B6${c.reset}`;
+const WARN  = `${c.yellow}\u26A0${c.reset}`;
+
+function elapsed(startMs) {
+  const s = ((Date.now() - startMs) / 1000).toFixed(1);
+  return `${c.dim}(${s}s)${c.reset}`;
+}
+
+function progressBar(current, total, width = 30) {
+  const pct = Math.min(current / total, 1);
+  const filled = Math.round(width * pct);
+  const empty = width - filled;
+  const bar = `${c.green}${'█'.repeat(filled)}${c.dim}${'░'.repeat(empty)}${c.reset}`;
+  const label = `${String(current).padStart(String(total).length)}/${total}`;
+  return `  ${bar} ${label}`;
+}
+
 // ── Load .env ────────────────────────────────────────────────────────────────
 
 function loadEnvFile() {
@@ -65,6 +99,7 @@ loadEnvFile();
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 let token = '';
+let apiCalls = 0;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -74,6 +109,7 @@ async function apiGet(path) {
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
       await sleep(RATE_LIMIT_MS);
+      apiCalls++;
       const res = await fetch(`${API_BASE}${path}`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -82,18 +118,17 @@ async function apiGet(path) {
       });
       if (res.status === 429) {
         const wait = 2000 * Math.pow(2, attempt);
-        console.warn(`  Rate limited on GET ${path}, waiting ${wait}ms...`);
+        process.stdout.write(`\r  ${WARN} Rate limited, retrying in ${wait / 1000}s...`);
         await sleep(wait);
         continue;
       }
       if (!res.ok) {
         const body = await res.text().catch(() => '');
-        throw new Error(`GET ${path} -> ${res.status} ${res.statusText}: ${body.slice(0, 200)}`);
+        throw new Error(`${res.status} ${res.statusText}: ${body.slice(0, 120)}`);
       }
       return await res.json();
     } catch (err) {
       if (attempt === MAX_RETRIES) throw err;
-      console.warn(`  Retry ${attempt + 1}/${MAX_RETRIES} for GET ${path}: ${err.message}`);
       await sleep(2000 * Math.pow(2, attempt));
     }
   }
@@ -103,6 +138,7 @@ async function apiPost(path, body) {
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
       await sleep(RATE_LIMIT_MS);
+      apiCalls++;
       const res = await fetch(`${API_BASE}${path}`, {
         method: 'POST',
         headers: {
@@ -113,18 +149,17 @@ async function apiPost(path, body) {
       });
       if (res.status === 429) {
         const wait = 2000 * Math.pow(2, attempt);
-        console.warn(`  Rate limited on POST ${path}, waiting ${wait}ms...`);
+        process.stdout.write(`\r  ${WARN} Rate limited, retrying in ${wait / 1000}s...`);
         await sleep(wait);
         continue;
       }
       if (!res.ok) {
         const text = await res.text().catch(() => '');
-        throw new Error(`POST ${path} -> ${res.status} ${res.statusText}: ${text.slice(0, 200)}`);
+        throw new Error(`${res.status} ${res.statusText}: ${text.slice(0, 120)}`);
       }
       return await res.json();
     } catch (err) {
       if (attempt === MAX_RETRIES) throw err;
-      console.warn(`  Retry ${attempt + 1}/${MAX_RETRIES} for POST ${path}: ${err.message}`);
       await sleep(2000 * Math.pow(2, attempt));
     }
   }
@@ -138,16 +173,17 @@ async function authenticate() {
 
   if (!clientId || !clientSecret) {
     console.error(
-      'Error: EQUINIX_CLIENT_ID and EQUINIX_CLIENT_SECRET are required.\n\n' +
-        '  Add them to .env in the project root:\n' +
-        '    EQUINIX_CLIENT_ID=your_client_id\n' +
-        '    EQUINIX_CLIENT_SECRET=your_client_secret\n\n' +
-        '  Then run:  npm run fetch-data\n'
+      `\n${c.red}${c.bold}Error: EQUINIX_CLIENT_ID and EQUINIX_CLIENT_SECRET are required.${c.reset}\n\n` +
+        `  Add them to ${c.bold}.env${c.reset} in the project root:\n\n` +
+        `    ${c.dim}EQUINIX_CLIENT_ID=your_client_id${c.reset}\n` +
+        `    ${c.dim}EQUINIX_CLIENT_SECRET=your_client_secret${c.reset}\n\n` +
+        `  Then run:  ${c.bold}npm run fetch-data${c.reset}\n`
     );
     process.exit(1);
   }
 
-  console.log('Authenticating with Equinix API...');
+  const t = Date.now();
+  process.stdout.write(`  ${ARROW} Authenticating...`);
   const res = await fetch(`${API_BASE}/oauth2/v1/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -160,58 +196,57 @@ async function authenticate() {
 
   if (!res.ok) {
     const body = await res.text().catch(() => '');
-    console.error(`Authentication failed: ${res.status} ${res.statusText}\n${body}`);
+    console.log(` ${CROSS}`);
+    console.error(`\n${c.red}Authentication failed: ${res.status} ${res.statusText}${c.reset}\n${body}`);
     process.exit(1);
   }
 
   const data = await res.json();
   token = data.access_token;
-  console.log(`  Authenticated as ${data.user_name}\n`);
+  console.log(`\r  ${CHECK} Authenticated as ${c.bold}${data.user_name}${c.reset} ${elapsed(t)}`);
 }
 
 // ── Fetch Options ────────────────────────────────────────────────────────────
 
+async function fetchWithStatus(label, fn) {
+  const t = Date.now();
+  process.stdout.write(`  ${ARROW} ${label}...`);
+  try {
+    const result = await fn();
+    const count = Array.isArray(result) ? result.length : '?';
+    console.log(`\r  ${CHECK} ${label} ${c.dim}\u2014${c.reset} ${c.bold}${count}${c.reset} items ${elapsed(t)}`);
+    return result;
+  } catch (err) {
+    console.log(`\r  ${CROSS} ${label} ${c.red}FAILED${c.reset} ${elapsed(t)}`);
+    throw err;
+  }
+}
+
 async function fetchMetros() {
-  console.log('Fetching metros...');
   const res = await apiGet('/fabric/v4/metros?limit=200');
-  const metros = res.data ?? res;
-  console.log(`  ${metros.length} metros found`);
-  return metros;
+  return res.data ?? res;
 }
 
 async function fetchDeviceTypes() {
-  console.log('Fetching Network Edge device types...');
   const res = await apiGet('/ne/v1/devices/types');
-  const types = Array.isArray(res) ? res : res.data ?? [];
-  console.log(`  ${types.length} device types found`);
-  return types;
+  return Array.isArray(res) ? res : res.data ?? [];
 }
 
 async function fetchServiceProfiles() {
-  console.log('Fetching Fabric service profiles...');
   const res = await apiGet('/fabric/v4/serviceProfiles?limit=200&viewPoint=zSide');
-  const profiles = res.data ?? res;
-  console.log(`  ${profiles.length} service profiles found`);
-  return profiles;
+  return res.data ?? res;
 }
 
 async function fetchRouterPackages() {
-  console.log('Fetching Cloud Router packages...');
   const res = await apiGet('/fabric/v4/routerPackages');
-  const packages = res.data ?? res;
-  console.log(`  ${packages.length} router packages found`);
-  return packages;
+  return res.data ?? res;
 }
 
 async function fetchEIALocations() {
-  console.log('Fetching Internet Access locations...');
   try {
     const res = await apiGet('/internetAccess/v2/ibxs');
-    const locations = res.data ?? res;
-    console.log(`  ${locations.length} EIA locations found`);
-    return locations;
-  } catch (err) {
-    console.warn(`  EIA fetch failed (${err.message}), using empty list`);
+    return res.data ?? res;
+  } catch {
     return [];
   }
 }
@@ -219,42 +254,53 @@ async function fetchEIALocations() {
 // ── Fetch Pricing ────────────────────────────────────────────────────────────
 
 async function fetchFabricPortPricing() {
-  console.log('\nFetching Fabric Port pricing...');
   const speeds = ['1G', '10G', '25G', '50G', '100G'];
   const types = ['SINGLE', 'REDUNDANT'];
+  const combos = speeds.flatMap((s) => types.map((t) => ({ speed: s, portType: t })));
+  const total = combos.length;
   const pricing = {};
+  let ok = 0;
+  let fail = 0;
 
-  for (const speed of speeds) {
-    for (const portType of types) {
-      const key = `${speed}_${portType}`;
-      try {
-        const res = await apiPost('/fabric/v4/prices/search', {
-          filter: {
-            '/type': 'VIRTUAL_PORT_PRODUCT',
-            '/port/bandwidth': speed,
-            '/port/type': portType,
-            '/port/settings/buyout': false,
-          },
-        });
-        const charges = res.data?.[0]?.charges ?? [];
-        const mrc = charges.find((c) => c.type === 'MONTHLY_RECURRING')?.price ?? 0;
-        const nrc = charges.find((c) => c.type === 'NON_RECURRING')?.price ?? 0;
-        pricing[key] = { mrc, nrc };
-        console.log(`  ${key}: $${mrc}/mo`);
-      } catch (err) {
-        console.warn(`  ${key}: FAILED (${err.message})`);
-      }
+  for (let i = 0; i < combos.length; i++) {
+    const { speed, portType } = combos[i];
+    const key = `${speed}_${portType}`;
+    process.stdout.write(`\r${progressBar(i + 1, total)} ${c.dim}${key}${c.reset}       `);
+    try {
+      const res = await apiPost('/fabric/v4/prices/search', {
+        filter: {
+          '/type': 'VIRTUAL_PORT_PRODUCT',
+          '/port/bandwidth': speed,
+          '/port/type': portType,
+          '/port/settings/buyout': false,
+        },
+      });
+      const charges = res.data?.[0]?.charges ?? [];
+      const mrc = charges.find((ch) => ch.type === 'MONTHLY_RECURRING')?.price ?? 0;
+      const nrc = charges.find((ch) => ch.type === 'NON_RECURRING')?.price ?? 0;
+      pricing[key] = { mrc, nrc };
+      ok++;
+    } catch {
+      fail++;
     }
   }
+  process.stdout.write('\r' + ' '.repeat(70) + '\r');
+  const status = fail ? `${c.green}${ok} ok${c.reset}, ${c.red}${fail} failed${c.reset}` : `${c.green}${ok} prices${c.reset}`;
+  console.log(`  ${CHECK} Fabric Ports \u2014 ${status}`);
   return pricing;
 }
 
 async function fetchVCPricing() {
-  console.log('\nFetching Virtual Connection pricing...');
   const bandwidths = [50, 100, 200, 500, 1000, 2000, 5000, 10000, 50000];
+  const total = bandwidths.length;
   const pricing = {};
+  let ok = 0;
+  let fail = 0;
 
-  for (const bw of bandwidths) {
+  for (let i = 0; i < bandwidths.length; i++) {
+    const bw = bandwidths[i];
+    const label = bw >= 1000 ? `${bw / 1000}G` : `${bw}M`;
+    process.stdout.write(`\r${progressBar(i + 1, total)} ${c.dim}${label}${c.reset}       `);
     try {
       const res = await apiPost('/fabric/v4/prices/search', {
         filter: {
@@ -263,23 +309,29 @@ async function fetchVCPricing() {
         },
       });
       const charges = res.data?.[0]?.charges ?? [];
-      const mrc = charges.find((c) => c.type === 'MONTHLY_RECURRING')?.price ?? 0;
-      const nrc = charges.find((c) => c.type === 'NON_RECURRING')?.price ?? 0;
+      const mrc = charges.find((ch) => ch.type === 'MONTHLY_RECURRING')?.price ?? 0;
+      const nrc = charges.find((ch) => ch.type === 'NON_RECURRING')?.price ?? 0;
       pricing[String(bw)] = { mrc, nrc };
-      const label = bw >= 1000 ? `${bw / 1000} Gbps` : `${bw} Mbps`;
-      console.log(`  ${label}: $${mrc}/mo`);
-    } catch (err) {
-      console.warn(`  ${bw}Mbps: FAILED (${err.message})`);
+      ok++;
+    } catch {
+      fail++;
     }
   }
+  process.stdout.write('\r' + ' '.repeat(70) + '\r');
+  const status = fail ? `${c.green}${ok} ok${c.reset}, ${c.red}${fail} failed${c.reset}` : `${c.green}${ok} prices${c.reset}`;
+  console.log(`  ${CHECK} Virtual Connections \u2014 ${status}`);
   return pricing;
 }
 
 async function fetchCloudRouterPricing(routerPackages, referenceMetro) {
-  console.log('\nFetching Cloud Router pricing...');
+  const total = routerPackages.length;
   const pricing = {};
+  let ok = 0;
+  let fail = 0;
 
-  for (const pkg of routerPackages) {
+  for (let i = 0; i < routerPackages.length; i++) {
+    const pkg = routerPackages[i];
+    process.stdout.write(`\r${progressBar(i + 1, total)} ${c.dim}${pkg.code}${c.reset}       `);
     try {
       const res = await apiPost('/fabric/v4/prices/search', {
         filter: {
@@ -289,54 +341,61 @@ async function fetchCloudRouterPricing(routerPackages, referenceMetro) {
         },
       });
       const charges = res.data?.[0]?.charges ?? [];
-      const mrc = charges.find((c) => c.type === 'MONTHLY_RECURRING')?.price ?? 0;
-      const nrc = charges.find((c) => c.type === 'NON_RECURRING')?.price ?? 0;
+      const mrc = charges.find((ch) => ch.type === 'MONTHLY_RECURRING')?.price ?? 0;
+      const nrc = charges.find((ch) => ch.type === 'NON_RECURRING')?.price ?? 0;
       pricing[pkg.code] = { mrc, nrc };
-      console.log(`  ${pkg.code}: $${mrc}/mo`);
-    } catch (err) {
-      console.warn(`  ${pkg.code}: FAILED (${err.message})`);
+      ok++;
+    } catch {
+      fail++;
     }
   }
+  process.stdout.write('\r' + ' '.repeat(70) + '\r');
+  const status = fail ? `${c.green}${ok} ok${c.reset}, ${c.red}${fail} failed${c.reset}` : `${c.green}${ok} prices${c.reset}`;
+  console.log(`  ${CHECK} Cloud Router \u2014 ${status}`);
   return pricing;
 }
 
 async function fetchNetworkEdgePricing(deviceTypes, referenceMetro) {
-  console.log('\nFetching Network Edge pricing...');
   const termLengths = [1, 12, 24, 36];
   const pricing = {};
-  let count = 0;
-  const total = deviceTypes.reduce(
-    (sum, dt) => sum + dt.softwarePackages.length * termLengths.length,
-    0
-  );
+  let ok = 0;
+  let fail = 0;
 
+  // Build flat list of all combinations
+  const combos = [];
   for (const dt of deviceTypes) {
     for (const pkg of dt.softwarePackages) {
       for (const term of termLengths) {
-        count++;
-        const key = `${dt.deviceTypeCode}_${pkg.code}_${term}`;
-        try {
-          const qs = new URLSearchParams({
-            deviceTypeCode: dt.deviceTypeCode,
-            packageCode: pkg.code,
-            termLength: String(term),
-            metroCode: referenceMetro,
-          });
-          const res = await apiGet(`/ne/v1/prices?${qs}`);
-          pricing[key] = {
-            mrc: res.monthlyRecurring ?? 0,
-            nrc: res.nonRecurring ?? 0,
-          };
-        } catch (err) {
-          console.warn(`  ${key}: FAILED (${err.message})`);
-        }
-        if (count % 10 === 0 || count === total) {
-          process.stdout.write(`  ${count}/${total} NE prices fetched\r`);
-        }
+        combos.push({ dt, pkg, term });
       }
     }
   }
-  console.log(`  ${Object.keys(pricing).length}/${total} NE prices fetched successfully`);
+  const total = combos.length;
+
+  for (let i = 0; i < combos.length; i++) {
+    const { dt, pkg, term } = combos[i];
+    const key = `${dt.deviceTypeCode}_${pkg.code}_${term}`;
+    process.stdout.write(`\r${progressBar(i + 1, total)} ${c.dim}${dt.deviceTypeCode} ${pkg.code} ${term}mo${c.reset}       `);
+    try {
+      const qs = new URLSearchParams({
+        deviceTypeCode: dt.deviceTypeCode,
+        packageCode: pkg.code,
+        termLength: String(term),
+        metroCode: referenceMetro,
+      });
+      const res = await apiGet(`/ne/v1/prices?${qs}`);
+      pricing[key] = {
+        mrc: res.monthlyRecurring ?? 0,
+        nrc: res.nonRecurring ?? 0,
+      };
+      ok++;
+    } catch {
+      fail++;
+    }
+  }
+  process.stdout.write('\r' + ' '.repeat(80) + '\r');
+  const status = fail ? `${c.green}${ok} ok${c.reset}, ${c.red}${fail} failed${c.reset}` : `${c.green}${ok} prices${c.reset}`;
+  console.log(`  ${CHECK} Network Edge \u2014 ${status}`);
   return pricing;
 }
 
@@ -345,26 +404,38 @@ async function fetchNetworkEdgePricing(deviceTypes, referenceMetro) {
 async function main() {
   const startTime = Date.now();
 
+  console.log('');
+  console.log(`${c.bold}  Equinix API Data Fetcher${c.reset}`);
+  console.log(`${c.dim}  Builds public/data/defaults.json from live API data${c.reset}`);
+  console.log('');
+
+  // ── Phase 1: Auth ──────────────────────────────────────────────────────────
+  console.log(`${c.bold}${c.cyan}[1/4]${c.reset}${c.bold} Authenticating${c.reset}`);
   await authenticate();
+  console.log('');
 
-  // Fetch all options (sequential to respect rate limits)
-  const metros = await fetchMetros();
-  const deviceTypes = await fetchDeviceTypes();
-  const serviceProfiles = await fetchServiceProfiles();
-  const routerPackages = await fetchRouterPackages();
-  const eiaLocations = await fetchEIALocations();
+  // ── Phase 2: Options ───────────────────────────────────────────────────────
+  console.log(`${c.bold}${c.cyan}[2/4]${c.reset}${c.bold} Fetching catalog data${c.reset}`);
+  const metros = await fetchWithStatus('Metros', fetchMetros);
+  const deviceTypes = await fetchWithStatus('Network Edge device types', fetchDeviceTypes);
+  const serviceProfiles = await fetchWithStatus('Fabric service profiles', fetchServiceProfiles);
+  const routerPackages = await fetchWithStatus('Cloud Router packages', fetchRouterPackages);
+  const eiaLocations = await fetchWithStatus('Internet Access locations', fetchEIALocations);
+  console.log('');
 
-  // Use first AMER metro as reference for pricing
+  // ── Phase 3: Pricing ───────────────────────────────────────────────────────
   const referenceMetro = metros.find((m) => m.region === 'AMER')?.code ?? 'DC';
-  console.log(`\nUsing ${referenceMetro} as reference metro for pricing`);
+  console.log(`${c.bold}${c.cyan}[3/4]${c.reset}${c.bold} Fetching pricing${c.reset} ${c.dim}(reference metro: ${referenceMetro})${c.reset}`);
 
-  // Fetch all pricing
   const fabricPortPricing = await fetchFabricPortPricing();
   const vcPricing = await fetchVCPricing();
   const cloudRouterPricing = await fetchCloudRouterPricing(routerPackages, referenceMetro);
   const nePricing = await fetchNetworkEdgePricing(deviceTypes, referenceMetro);
+  console.log('');
 
-  // Build output
+  // ── Phase 4: Write ─────────────────────────────────────────────────────────
+  console.log(`${c.bold}${c.cyan}[4/4]${c.reset}${c.bold} Writing output${c.reset}`);
+
   const defaults = {
     fetchedAt: new Date().toISOString(),
     referenceMetro,
@@ -381,28 +452,34 @@ async function main() {
     },
   };
 
-  // Write to file
   mkdirSync(OUTPUT_DIR, { recursive: true });
-  writeFileSync(OUTPUT_FILE, JSON.stringify(defaults, null, 2));
+  const json = JSON.stringify(defaults, null, 2);
+  writeFileSync(OUTPUT_FILE, json);
+  const sizeKb = (Buffer.byteLength(json) / 1024).toFixed(0);
+  console.log(`  ${CHECK} Wrote ${c.bold}public/data/defaults.json${c.reset} ${c.dim}(${sizeKb} KB)${c.reset}`);
+  console.log('');
 
-  const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-  console.log(`\n${'─'.repeat(50)}`);
-  console.log(`Done in ${elapsed}s. Wrote ${OUTPUT_FILE}\n`);
-  console.log(`  Metros:           ${metros.length}`);
-  console.log(`  Device types:     ${deviceTypes.length}`);
-  console.log(`  Service profiles: ${serviceProfiles.length}`);
-  console.log(`  Router packages:  ${routerPackages.length}`);
-  console.log(`  EIA locations:    ${eiaLocations.length}`);
-  console.log(`  Port prices:      ${Object.keys(fabricPortPricing).length}`);
-  console.log(`  VC prices:        ${Object.keys(vcPricing).length}`);
-  console.log(`  FCR prices:       ${Object.keys(cloudRouterPricing).length}`);
-  console.log(`  NE prices:        ${Object.keys(nePricing).length}`);
-  console.log(
-    `\nCommit public/data/defaults.json and rebuild to deploy updated data.`
-  );
+  // ── Summary ────────────────────────────────────────────────────────────────
+  const totalElapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+  const totalPrices = Object.keys(fabricPortPricing).length +
+    Object.keys(vcPricing).length +
+    Object.keys(cloudRouterPricing).length +
+    Object.keys(nePricing).length;
+
+  console.log(`${c.bold}  \u2500\u2500\u2500 Summary \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500${c.reset}`);
+  console.log('');
+  console.log(`  ${c.dim}Catalog${c.reset}    Metros ${c.bold}${metros.length}${c.reset}  \u2502  Devices ${c.bold}${deviceTypes.length}${c.reset}  \u2502  Profiles ${c.bold}${serviceProfiles.length}${c.reset}`);
+  console.log(`             Packages ${c.bold}${routerPackages.length}${c.reset}  \u2502  EIA Locations ${c.bold}${eiaLocations.length}${c.reset}`);
+  console.log('');
+  console.log(`  ${c.dim}Pricing${c.reset}    Ports ${c.bold}${Object.keys(fabricPortPricing).length}${c.reset}  \u2502  VCs ${c.bold}${Object.keys(vcPricing).length}${c.reset}  \u2502  FCR ${c.bold}${Object.keys(cloudRouterPricing).length}${c.reset}  \u2502  NE ${c.bold}${Object.keys(nePricing).length}${c.reset}`);
+  console.log('');
+  console.log(`  ${c.dim}Total${c.reset}      ${c.bold}${totalPrices}${c.reset} prices  \u2502  ${c.bold}${apiCalls}${c.reset} API calls  \u2502  ${c.bold}${totalElapsed}s${c.reset}`);
+  console.log('');
+  console.log(`  ${c.green}${c.bold}\u2714 Done!${c.reset} Commit ${c.bold}public/data/defaults.json${c.reset} and rebuild to deploy.`);
+  console.log('');
 }
 
 main().catch((err) => {
-  console.error('\nFatal error:', err.message);
+  console.error(`\n  ${CROSS} ${c.red}${c.bold}Fatal error:${c.reset} ${err.message}\n`);
   process.exit(1);
 });
