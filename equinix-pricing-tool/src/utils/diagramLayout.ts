@@ -182,9 +182,12 @@ export function buildDiagramLayout(
     });
   });
 
-  // Price table column X: right of all metro columns
-  const priceTableX = cumX + 40;
-  let priceTableY = 0;
+  // Price tables: positioned below the metro grid so they don't overlap metro containers
+  const PT_GAP = 16;
+  let ptX = 0;
+  let ptY = cumulativeY + 20; // below all metro rows
+  let ptRowMaxH = 0;
+  const ptRowMaxWidth = Math.max(cumX, 600); // wrap within metro grid width
 
   // VC price table nodes
   if (showPricing) {
@@ -193,10 +196,15 @@ export function buildDiagramLayout(
         const rowHeight = 14;
         const tableHeight = 28 + conn.priceTable.length * rowHeight;
         const tableWidth = 200;
+        if (ptX > 0 && ptX + tableWidth > ptRowMaxWidth) {
+          ptX = 0;
+          ptY += ptRowMaxH + PT_GAP;
+          ptRowMaxH = 0;
+        }
         nodes.push({
           id: `pricetable-${conn.id}`,
           type: 'priceTableNode',
-          position: { x: priceTableX, y: priceTableY },
+          position: { x: ptX, y: ptY },
           data: {
             connectionName: conn.name || conn.type,
             selectedBandwidthMbps: conn.bandwidthMbps,
@@ -206,9 +214,10 @@ export function buildDiagramLayout(
           width: tableWidth,
           height: tableHeight,
           draggable: true,
-          zIndex: 3,
+          zIndex: 10,
         });
-        priceTableY += tableHeight + 16;
+        ptX += tableWidth + PT_GAP;
+        ptRowMaxH = Math.max(ptRowMaxH, tableHeight);
       }
     });
 
@@ -222,10 +231,15 @@ export function buildDiagramLayout(
             const discountBanner = (neConfig.termLength ?? 1) > 1 ? 16 : 0;
             const tableHeight = 28 + discountBanner + neConfig.priceTable.length * rowHeight;
             const tableWidth = 220;
+            if (ptX > 0 && ptX + tableWidth > ptRowMaxWidth) {
+              ptX = 0;
+              ptY += ptRowMaxH + PT_GAP;
+              ptRowMaxH = 0;
+            }
             nodes.push({
               id: `nepricetable-${service.id}`,
               type: 'nePriceTableNode',
-              position: { x: priceTableX, y: priceTableY },
+              position: { x: ptX, y: ptY },
               data: {
                 serviceName: `${neConfig.deviceTypeName || 'Network Edge'} (${metro.metroCode})`,
                 selectedCores: neConfig.packageCode,
@@ -236,9 +250,10 @@ export function buildDiagramLayout(
               width: tableWidth,
               height: tableHeight,
               draggable: true,
-              zIndex: 3,
+              zIndex: 10,
             });
-            priceTableY += tableHeight + 16;
+            ptX += tableWidth + PT_GAP;
+            ptRowMaxH = Math.max(ptRowMaxH, tableHeight);
           }
         }
       });

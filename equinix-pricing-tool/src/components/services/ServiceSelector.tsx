@@ -64,7 +64,7 @@ export function ServiceSelector({ metroCode }: Props) {
             bandwidthMbps: 1000,
             redundant: false,
           });
-          fetchPriceForConnection(connId, 1000);
+          fetchPriceForConnection(connId, 1000, metroCode, targetMetroCode);
         }
       }
     }

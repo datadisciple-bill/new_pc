@@ -23,7 +23,7 @@ export const NEPriceTableNode = memo(function NEPriceTableNode({ data }: NodePro
       </div>
       {discountPct > 0 && (
         <div className="px-2 py-0.5 bg-red-50">
-          <p className="text-[8px] text-red-600 font-semibold">{discountPct}% term discount</p>
+          <p className="text-[8px] text-red-600 font-semibold">{discountPct}% Term Discount</p>
         </div>
       )}
       <table className="w-full text-[8px]">

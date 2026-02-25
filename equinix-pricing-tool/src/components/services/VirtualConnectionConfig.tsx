@@ -134,7 +134,8 @@ export function VirtualConnectionConfig() {
       redundant: form.redundant,
       showPriceTable: form.showPriceTable,
     });
-    fetchPriceForConnection(connId, form.bandwidth);
+    const aMetro = aSvc?.metroCode ?? form.aSideMetro;
+    fetchPriceForConnection(connId, form.bandwidth, aMetro, zMetro);
     if (form.showPriceTable) {
       fetchPriceTableForConnection(connId);
     }
@@ -197,7 +198,8 @@ export function VirtualConnectionConfig() {
       redundant: form.redundant,
       showPriceTable: form.showPriceTable,
     });
-    fetchPriceForConnection(editingId, form.bandwidth);
+    const aMetroEdit = aSvc?.metroCode ?? form.aSideMetro;
+    fetchPriceForConnection(editingId, form.bandwidth, aMetroEdit, zMetro);
 
     // Fetch or clear price table based on checkbox
     const existingConn = connections.find((c) => c.id === editingId);

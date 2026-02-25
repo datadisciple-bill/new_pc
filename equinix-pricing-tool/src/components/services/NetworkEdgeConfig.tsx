@@ -227,7 +227,7 @@ export function NetworkEdgeConfig({ service, metroCode, deviceTypes, onUpdate, o
                     <>
                       <p className="text-[9px] text-gray-400 mb-1">Click a row to change size</p>
                       {discountPct > 0 && (
-                        <p className="text-[9px] text-red-600 font-semibold mb-1">{discountPct}% term discount</p>
+                        <p className="text-[9px] text-red-600 font-semibold mb-1">{discountPct}% Term Discount</p>
                       )}
                       <table className="w-full text-[10px]">
                         <thead>
