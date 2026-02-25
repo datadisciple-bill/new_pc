@@ -21,6 +21,10 @@ function formatServiceDescription(service: ServiceSelection): string {
       const c = service.config as { package: string };
       return `${c.package} Package`;
     }
+    case 'COLOCATION': {
+      const c = service.config as { description: string };
+      return c.description || 'Colocation';
+    }
   }
 }
 

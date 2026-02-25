@@ -5,6 +5,16 @@ export interface ProjectConfig {
   name: string;
   metros: MetroSelection[];
   connections: VirtualConnection[];
+  textBoxes: TextBox[];
+}
+
+export interface TextBox {
+  id: string;
+  text: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
 
 export interface MetroSelection {
@@ -14,12 +24,12 @@ export interface MetroSelection {
   services: ServiceSelection[];
 }
 
-export type ServiceType = 'FABRIC_PORT' | 'NETWORK_EDGE' | 'INTERNET_ACCESS' | 'CLOUD_ROUTER';
+export type ServiceType = 'FABRIC_PORT' | 'NETWORK_EDGE' | 'INTERNET_ACCESS' | 'CLOUD_ROUTER' | 'COLOCATION';
 
 export interface ServiceSelection {
   id: string;
   type: ServiceType;
-  config: FabricPortConfig | NetworkEdgeConfig | InternetAccessConfig | CloudRouterConfig;
+  config: FabricPortConfig | NetworkEdgeConfig | InternetAccessConfig | CloudRouterConfig | ColocationConfig;
   pricing: PricingResult | null;
 }
 
@@ -62,6 +72,11 @@ export interface CloudRouterConfig {
   package: 'STANDARD' | 'PREMIUM';
 }
 
+export interface ColocationConfig {
+  description: string;
+  mrcPrice: number;
+}
+
 export interface VirtualConnection {
   id: string;
   name: string;
@@ -82,7 +97,7 @@ export interface BandwidthPriceEntry {
   currency: string;
 }
 
-export type EndpointType = 'PORT' | 'NETWORK_EDGE' | 'CLOUD_ROUTER' | 'SERVICE_PROFILE';
+export type EndpointType = 'PORT' | 'NETWORK_EDGE' | 'CLOUD_ROUTER' | 'SERVICE_PROFILE' | 'COLOCATION';
 
 export interface ConnectionEndpoint {
   metroCode: string;

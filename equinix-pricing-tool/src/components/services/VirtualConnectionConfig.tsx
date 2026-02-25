@@ -18,6 +18,9 @@ function serviceLabel(svc: { type: string; metroCode: string; config: Record<str
   } else if (svc.type === 'CLOUD_ROUTER') {
     const c = svc.config as { package?: string };
     detail = ` ${c.package ?? ''}`;
+  } else if (svc.type === 'COLOCATION') {
+    const c = svc.config as { description?: string };
+    detail = c.description ? ` ${c.description}` : '';
   }
   return `${typeLabel}${detail} (${svc.metroCode})`;
 }
@@ -26,6 +29,7 @@ function endpointTypeForService(svcType: string): EndpointType {
   switch (svcType) {
     case 'CLOUD_ROUTER': return 'CLOUD_ROUTER';
     case 'NETWORK_EDGE': return 'NETWORK_EDGE';
+    case 'COLOCATION': return 'COLOCATION';
     default: return 'PORT';
   }
 }

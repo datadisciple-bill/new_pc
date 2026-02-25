@@ -7,6 +7,7 @@ import fabricPortIcon from '@/assets/icons/fabric-port.svg';
 import networkEdgeIcon from '@/assets/icons/network-edge.svg';
 import internetAccessIcon from '@/assets/icons/internet-access.svg';
 import cloudRouterIcon from '@/assets/icons/cloud-router.svg';
+import colocationIcon from '@/assets/icons/colocation.svg';
 
 interface ServiceNodeData {
   serviceId: string;
@@ -22,6 +23,7 @@ const SERVICE_ICON_URLS: Record<string, string> = {
   NETWORK_EDGE: networkEdgeIcon,
   INTERNET_ACCESS: internetAccessIcon,
   CLOUD_ROUTER: cloudRouterIcon,
+  COLOCATION: colocationIcon,
 };
 
 export const ServiceNode = memo(function ServiceNode({ data }: NodeProps) {
@@ -46,10 +48,13 @@ export const ServiceNode = memo(function ServiceNode({ data }: NodeProps) {
   } else if (serviceType === 'CLOUD_ROUTER') {
     const c = config as { package?: string };
     detail = c.package ?? '';
+  } else if (serviceType === 'COLOCATION') {
+    const c = config as { description?: string };
+    detail = c.description ?? '';
   }
 
   return (
-    <div className="rounded-md overflow-hidden shadow-sm border border-gray-200" style={{ width: '100%', height: '100%' }}>
+    <div className="rounded-md overflow-hidden shadow-sm border border-gray-200 bg-white" style={{ width: '100%', height: '100%' }}>
       {/* Black Equinix product bar */}
       <div className="bg-equinix-black text-white px-2 py-1 flex items-center gap-1.5">
         {iconUrl ? (

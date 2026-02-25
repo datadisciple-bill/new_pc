@@ -2,7 +2,7 @@ import { useCallback, useMemo } from 'react';
 import { useConfigStore } from '@/store/configStore';
 import { searchPrices } from '@/api/fabric';
 import { fetchNetworkEdgePricing } from '@/api/networkEdge';
-import type { ServiceSelection, FabricPortConfig, NetworkEdgeConfig, CloudRouterConfig, PricingResult, BandwidthPriceEntry } from '@/types/config';
+import type { ServiceSelection, FabricPortConfig, NetworkEdgeConfig, CloudRouterConfig, ColocationConfig, PricingResult, BandwidthPriceEntry } from '@/types/config';
 import { calculatePricingSummary, formatCurrency } from '@/utils/priceCalculator';
 import { generateCsv, downloadCsv } from '@/utils/csvGenerator';
 import { BANDWIDTH_OPTIONS } from '@/constants/serviceDefaults';
@@ -72,6 +72,17 @@ export function usePricing() {
               currency: 'USD',
               isEstimate: true,
               breakdown: [{ description: 'Quote Required — Contact Equinix', mrc: 0, nrc: 0 }],
+            };
+            break;
+          }
+          case 'COLOCATION': {
+            const c = service.config as ColocationConfig;
+            pricing = {
+              mrc: c.mrcPrice,
+              nrc: 0,
+              currency: 'USD',
+              isEstimate: true,
+              breakdown: [{ description: c.description || 'Colocation', mrc: c.mrcPrice, nrc: 0 }],
             };
             break;
           }

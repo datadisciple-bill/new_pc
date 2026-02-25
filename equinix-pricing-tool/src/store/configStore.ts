@@ -6,10 +6,12 @@ import type {
   ServiceSelection,
   ServiceType,
   VirtualConnection,
+  TextBox,
   FabricPortConfig,
   NetworkEdgeConfig,
   InternetAccessConfig,
   CloudRouterConfig,
+  ColocationConfig,
   PricingResult,
 } from '@/types/config';
 import type { Metro, DeviceType, ServiceProfile } from '@/types/equinix';
@@ -18,6 +20,7 @@ import {
   DEFAULT_NETWORK_EDGE,
   DEFAULT_INTERNET_ACCESS,
   DEFAULT_CLOUD_ROUTER,
+  DEFAULT_COLOCATION,
 } from '@/constants/serviceDefaults';
 
 interface AuthState {
@@ -90,6 +93,11 @@ interface ConfigStore {
   updateConnection: (connectionId: string, updates: Partial<VirtualConnection>) => void;
   updateConnectionPricing: (connectionId: string, pricing: PricingResult) => void;
 
+  // Text box actions
+  addTextBox: (x: number, y: number) => string;
+  removeTextBox: (id: string) => void;
+  updateTextBox: (id: string, updates: Partial<TextBox>) => void;
+
   // UI state
   ui: UIState;
   setActiveTab: (tab: UIState['activeTab']) => void;
@@ -99,7 +107,7 @@ interface ConfigStore {
   setShowPricing: (show: boolean) => void;
 }
 
-function getDefaultConfig(type: ServiceType): FabricPortConfig | NetworkEdgeConfig | InternetAccessConfig | CloudRouterConfig {
+function getDefaultConfig(type: ServiceType): FabricPortConfig | NetworkEdgeConfig | InternetAccessConfig | CloudRouterConfig | ColocationConfig {
   switch (type) {
     case 'FABRIC_PORT':
       return { ...DEFAULT_FABRIC_PORT };
@@ -109,6 +117,8 @@ function getDefaultConfig(type: ServiceType): FabricPortConfig | NetworkEdgeConf
       return { ...DEFAULT_INTERNET_ACCESS };
     case 'CLOUD_ROUTER':
       return { ...DEFAULT_CLOUD_ROUTER };
+    case 'COLOCATION':
+      return { ...DEFAULT_COLOCATION };
   }
 }
 
@@ -157,6 +167,7 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
     name: 'New Project',
     metros: [],
     connections: [],
+    textBoxes: [],
   },
   projectHistory: [],
   canUndo: false,
@@ -387,6 +398,44 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
         ...state.project,
         connections: state.project.connections.map((c) =>
           c.id === connectionId ? { ...c, pricing } : c
+        ),
+      },
+    })),
+
+  // Text box actions
+  addTextBox: (x, y) => {
+    const id = uuidv4();
+    set((state) => {
+      const newHistory = [...state.projectHistory, state.project].slice(-MAX_HISTORY);
+      return {
+        project: {
+          ...state.project,
+          textBoxes: [...state.project.textBoxes, { id, text: 'Text', x, y, width: 160, height: 40 }],
+        },
+        projectHistory: newHistory,
+        canUndo: true,
+      };
+    });
+    return id;
+  },
+  removeTextBox: (id) =>
+    set((state) => {
+      const newHistory = [...state.projectHistory, state.project].slice(-MAX_HISTORY);
+      return {
+        project: {
+          ...state.project,
+          textBoxes: state.project.textBoxes.filter((t) => t.id !== id),
+        },
+        projectHistory: newHistory,
+        canUndo: true,
+      };
+    }),
+  updateTextBox: (id, updates) =>
+    set((state) => ({
+      project: {
+        ...state.project,
+        textBoxes: state.project.textBoxes.map((t) =>
+          t.id === id ? { ...t, ...updates } : t
         ),
       },
     })),

@@ -1,4 +1,4 @@
-import type { FabricPortConfig, NetworkEdgeConfig, InternetAccessConfig, CloudRouterConfig } from '@/types/config';
+import type { FabricPortConfig, NetworkEdgeConfig, InternetAccessConfig, CloudRouterConfig, ColocationConfig } from '@/types/config';
 
 export const DEFAULT_FABRIC_PORT: FabricPortConfig = {
   speed: '10G',
@@ -27,6 +27,11 @@ export const DEFAULT_INTERNET_ACCESS: InternetAccessConfig = {
 
 export const DEFAULT_CLOUD_ROUTER: CloudRouterConfig = {
   package: 'STANDARD',
+};
+
+export const DEFAULT_COLOCATION: ColocationConfig = {
+  description: 'Cage / Cabinet',
+  mrcPrice: 0,
 };
 
 export const PORT_SPEEDS = ['1G', '10G', '25G', '50G', '100G'] as const;

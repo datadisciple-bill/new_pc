@@ -37,7 +37,7 @@ function App() {
       <header className="bg-equinix-black text-white flex items-center justify-between px-4 py-2 flex-shrink-0">
         <div className="flex items-center gap-3">
           <h1 className="text-sm font-bold">Equinix</h1>
-          <span className="text-[10px] text-gray-500">v4</span>
+          <span className="text-[10px] text-gray-500">v5</span>
           <input
             type="text"
             value={projectName}

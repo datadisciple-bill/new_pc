@@ -1,9 +1,9 @@
-import type { MetroSelection, VirtualConnection, NetworkEdgeConfig, ServiceSelection } from '@/types/config';
+import type { MetroSelection, VirtualConnection, NetworkEdgeConfig, ServiceSelection, TextBox } from '@/types/config';
 import type { Node, Edge } from '@xyflow/react';
 import { formatCurrency } from './priceCalculator';
 
-export const METRO_WIDTH = 480;
 export const COL_WIDTH = 220;
+const SERVICE_NODE_WIDTH = COL_WIDTH - 16;
 const METRO_HEADER_HEIGHT = 48;
 const SERVICE_NODE_HEIGHT = 72;
 const SERVICE_NODE_HEIGHT_HA = 88;
@@ -18,9 +18,9 @@ export interface LayoutResult {
   edges: Edge[];
 }
 
-// Left column: Fabric Port, Internet Access. Right column: Network Edge, Cloud Router.
+// Left column: Fabric Port, Internet Access, Colocation. Right column: Network Edge, Cloud Router.
 function isLeftColumn(type: string): boolean {
-  return type === 'FABRIC_PORT' || type === 'INTERNET_ACCESS';
+  return type === 'FABRIC_PORT' || type === 'INTERNET_ACCESS' || type === 'COLOCATION';
 }
 
 function getServiceNodeHeight(service: { type: string; config: unknown }): number {
@@ -42,10 +42,19 @@ function computeColumnHeights(services: ServiceSelection[]): { left: number; rig
       right += h;
     }
   }
-  // Remove trailing gap from each column
   if (left > 0) left -= SERVICE_GAP;
   if (right > 0) right -= SERVICE_GAP;
   return { left, right };
+}
+
+function computeMetroWidth(metro: MetroSelection): number {
+  const hasLeft = metro.services.some((s) => isLeftColumn(s.type));
+  const hasRight = metro.services.some((s) => !isLeftColumn(s.type));
+  if (hasLeft && hasRight) {
+    return METRO_PADDING + COL_WIDTH + METRO_PADDING + COL_WIDTH + METRO_PADDING;
+  }
+  // Single column or empty
+  return METRO_PADDING + COL_WIDTH + METRO_PADDING;
 }
 
 function computeMetroHeight(metro: MetroSelection): number {
@@ -57,12 +66,31 @@ function computeMetroHeight(metro: MetroSelection): number {
 export function buildDiagramLayout(
   metros: MetroSelection[],
   connections: VirtualConnection[],
-  showPricing = true
+  showPricing = true,
+  textBoxes: TextBox[] = []
 ): LayoutResult {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
 
   const servicePositions = new Map<string, { x: number; y: number }>();
+
+  // Per-metro widths
+  const metroWidths = metros.map(computeMetroWidth);
+
+  // Per grid-column max widths
+  const colMaxWidths: number[] = [];
+  metros.forEach((_, i) => {
+    const col = i % METROS_PER_ROW;
+    colMaxWidths[col] = Math.max(colMaxWidths[col] ?? 0, metroWidths[i]);
+  });
+
+  // Column X offsets (based on max width in each grid column)
+  const colXOffsets: number[] = [];
+  let cumX = 0;
+  for (let c = 0; c <= Math.min(metros.length - 1, METROS_PER_ROW - 1); c++) {
+    colXOffsets[c] = cumX;
+    cumX += (colMaxWidths[c] ?? 0) + METRO_GAP_X;
+  }
 
   // Pre-compute max height per row
   const rowMaxHeights: number[] = [];
@@ -83,9 +111,14 @@ export function buildDiagramLayout(
     const col = metroIndex % METROS_PER_ROW;
     const row = Math.floor(metroIndex / METROS_PER_ROW);
 
+    const metroWidth = metroWidths[metroIndex];
     const metroHeight = computeMetroHeight(metro);
-    const metroX = col * (METRO_WIDTH + METRO_GAP_X);
+    const metroX = colXOffsets[col] ?? 0;
     const metroY = rowYOffsets[row];
+
+    const hasLeft = metro.services.some((s) => isLeftColumn(s.type));
+    const hasRight = metro.services.some((s) => !isLeftColumn(s.type));
+    const isSingleColumn = !(hasLeft && hasRight);
 
     nodes.push({
       id: `metro-${metro.metroCode}`,
@@ -96,22 +129,27 @@ export function buildDiagramLayout(
         metroName: metro.metroName,
         region: metro.region,
       },
-      style: { width: METRO_WIDTH, height: metroHeight },
-      width: METRO_WIDTH,
+      style: { width: metroWidth, height: metroHeight },
+      width: metroWidth,
       height: metroHeight,
       zIndex: 0,
     });
 
-    // Two-column layout: left = FP+EIA, right = NE+FCR
     let leftY = METRO_HEADER_HEIGHT + METRO_PADDING;
     let rightY = METRO_HEADER_HEIGHT + METRO_PADDING;
 
     metro.services.forEach((service) => {
       const nodeHeight = getServiceNodeHeight(service);
       const left = isLeftColumn(service.type);
-      const relX = left ? METRO_PADDING : METRO_PADDING + COL_WIDTH + METRO_PADDING;
+
+      // If single column, all services in first column position
+      let relX: number;
+      if (isSingleColumn) {
+        relX = METRO_PADDING;
+      } else {
+        relX = left ? METRO_PADDING : METRO_PADDING + COL_WIDTH + METRO_PADDING;
+      }
       const relY = left ? leftY : rightY;
-      const nodeWidth = COL_WIDTH - METRO_PADDING;
 
       servicePositions.set(service.id, {
         x: metroX + relX,
@@ -130,8 +168,8 @@ export function buildDiagramLayout(
           showPricing,
         },
         parentId: `metro-${metro.metroCode}`,
-        style: { width: nodeWidth, height: nodeHeight },
-        width: nodeWidth,
+        style: { width: SERVICE_NODE_WIDTH, height: nodeHeight },
+        width: SERVICE_NODE_WIDTH,
         height: nodeHeight,
         zIndex: 2,
       });
@@ -144,9 +182,8 @@ export function buildDiagramLayout(
     });
   });
 
-  // Price table column X: right of last metro column
-  const maxCol = Math.min(metros.length, METROS_PER_ROW) - 1;
-  const priceTableX = (maxCol + 1) * (METRO_WIDTH + METRO_GAP_X) + 40;
+  // Price table column X: right of all metro columns
+  const priceTableX = cumX + 40;
   let priceTableY = 0;
 
   // VC price table nodes
@@ -175,7 +212,7 @@ export function buildDiagramLayout(
       }
     });
 
-    // NE price table nodes — one per NE service with showPriceTable
+    // NE price table nodes
     metros.forEach((metro) => {
       metro.services.forEach((service) => {
         if (service.type === 'NETWORK_EDGE') {
@@ -206,6 +243,21 @@ export function buildDiagramLayout(
     });
   }
 
+  // Text box nodes
+  textBoxes.forEach((tb) => {
+    nodes.push({
+      id: `textbox-${tb.id}`,
+      type: 'textBoxNode',
+      position: { x: tb.x, y: tb.y },
+      data: { textBoxId: tb.id, text: tb.text, tbWidth: tb.width, tbHeight: tb.height },
+      style: { width: tb.width, height: tb.height },
+      width: tb.width,
+      height: tb.height,
+      draggable: true,
+      zIndex: 4,
+    });
+  });
+
   // Connection edges
   connections.forEach((conn) => {
     const sourceId = `service-${conn.aSide.serviceId}`;
@@ -221,11 +273,12 @@ export function buildDiagramLayout(
         const aMetroIndex = metros.findIndex((m) => m.metroCode === conn.aSide.metroCode);
         const mCol = aMetroIndex >= 0 ? aMetroIndex % METROS_PER_ROW : 0;
         const mRow = aMetroIndex >= 0 ? Math.floor(aMetroIndex / METROS_PER_ROW) : 0;
+        const mWidth = aMetroIndex >= 0 ? metroWidths[aMetroIndex] : 480;
         nodes.push({
           id: targetId,
           type: 'cloudNode',
           position: {
-            x: mCol * (METRO_WIDTH + METRO_GAP_X) + METRO_WIDTH + 40,
+            x: (colXOffsets[mCol] ?? 0) + mWidth + 40,
             y: aPos?.y ?? (rowYOffsets[mRow] + 60),
           },
           data: { provider: conn.zSide.serviceProfileName },
@@ -267,7 +320,7 @@ export function buildDiagramLayout(
         showPricing,
         isSameMetro,
       },
-      zIndex: 1,
+      zIndex: 5,
     });
   });
 
