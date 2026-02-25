@@ -1,16 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { ServiceSelection, NetworkEdgeConfig as NEConfig } from '@/types/config';
+import type { ServiceSelection, NetworkEdgeConfig as NEConfig, CorePriceEntry } from '@/types/config';
 import type { DeviceType } from '@/types/equinix';
 import { TERM_OPTIONS } from '@/constants/serviceDefaults';
 import { fetchNetworkEdgePricing } from '@/api/networkEdge';
 import { formatCurrency } from '@/utils/priceCalculator';
 import { ServiceCard } from './ServiceCard';
-
-interface CorePriceEntry {
-  cores: number;
-  mrc: number;
-  nrc: number;
-}
 
 interface Props {
   service: ServiceSelection;
@@ -25,8 +19,8 @@ export function NetworkEdgeConfig({ service, metroCode, deviceTypes, onUpdate, o
   const config = service.config as NEConfig;
   const selectedDevice = deviceTypes.find((d) => d.deviceTypeCode === config.deviceTypeCode);
 
-  const [showPriceTable, setShowPriceTable] = useState(false);
-  const [priceTable, setPriceTable] = useState<CorePriceEntry[]>([]);
+  const [showPriceTable, setShowPriceTable] = useState(config.showPriceTable ?? false);
+  const [priceTable, setPriceTable] = useState<CorePriceEntry[]>(config.priceTable ?? []);
   const [loadingTable, setLoadingTable] = useState(false);
 
   const fetchPriceTable = useCallback(async () => {
@@ -44,17 +38,29 @@ export function NetworkEdgeConfig({ service, metroCode, deviceTypes, onUpdate, o
         entries.push({ cores, mrc: result.monthlyRecurring, nrc: result.nonRecurring });
       }
       setPriceTable(entries);
+      // Persist to store so diagram can show it
+      onUpdate({ showPriceTable: true, priceTable: entries });
     } catch {
       setPriceTable([]);
     }
     setLoadingTable(false);
-  }, [selectedDevice, config.deviceTypeCode, config.termLength, metroCode]);
+  }, [selectedDevice, config.deviceTypeCode, config.termLength, metroCode, onUpdate]);
 
   useEffect(() => {
-    if (showPriceTable && selectedDevice) {
+    if (showPriceTable && selectedDevice && priceTable.length === 0) {
       fetchPriceTable();
     }
-  }, [showPriceTable, fetchPriceTable, selectedDevice]);
+  }, [showPriceTable, fetchPriceTable, selectedDevice, priceTable.length]);
+
+  const handleTogglePriceTable = (checked: boolean) => {
+    setShowPriceTable(checked);
+    if (!checked) {
+      setPriceTable([]);
+      onUpdate({ showPriceTable: false, priceTable: null });
+    } else {
+      onUpdate({ showPriceTable: true });
+    }
+  };
 
   const handleSelectCore = (cores: number) => {
     onUpdate({ packageCode: `${cores}` });
@@ -165,7 +171,7 @@ export function NetworkEdgeConfig({ service, metroCode, deviceTypes, onUpdate, o
                 <input
                   type="checkbox"
                   checked={showPriceTable}
-                  onChange={(e) => setShowPriceTable(e.target.checked)}
+                  onChange={(e) => handleTogglePriceTable(e.target.checked)}
                   className="w-3.5 h-3.5 rounded border-gray-300 accent-equinix-green"
                 />
                 <span className="text-[10px] text-gray-500">Show size/price table</span>

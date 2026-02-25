@@ -15,6 +15,8 @@ describe('configStore', () => {
     useConfigStore.setState({
       auth: { token: null, tokenExpiry: null, isAuthenticated: false, userName: null },
       project: { id: 'test', name: 'Test', metros: [], connections: [] },
+      projectHistory: [],
+      canUndo: false,
     });
   });
 
@@ -135,6 +137,32 @@ describe('configStore', () => {
 
       useConfigStore.getState().removeConnection(connId);
       expect(useConfigStore.getState().project.connections).toHaveLength(0);
+    });
+  });
+
+  describe('undo', () => {
+    it('can undo addMetro', () => {
+      useConfigStore.getState().addMetro(testMetro);
+      expect(useConfigStore.getState().project.metros).toHaveLength(1);
+      expect(useConfigStore.getState().canUndo).toBe(true);
+
+      useConfigStore.getState().undo();
+      expect(useConfigStore.getState().project.metros).toHaveLength(0);
+      expect(useConfigStore.getState().canUndo).toBe(false);
+    });
+
+    it('can undo multiple steps up to 10', () => {
+      for (let i = 0; i < 12; i++) {
+        useConfigStore.getState().addMetro({ ...testMetro, code: `M${i}` });
+        useConfigStore.getState().removeMetro(`M${i}`);
+      }
+      // Only 10 history entries should be kept
+      expect(useConfigStore.getState().projectHistory.length).toBeLessThanOrEqual(10);
+    });
+
+    it('does nothing when no history', () => {
+      useConfigStore.getState().undo();
+      expect(useConfigStore.getState().project.metros).toHaveLength(0);
     });
   });
 

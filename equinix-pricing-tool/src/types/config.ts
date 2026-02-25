@@ -32,6 +32,12 @@ export interface FabricPortConfig {
 
 export type PortSpeed = '1G' | '10G' | '25G' | '50G' | '100G';
 
+export interface CorePriceEntry {
+  cores: number;
+  mrc: number;
+  nrc: number;
+}
+
 export interface NetworkEdgeConfig {
   deviceTypeCode: string;
   deviceTypeName: string;
@@ -41,6 +47,8 @@ export interface NetworkEdgeConfig {
   licenseType: 'BYOL' | 'SUBSCRIPTION';
   redundant: boolean;
   termLength: 1 | 12 | 24 | 36;
+  showPriceTable?: boolean;
+  priceTable?: CorePriceEntry[] | null;
 }
 
 export interface InternetAccessConfig {

@@ -2,8 +2,8 @@ import type { MetroSelection, VirtualConnection, NetworkEdgeConfig, ServiceSelec
 import type { Node, Edge } from '@xyflow/react';
 import { formatCurrency } from './priceCalculator';
 
-const METRO_WIDTH = 480;
-const COL_WIDTH = 220;
+export const METRO_WIDTH = 480;
+export const COL_WIDTH = 220;
 const METRO_HEADER_HEIGHT = 48;
 const SERVICE_NODE_HEIGHT = 72;
 const SERVICE_NODE_HEIGHT_HA = 88;
@@ -42,13 +42,16 @@ function computeColumnHeights(services: ServiceSelection[]): { left: number; rig
       right += h;
     }
   }
+  // Remove trailing gap from each column
+  if (left > 0) left -= SERVICE_GAP;
+  if (right > 0) right -= SERVICE_GAP;
   return { left, right };
 }
 
 function computeMetroHeight(metro: MetroSelection): number {
   const { left, right } = computeColumnHeights(metro.services);
   const tallest = Math.max(left, right);
-  return Math.max(METRO_HEADER_HEIGHT + METRO_PADDING * 2 + tallest, 200);
+  return METRO_HEADER_HEIGHT + METRO_PADDING + (tallest > 0 ? tallest + METRO_PADDING : METRO_PADDING);
 }
 
 export function buildDiagramLayout(
@@ -94,6 +97,8 @@ export function buildDiagramLayout(
         region: metro.region,
       },
       style: { width: METRO_WIDTH, height: metroHeight },
+      width: METRO_WIDTH,
+      height: metroHeight,
       zIndex: 0,
     });
 
@@ -106,6 +111,7 @@ export function buildDiagramLayout(
       const left = isLeftColumn(service.type);
       const relX = left ? METRO_PADDING : METRO_PADDING + COL_WIDTH + METRO_PADDING;
       const relY = left ? leftY : rightY;
+      const nodeWidth = COL_WIDTH - METRO_PADDING;
 
       servicePositions.set(service.id, {
         x: metroX + relX,
@@ -124,9 +130,10 @@ export function buildDiagramLayout(
           showPricing,
         },
         parentId: `metro-${metro.metroCode}`,
-        expandParent: true,
-        style: { width: COL_WIDTH - METRO_PADDING, height: nodeHeight },
-        zIndex: 1,
+        style: { width: nodeWidth, height: nodeHeight },
+        width: nodeWidth,
+        height: nodeHeight,
+        zIndex: 2,
       });
 
       if (left) {
@@ -137,16 +144,18 @@ export function buildDiagramLayout(
     });
   });
 
-  // Price table nodes
-  if (showPricing) {
-    const maxCol = Math.min(metros.length, METROS_PER_ROW) - 1;
-    const priceTableX = (maxCol + 1) * (METRO_WIDTH + METRO_GAP_X) + 40;
-    let priceTableY = 0;
+  // Price table column X: right of last metro column
+  const maxCol = Math.min(metros.length, METROS_PER_ROW) - 1;
+  const priceTableX = (maxCol + 1) * (METRO_WIDTH + METRO_GAP_X) + 40;
+  let priceTableY = 0;
 
+  // VC price table nodes
+  if (showPricing) {
     connections.forEach((conn) => {
       if (conn.showPriceTable && conn.priceTable && conn.priceTable.length > 0) {
         const rowHeight = 14;
         const tableHeight = 28 + conn.priceTable.length * rowHeight;
+        const tableWidth = 200;
         nodes.push({
           id: `pricetable-${conn.id}`,
           type: 'priceTableNode',
@@ -156,10 +165,44 @@ export function buildDiagramLayout(
             selectedBandwidthMbps: conn.bandwidthMbps,
             priceTable: conn.priceTable,
           },
-          style: { width: 180, height: tableHeight },
+          style: { width: tableWidth, height: tableHeight },
+          width: tableWidth,
+          height: tableHeight,
+          draggable: true,
+          zIndex: 3,
         });
         priceTableY += tableHeight + 16;
       }
+    });
+
+    // NE price table nodes — one per NE service with showPriceTable
+    metros.forEach((metro) => {
+      metro.services.forEach((service) => {
+        if (service.type === 'NETWORK_EDGE') {
+          const neConfig = service.config as NetworkEdgeConfig;
+          if (neConfig.showPriceTable && neConfig.priceTable && neConfig.priceTable.length > 0) {
+            const rowHeight = 14;
+            const tableHeight = 28 + neConfig.priceTable.length * rowHeight;
+            const tableWidth = 220;
+            nodes.push({
+              id: `nepricetable-${service.id}`,
+              type: 'nePriceTableNode',
+              position: { x: priceTableX, y: priceTableY },
+              data: {
+                serviceName: `${neConfig.deviceTypeName || 'Network Edge'} (${metro.metroCode})`,
+                selectedCores: neConfig.packageCode,
+                priceTable: neConfig.priceTable,
+              },
+              style: { width: tableWidth, height: tableHeight },
+              width: tableWidth,
+              height: tableHeight,
+              draggable: true,
+              zIndex: 3,
+            });
+            priceTableY += tableHeight + 16;
+          }
+        }
+      });
     });
   }
 
@@ -186,6 +229,7 @@ export function buildDiagramLayout(
             y: aPos?.y ?? (rowYOffsets[mRow] + 60),
           },
           data: { provider: conn.zSide.serviceProfileName },
+          zIndex: 2,
         });
       }
     }
@@ -196,38 +240,34 @@ export function buildDiagramLayout(
       ? `${conn.bandwidthMbps / 1000}G`
       : `${conn.bandwidthMbps}M`;
 
-    // Build edge label: bandwidth + redundant indicator + optional price
-    let edgeLabel = bwLabel;
-    if (conn.redundant) {
-      edgeLabel = `${bwLabel} (x2 Redundant)`;
-    }
+    let labelLine1 = bwLabel;
+    if (conn.redundant) labelLine1 += ' ×2';
+
+    let labelLine2 = '';
     if (showPricing && conn.pricing) {
-      const mrcText = formatCurrency(conn.pricing.mrc);
-      edgeLabel += `\n${mrcText}/mo`;
-      if (conn.redundant) {
-        edgeLabel += ` (each)`;
-      }
+      labelLine2 = formatCurrency(conn.pricing.mrc) + '/mo';
+      if (conn.redundant) labelLine2 += ' ea.';
     }
 
     const strokeColor = isSameMetro ? '#33A85C' : '#000000';
 
-    // Single edge — thick stroke for redundant to indicate dual lines
     edges.push({
       id: `edge-${conn.id}`,
       source: sourceId,
       target: targetId,
+      type: 'customEdge',
       style: {
         stroke: strokeColor,
         strokeWidth: conn.redundant ? 4 : 1.5,
         strokeDasharray: conn.type === 'IP_VC' ? '8 4' : undefined,
       },
-      label: edgeLabel,
-      labelStyle: {
-        fontSize: 9,
-        fill: showPricing && conn.pricing ? '#33A85C' : (isSameMetro ? '#33A85C' : '#000000'),
-        whiteSpace: 'pre',
+      data: {
+        labelLine1,
+        labelLine2,
+        showPricing,
+        isSameMetro,
       },
-      animated: false,
+      zIndex: 1,
     });
   });
 

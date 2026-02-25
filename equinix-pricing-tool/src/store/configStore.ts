@@ -44,6 +44,8 @@ interface UIState {
   showPricing: boolean;
 }
 
+const MAX_HISTORY = 10;
+
 interface ConfigStore {
   // Auth
   auth: AuthState;
@@ -59,6 +61,11 @@ interface ConfigStore {
   // Project config
   project: ProjectConfig;
   setProjectName: (name: string) => void;
+
+  // Undo history
+  projectHistory: ProjectConfig[];
+  undo: () => void;
+  canUndo: boolean;
 
   // Metro actions
   addMetro: (metro: Metro) => void;
@@ -105,7 +112,7 @@ function getDefaultConfig(type: ServiceType): FabricPortConfig | NetworkEdgeConf
   }
 }
 
-export const useConfigStore = create<ConfigStore>((set) => ({
+export const useConfigStore = create<ConfigStore>((set, get) => ({
   // Auth
   auth: {
     token: null,
@@ -151,10 +158,24 @@ export const useConfigStore = create<ConfigStore>((set) => ({
     metros: [],
     connections: [],
   },
+  projectHistory: [],
+  canUndo: false,
   setProjectName: (name) =>
     set((state) => ({
       project: { ...state.project, name },
     })),
+
+  undo: () =>
+    set((state) => {
+      if (state.projectHistory.length === 0) return state;
+      const prev = state.projectHistory[state.projectHistory.length - 1];
+      const newHistory = state.projectHistory.slice(0, -1);
+      return {
+        project: prev,
+        projectHistory: newHistory,
+        canUndo: newHistory.length > 0,
+      };
+    }),
 
   // Metro actions
   addMetro: (metro) =>
@@ -168,23 +189,28 @@ export const useConfigStore = create<ConfigStore>((set) => ({
         region: metro.region,
         services: [],
       };
+      const newHistory = [...state.projectHistory, state.project].slice(-MAX_HISTORY);
       return {
-        project: {
-          ...state.project,
-          metros: [...state.project.metros, newMetro],
-        },
+        project: { ...state.project, metros: [...state.project.metros, newMetro] },
+        projectHistory: newHistory,
+        canUndo: true,
       };
     }),
   removeMetro: (metroCode) =>
-    set((state) => ({
-      project: {
-        ...state.project,
-        metros: state.project.metros.filter((m) => m.metroCode !== metroCode),
-        connections: state.project.connections.filter(
-          (c) => c.aSide.metroCode !== metroCode && c.zSide.metroCode !== metroCode
-        ),
-      },
-    })),
+    set((state) => {
+      const newHistory = [...state.projectHistory, state.project].slice(-MAX_HISTORY);
+      return {
+        project: {
+          ...state.project,
+          metros: state.project.metros.filter((m) => m.metroCode !== metroCode),
+          connections: state.project.connections.filter(
+            (c) => c.aSide.metroCode !== metroCode && c.zSide.metroCode !== metroCode
+          ),
+        },
+        projectHistory: newHistory,
+        canUndo: true,
+      };
+    }),
 
   // Service actions
   addService: (metroCode, type) => {
@@ -195,48 +221,63 @@ export const useConfigStore = create<ConfigStore>((set) => ({
       config: getDefaultConfig(type),
       pricing: null,
     };
-    set((state) => ({
-      project: {
-        ...state.project,
-        metros: state.project.metros.map((m) =>
-          m.metroCode === metroCode
-            ? { ...m, services: [...m.services, newService] }
-            : m
-        ),
-      },
-    }));
+    set((state) => {
+      const newHistory = [...state.projectHistory, state.project].slice(-MAX_HISTORY);
+      return {
+        project: {
+          ...state.project,
+          metros: state.project.metros.map((m) =>
+            m.metroCode === metroCode
+              ? { ...m, services: [...m.services, newService] }
+              : m
+          ),
+        },
+        projectHistory: newHistory,
+        canUndo: true,
+      };
+    });
     return serviceId;
   },
   removeService: (metroCode, serviceId) =>
-    set((state) => ({
-      project: {
-        ...state.project,
-        metros: state.project.metros.map((m) =>
-          m.metroCode === metroCode
-            ? { ...m, services: m.services.filter((s) => s.id !== serviceId) }
-            : m
-        ),
-        connections: state.project.connections.filter(
-          (c) => c.aSide.serviceId !== serviceId && c.zSide.serviceId !== serviceId
-        ),
-      },
-    })),
+    set((state) => {
+      const newHistory = [...state.projectHistory, state.project].slice(-MAX_HISTORY);
+      return {
+        project: {
+          ...state.project,
+          metros: state.project.metros.map((m) =>
+            m.metroCode === metroCode
+              ? { ...m, services: m.services.filter((s) => s.id !== serviceId) }
+              : m
+          ),
+          connections: state.project.connections.filter(
+            (c) => c.aSide.serviceId !== serviceId && c.zSide.serviceId !== serviceId
+          ),
+        },
+        projectHistory: newHistory,
+        canUndo: true,
+      };
+    }),
   updateServiceConfig: (metroCode, serviceId, config) =>
-    set((state) => ({
-      project: {
-        ...state.project,
-        metros: state.project.metros.map((m) =>
-          m.metroCode === metroCode
-            ? {
-                ...m,
-                services: m.services.map((s) =>
-                  s.id === serviceId ? { ...s, config: { ...s.config, ...config } } : s
-                ),
-              }
-            : m
-        ),
-      },
-    })),
+    set((state) => {
+      const newHistory = [...state.projectHistory, state.project].slice(-MAX_HISTORY);
+      return {
+        project: {
+          ...state.project,
+          metros: state.project.metros.map((m) =>
+            m.metroCode === metroCode
+              ? {
+                  ...m,
+                  services: m.services.map((s) =>
+                    s.id === serviceId ? { ...s, config: { ...s.config, ...config } } : s
+                  ),
+                }
+              : m
+          ),
+        },
+        projectHistory: newHistory,
+        canUndo: true,
+      };
+    }),
   updateServicePricing: (metroCode, serviceId, pricing) =>
     set((state) => ({
       project: {
@@ -256,7 +297,7 @@ export const useConfigStore = create<ConfigStore>((set) => ({
 
   // Copy services between metros
   copyMetroServices: (fromMetroCode, toMetroCode) => {
-    const state = useConfigStore.getState();
+    const state = get();
     const sourceMetro = state.project.metros.find((m) => m.metroCode === fromMetroCode);
     if (!sourceMetro) return new Map<string, string>();
 
@@ -268,20 +309,25 @@ export const useConfigStore = create<ConfigStore>((set) => ({
         ...s,
         id: newId,
         config: { ...s.config },
-        pricing: null, // Will be re-fetched
+        pricing: null,
       };
     });
 
-    set((st) => ({
-      project: {
-        ...st.project,
-        metros: st.project.metros.map((m) =>
-          m.metroCode === toMetroCode
-            ? { ...m, services: [...m.services, ...copiedServices] }
-            : m
-        ),
-      },
-    }));
+    set((st) => {
+      const newHistory = [...st.projectHistory, st.project].slice(-MAX_HISTORY);
+      return {
+        project: {
+          ...st.project,
+          metros: st.project.metros.map((m) =>
+            m.metroCode === toMetroCode
+              ? { ...m, services: [...m.services, ...copiedServices] }
+              : m
+          ),
+        },
+        projectHistory: newHistory,
+        canUndo: true,
+      };
+    });
 
     return oldToNew;
   },
@@ -296,30 +342,45 @@ export const useConfigStore = create<ConfigStore>((set) => ({
       showPriceTable: connection.showPriceTable ?? false,
       priceTable: null,
     };
-    set((state) => ({
-      project: {
-        ...state.project,
-        connections: [...state.project.connections, newConnection],
-      },
-    }));
+    set((state) => {
+      const newHistory = [...state.projectHistory, state.project].slice(-MAX_HISTORY);
+      return {
+        project: {
+          ...state.project,
+          connections: [...state.project.connections, newConnection],
+        },
+        projectHistory: newHistory,
+        canUndo: true,
+      };
+    });
     return connectionId;
   },
   removeConnection: (connectionId) =>
-    set((state) => ({
-      project: {
-        ...state.project,
-        connections: state.project.connections.filter((c) => c.id !== connectionId),
-      },
-    })),
+    set((state) => {
+      const newHistory = [...state.projectHistory, state.project].slice(-MAX_HISTORY);
+      return {
+        project: {
+          ...state.project,
+          connections: state.project.connections.filter((c) => c.id !== connectionId),
+        },
+        projectHistory: newHistory,
+        canUndo: true,
+      };
+    }),
   updateConnection: (connectionId, updates) =>
-    set((state) => ({
-      project: {
-        ...state.project,
-        connections: state.project.connections.map((c) =>
-          c.id === connectionId ? { ...c, ...updates } : c
-        ),
-      },
-    })),
+    set((state) => {
+      const newHistory = [...state.projectHistory, state.project].slice(-MAX_HISTORY);
+      return {
+        project: {
+          ...state.project,
+          connections: state.project.connections.map((c) =>
+            c.id === connectionId ? { ...c, ...updates } : c
+          ),
+        },
+        projectHistory: newHistory,
+        canUndo: true,
+      };
+    }),
   updateConnectionPricing: (connectionId, pricing) =>
     set((state) => ({
       project: {
