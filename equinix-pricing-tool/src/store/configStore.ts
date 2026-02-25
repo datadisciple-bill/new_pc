@@ -41,6 +41,7 @@ interface UIState {
   selectedMetroCode: string | null;
   isLoading: boolean;
   error: string | null;
+  showPricing: boolean;
 }
 
 interface ConfigStore {
@@ -88,6 +89,7 @@ interface ConfigStore {
   setSelectedMetro: (metroCode: string | null) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
+  setShowPricing: (show: boolean) => void;
 }
 
 function getDefaultConfig(type: ServiceType): FabricPortConfig | NetworkEdgeConfig | InternetAccessConfig | CloudRouterConfig {
@@ -334,6 +336,7 @@ export const useConfigStore = create<ConfigStore>((set) => ({
     selectedMetroCode: null,
     isLoading: false,
     error: null,
+    showPricing: true,
   },
   setActiveTab: (tab) =>
     set((state) => ({ ui: { ...state.ui, activeTab: tab } })),
@@ -343,6 +346,8 @@ export const useConfigStore = create<ConfigStore>((set) => ({
     set((state) => ({ ui: { ...state.ui, isLoading: loading } })),
   setError: (error) =>
     set((state) => ({ ui: { ...state.ui, error } })),
+  setShowPricing: (show) =>
+    set((state) => ({ ui: { ...state.ui, showPricing: show } })),
 }));
 
 // Selector helpers

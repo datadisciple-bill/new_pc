@@ -25,10 +25,12 @@ const nodeTypes: NodeTypes = {
 export function NetworkDiagram() {
   const metros = useConfigStore((s) => s.project.metros);
   const connections = useConfigStore((s) => s.project.connections);
+  const showPricing = useConfigStore((s) => s.ui.showPricing);
+  const setShowPricing = useConfigStore((s) => s.setShowPricing);
 
   const { nodes, edges } = useMemo(
-    () => buildDiagramLayout(metros, connections),
-    [metros, connections]
+    () => buildDiagramLayout(metros, connections, showPricing),
+    [metros, connections, showPricing]
   );
 
   const onInit = useCallback((instance: { fitView: () => void }) => {
@@ -67,6 +69,17 @@ export function NetworkDiagram() {
           style={{ border: '1px solid #e5e7eb' }}
         />
       </ReactFlow>
+      {/* Pricing toggle */}
+      <button
+        onClick={() => setShowPricing(!showPricing)}
+        className={`absolute top-2 left-2 z-10 px-3 py-1.5 text-[10px] font-medium rounded-md shadow-sm border transition-colors ${
+          showPricing
+            ? 'bg-equinix-green text-white border-equinix-green'
+            : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+        }`}
+      >
+        {showPricing ? '$ Pricing On' : '$ Pricing Off'}
+      </button>
       <DiagramLegend />
     </div>
   );

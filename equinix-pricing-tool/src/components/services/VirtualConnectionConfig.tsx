@@ -361,7 +361,7 @@ export function VirtualConnectionConfig() {
                 onChange={(e) => setForm({ ...form, redundant: e.target.checked })}
                 className="w-4 h-4 rounded border-gray-300"
               />
-              <span className="text-xs text-gray-600">Redundant Connection</span>
+              <span className="text-xs text-gray-600">Create Redundant Connections</span>
             </label>
             <label className="flex items-center gap-2 text-sm cursor-pointer">
               <input
@@ -449,6 +449,7 @@ export function VirtualConnectionConfig() {
               </label>
               {conn.showPriceTable && conn.priceTable && (
                 <div className="mt-2 overflow-x-auto">
+                  <p className="text-[9px] text-gray-400 mb-1">Click a row to change bandwidth</p>
                   <table className="w-full text-[10px]">
                     <thead>
                       <tr className="bg-gray-50">
@@ -460,9 +461,15 @@ export function VirtualConnectionConfig() {
                       {conn.priceTable.map((entry) => (
                         <tr
                           key={entry.bandwidthMbps}
-                          className={entry.bandwidthMbps === conn.bandwidthMbps
+                          onClick={() => {
+                            if (entry.bandwidthMbps !== conn.bandwidthMbps) {
+                              updateConnection(conn.id, { bandwidthMbps: entry.bandwidthMbps });
+                              fetchPriceForConnection(conn.id, entry.bandwidthMbps);
+                            }
+                          }}
+                          className={`cursor-pointer ${entry.bandwidthMbps === conn.bandwidthMbps
                             ? 'bg-green-50 font-bold'
-                            : 'hover:bg-gray-50'}
+                            : 'hover:bg-gray-50'}`}
                         >
                           <td className="px-1.5 py-0.5 text-gray-700">{entry.label}</td>
                           <td className="px-1.5 py-0.5 text-right text-gray-700">

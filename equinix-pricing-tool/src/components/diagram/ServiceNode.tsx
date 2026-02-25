@@ -9,6 +9,7 @@ interface ServiceNodeData {
   serviceType: string;
   config: Record<string, unknown>;
   pricing: PricingResult | null;
+  showPricing: boolean;
   [key: string]: unknown;
 }
 
@@ -20,7 +21,7 @@ const SERVICE_ICONS: Record<string, string> = {
 };
 
 export const ServiceNode = memo(function ServiceNode({ data }: NodeProps) {
-  const { serviceType, config, pricing } = data as ServiceNodeData;
+  const { serviceType, config, pricing, showPricing } = data as ServiceNodeData;
   const label = SERVICE_TYPE_LABELS[serviceType as string] ?? serviceType;
   const icon = SERVICE_ICONS[serviceType as string] ?? '?';
 
@@ -60,9 +61,11 @@ export const ServiceNode = memo(function ServiceNode({ data }: NodeProps) {
         {isHaPair && (
           <p className="text-[9px] text-equinix-red font-medium">HA Pair (2x devices)</p>
         )}
-        {pricing && (
+        {showPricing !== false && pricing && (
           <p className="text-[9px] text-equinix-green font-medium">
-            {formatCurrency(pricing.mrc)}/mo
+            {isHaPair
+              ? `${formatCurrency(pricing.mrc)} (each) x2 = ${formatCurrency(pricing.mrc * 2)}/mo`
+              : `${formatCurrency(pricing.mrc)}/mo`}
           </p>
         )}
       </div>

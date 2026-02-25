@@ -1,7 +1,16 @@
+import { useState, useEffect, useCallback } from 'react';
 import type { ServiceSelection, NetworkEdgeConfig as NEConfig } from '@/types/config';
 import type { DeviceType } from '@/types/equinix';
 import { TERM_OPTIONS } from '@/constants/serviceDefaults';
+import { fetchNetworkEdgePricing } from '@/api/networkEdge';
+import { formatCurrency } from '@/utils/priceCalculator';
 import { ServiceCard } from './ServiceCard';
+
+interface CorePriceEntry {
+  cores: number;
+  mrc: number;
+  nrc: number;
+}
 
 interface Props {
   service: ServiceSelection;
@@ -9,12 +18,48 @@ interface Props {
   deviceTypes: DeviceType[];
   onUpdate: (config: Record<string, unknown>) => void;
   onRemove: () => void;
+  onPricingFetched?: () => void;
 }
 
-export function NetworkEdgeConfig({ service, deviceTypes, onUpdate, onRemove }: Props) {
+export function NetworkEdgeConfig({ service, metroCode, deviceTypes, onUpdate, onRemove, onPricingFetched }: Props) {
   const config = service.config as NEConfig;
-
   const selectedDevice = deviceTypes.find((d) => d.deviceTypeCode === config.deviceTypeCode);
+
+  const [showPriceTable, setShowPriceTable] = useState(false);
+  const [priceTable, setPriceTable] = useState<CorePriceEntry[]>([]);
+  const [loadingTable, setLoadingTable] = useState(false);
+
+  const fetchPriceTable = useCallback(async () => {
+    if (!selectedDevice || !config.deviceTypeCode) return;
+    setLoadingTable(true);
+    try {
+      const entries: CorePriceEntry[] = [];
+      for (const cores of selectedDevice.coreCounts) {
+        const result = await fetchNetworkEdgePricing(
+          config.deviceTypeCode,
+          `${cores}`,
+          config.termLength,
+          metroCode
+        );
+        entries.push({ cores, mrc: result.monthlyRecurring, nrc: result.nonRecurring });
+      }
+      setPriceTable(entries);
+    } catch {
+      setPriceTable([]);
+    }
+    setLoadingTable(false);
+  }, [selectedDevice, config.deviceTypeCode, config.termLength, metroCode]);
+
+  useEffect(() => {
+    if (showPriceTable && selectedDevice) {
+      fetchPriceTable();
+    }
+  }, [showPriceTable, fetchPriceTable, selectedDevice]);
+
+  const handleSelectCore = (cores: number) => {
+    onUpdate({ packageCode: `${cores}` });
+    onPricingFetched?.();
+  };
 
   return (
     <ServiceCard title="Network Edge" pricing={service.pricing} onRemove={onRemove}>
@@ -31,6 +76,7 @@ export function NetworkEdgeConfig({ service, deviceTypes, onUpdate, onRemove }: 
                 vendorName: dt?.vendor ?? '',
                 packageCode: dt ? `${dt.coreCounts[0]}` : '',
               });
+              setPriceTable([]);
             }}
             className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md bg-white"
           >
@@ -112,6 +158,57 @@ export function NetworkEdgeConfig({ service, deviceTypes, onUpdate, onRemove }: 
                 </select>
               </div>
             )}
+
+            {/* Price table toggle */}
+            <div className="border-t border-gray-100 pt-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={showPriceTable}
+                  onChange={(e) => setShowPriceTable(e.target.checked)}
+                  className="w-3.5 h-3.5 rounded border-gray-300 accent-equinix-green"
+                />
+                <span className="text-[10px] text-gray-500">Show size/price table</span>
+              </label>
+              {showPriceTable && (
+                <div className="mt-2 overflow-x-auto">
+                  {loadingTable ? (
+                    <p className="text-[10px] text-gray-400">Loading prices...</p>
+                  ) : priceTable.length > 0 ? (
+                    <>
+                      <p className="text-[9px] text-gray-400 mb-1">Click a row to change size</p>
+                      <table className="w-full text-[10px]">
+                        <thead>
+                          <tr className="bg-gray-50">
+                            <th className="text-left px-1.5 py-1 text-gray-500 font-medium">Size</th>
+                            <th className="text-right px-1.5 py-1 text-gray-500 font-medium">MRC</th>
+                            <th className="text-right px-1.5 py-1 text-gray-500 font-medium">NRC</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {priceTable.map((entry) => {
+                            const isSelected = `${entry.cores}` === config.packageCode;
+                            return (
+                              <tr
+                                key={entry.cores}
+                                onClick={() => handleSelectCore(entry.cores)}
+                                className={`cursor-pointer ${isSelected ? 'bg-green-50 font-bold' : 'hover:bg-gray-50'}`}
+                              >
+                                <td className="px-1.5 py-0.5 text-gray-700">{entry.cores} vCPU</td>
+                                <td className="px-1.5 py-0.5 text-right text-gray-700">{formatCurrency(entry.mrc)}</td>
+                                <td className="px-1.5 py-0.5 text-right text-gray-700">{formatCurrency(entry.nrc)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </>
+                  ) : (
+                    <p className="text-[10px] text-gray-400">No pricing data available</p>
+                  )}
+                </div>
+              )}
+            </div>
           </>
         )}
       </div>
