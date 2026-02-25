@@ -36,6 +36,7 @@ const DOCKER_DATA_FILE = join(DOCKER_DATA_DIR, 'defaults.json');
 const API_BASE = 'https://api.equinix.com';
 const MAX_RETRIES = 3;
 const RATE_LIMIT_MS = 200; // 5 requests/sec
+const CONCURRENCY = 5; // Max parallel requests (stays within ~5 req/sec with rate limit)
 
 // ── ANSI helpers ─────────────────────────────────────────────────────────────
 
@@ -434,31 +435,46 @@ async function fetchNetworkEdgePricing(deviceTypes, referenceMetro) {
     return pricing;
   }
 
-  for (let i = 0; i < combos.length; i++) {
-    const { dt, pkg, term } = combos[i];
-    const key = `${dt.deviceTypeCode}_${pkg.packageCode}_${term}`;
-    process.stdout.write(`\r${progressBar(i + 1, total)} ${c.dim}${dt.deviceTypeCode} ${pkg.packageCode} ${term}mo${c.reset}       `);
-    try {
-      const qs = new URLSearchParams({
-        vendorPackage: dt.deviceTypeCode,
-        softwarePackage: pkg.packageCode,
-        termLength: String(term),
-        metro: referenceMetro,
-      });
-      const res = await apiGet(`/ne/v1/prices?${qs}`);
-      // Response has primary.charges[] with description and monthlyRecurringCharges
-      const charges = res.primary?.charges ?? [];
-      const deviceCharge = charges.find((ch) => ch.description === 'VIRTUAL_DEVICE');
-      const licenseCharge = charges.find((ch) => ch.description === 'DEVICE_LICENSE');
-      const mrc = Number(deviceCharge?.monthlyRecurringCharges ?? 0) +
-                  Number(licenseCharge?.monthlyRecurringCharges ?? 0);
-      pricing[key] = { mrc, nrc: 0 };
-      ok++;
-    } catch (err) {
-      fail++;
-      failures.push({ key, reason: err.message || 'Unknown error' });
+  let completed = 0;
+
+  // Process in concurrent batches for speed
+  for (let i = 0; i < combos.length; i += CONCURRENCY) {
+    const batch = combos.slice(i, i + CONCURRENCY);
+    const results = await Promise.allSettled(
+      batch.map(async ({ dt, pkg, term }) => {
+        const key = `${dt.deviceTypeCode}_${pkg.packageCode}_${term}`;
+        const qs = new URLSearchParams({
+          vendorPackage: dt.deviceTypeCode,
+          softwarePackage: pkg.packageCode,
+          termLength: String(term),
+          metro: referenceMetro,
+        });
+        const res = await apiGet(`/ne/v1/prices?${qs}`);
+        const charges = res.primary?.charges ?? [];
+        const deviceCharge = charges.find((ch) => ch.description === 'VIRTUAL_DEVICE');
+        const licenseCharge = charges.find((ch) => ch.description === 'DEVICE_LICENSE');
+        const mrc = Number(deviceCharge?.monthlyRecurringCharges ?? 0) +
+                    Number(licenseCharge?.monthlyRecurringCharges ?? 0);
+        return { key, mrc };
+      })
+    );
+
+    for (let j = 0; j < results.length; j++) {
+      completed++;
+      const combo = batch[j];
+      const key = `${combo.dt.deviceTypeCode}_${combo.pkg.packageCode}_${combo.term}`;
+      const result = results[j];
+      if (result.status === 'fulfilled') {
+        pricing[result.value.key] = { mrc: result.value.mrc, nrc: 0 };
+        ok++;
+      } else {
+        fail++;
+        failures.push({ key, reason: result.reason?.message || 'Unknown error' });
+      }
     }
+    process.stdout.write(`\r${progressBar(completed, total)} ${c.dim}${batch[batch.length - 1].dt.deviceTypeCode}${c.reset}       `);
   }
+
   process.stdout.write('\r' + ' '.repeat(80) + '\r');
   const status = fail ? `${c.green}${ok} ok${c.reset}, ${c.red}${fail} failed${c.reset}` : `${c.green}${ok} prices${c.reset}`;
   console.log(`  ${CHECK} Network Edge \u2014 ${status}`);
