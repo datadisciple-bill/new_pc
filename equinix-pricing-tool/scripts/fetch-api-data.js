@@ -269,9 +269,9 @@ async function fetchDeviceTypes() {
     category: dt.category ?? 'OTHER',
     availableMetros: dt.availableMetros ?? dt.metros?.map((m) => m.code) ?? [],
     softwarePackages: (dt.softwarePackages ?? []).map((sp) => ({
-      code: sp.code,
+      // Raw API uses "packageCode"; our TypeScript type uses "code"
+      code: sp.packageCode ?? sp.code,
       name: sp.name,
-      licenseType: sp.licenseType,
     })),
     coreCounts: dt.coreCounts ?? extractCoreCounts(dt),
     // Preserve deviceManagementTypes for core/license extraction during pricing
@@ -485,13 +485,23 @@ async function fetchNetworkEdgePricing(deviceTypes, referenceMetro) {
     return 2; // sensible default
   }
 
+  // Extract the first available license type from deviceManagementTypes
+  function getDefaultLicenseType(dt) {
+    for (const mgmt of Object.values(dt.deviceManagementTypes ?? {})) {
+      const keys = Object.keys(mgmt?.licenseOptions ?? {});
+      if (keys.length) return keys[0]; // e.g. "SUB" or "BYOL"
+    }
+    return undefined;
+  }
+
   // Build flat list of all combinations
   const combos = [];
   for (const dt of deviceTypes) {
     const core = getSmallestCore(dt);
+    const licenseType = getDefaultLicenseType(dt);
     for (const pkg of (dt.softwarePackages ?? [])) {
       for (const term of termLengths) {
-        combos.push({ dt, pkg, term, core, licenseType: pkg.licenseType });
+        combos.push({ dt, pkg, term, core, licenseType });
       }
     }
   }
@@ -509,10 +519,10 @@ async function fetchNetworkEdgePricing(deviceTypes, referenceMetro) {
     const batch = combos.slice(i, i + CONCURRENCY);
     const results = await Promise.allSettled(
       batch.map(async ({ dt, pkg, term, core, licenseType }) => {
-        const key = `${dt.deviceTypeCode}_${pkg.packageCode}_${term}`;
+        const key = `${dt.deviceTypeCode}_${pkg.code}_${term}`;
         const params = {
           vendorPackage: dt.deviceTypeCode,
-          softwarePackage: pkg.packageCode,
+          softwarePackage: pkg.code,
           termLength: String(term),
           metro: referenceMetro,
           core: String(core),
@@ -532,7 +542,7 @@ async function fetchNetworkEdgePricing(deviceTypes, referenceMetro) {
     for (let j = 0; j < results.length; j++) {
       completed++;
       const combo = batch[j];
-      const key = `${combo.dt.deviceTypeCode}_${combo.pkg.packageCode}_${combo.term}`;
+      const key = `${combo.dt.deviceTypeCode}_${combo.pkg.code}_${combo.term}`;
       const result = results[j];
       if (result.status === 'fulfilled') {
         pricing[result.value.key] = { mrc: result.value.mrc, nrc: 0 };
