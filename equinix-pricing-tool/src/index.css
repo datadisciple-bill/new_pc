@@ -30,3 +30,8 @@ body {
 .react-flow__node {
   font-family: Arial, sans-serif;
 }
+
+/* Metro parent nodes must allow child service nodes to render on top */
+.react-flow__node-metroNode {
+  overflow: visible !important;
+}

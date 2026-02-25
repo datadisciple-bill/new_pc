@@ -24,6 +24,14 @@ function getServiceNodeHeight(service: { type: string; config: unknown }): numbe
   return SERVICE_NODE_HEIGHT;
 }
 
+function computeMetroHeight(metro: MetroSelection): number {
+  let totalServiceHeight = 0;
+  for (const svc of metro.services) {
+    totalServiceHeight += getServiceNodeHeight(svc) + SERVICE_GAP;
+  }
+  return Math.max(METRO_HEADER_HEIGHT + METRO_PADDING * 2 + totalServiceHeight, 200);
+}
+
 export function buildDiagramLayout(
   metros: MetroSelection[],
   connections: VirtualConnection[]
@@ -34,21 +42,31 @@ export function buildDiagramLayout(
   // Track absolute positions for services so we can route edges
   const servicePositions = new Map<string, { x: number; y: number }>();
 
+  // Pre-compute the max height per row so rows don't overlap
+  const rowMaxHeights: number[] = [];
+  metros.forEach((metro, metroIndex) => {
+    const row = Math.floor(metroIndex / METROS_PER_ROW);
+    const h = computeMetroHeight(metro);
+    rowMaxHeights[row] = Math.max(rowMaxHeights[row] ?? 0, h);
+  });
+
+  // Cumulative Y offsets per row
+  const rowYOffsets: number[] = [];
+  let cumulativeY = 0;
+  for (let r = 0; r < rowMaxHeights.length; r++) {
+    rowYOffsets[r] = cumulativeY;
+    cumulativeY += rowMaxHeights[r] + METRO_GAP_Y;
+  }
+
   metros.forEach((metro, metroIndex) => {
     const col = metroIndex % METROS_PER_ROW;
     const row = Math.floor(metroIndex / METROS_PER_ROW);
 
-    // Calculate metro height based on actual service heights
-    let totalServiceHeight = 0;
-    for (const svc of metro.services) {
-      totalServiceHeight += getServiceNodeHeight(svc) + SERVICE_GAP;
-    }
-    const metroHeight = METRO_HEADER_HEIGHT + METRO_PADDING * 2 + totalServiceHeight;
-
+    const metroHeight = computeMetroHeight(metro);
     const metroX = col * (METRO_WIDTH + METRO_GAP_X);
-    const metroY = row * (450 + METRO_GAP_Y);
+    const metroY = rowYOffsets[row];
 
-    // Metro container node
+    // Metro container node — z-index 0 so services render on top
     nodes.push({
       id: `metro-${metro.metroCode}`,
       type: 'metroNode',
@@ -60,11 +78,12 @@ export function buildDiagramLayout(
       },
       style: {
         width: METRO_WIDTH,
-        height: Math.max(metroHeight, 200),
+        height: metroHeight,
       },
+      zIndex: 0,
     });
 
-    // Service nodes — use relative positions within parent
+    // Service nodes positioned within the metro container
     let yOffset = METRO_HEADER_HEIGHT + METRO_PADDING;
     metro.services.forEach((service) => {
       const nodeHeight = getServiceNodeHeight(service);
@@ -88,11 +107,12 @@ export function buildDiagramLayout(
           pricing: service.pricing,
         },
         parentId: `metro-${metro.metroCode}`,
-        extent: 'parent' as const,
+        expandParent: true,
         style: {
           width: METRO_WIDTH - METRO_PADDING * 2,
           height: nodeHeight,
         },
+        zIndex: 1,
       });
 
       yOffset += nodeHeight + SERVICE_GAP;
@@ -143,7 +163,7 @@ export function buildDiagramLayout(
           type: 'cloudNode',
           position: {
             x: col * (METRO_WIDTH + METRO_GAP_X) + METRO_WIDTH + 40,
-            y: aPos?.y ?? (row * (450 + METRO_GAP_Y) + 60),
+            y: aPos?.y ?? (rowYOffsets[row] + 60),
           },
           data: {
             provider: conn.zSide.serviceProfileName,
