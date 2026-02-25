@@ -5,6 +5,8 @@ import {
   Controls,
   MiniMap,
   applyNodeChanges,
+  getNodesBounds,
+  getViewportForBounds,
   type NodeTypes,
   type EdgeTypes,
   type NodeChange,
@@ -205,16 +207,37 @@ export function NetworkDiagram() {
     }
   }, [addTextBox]);
 
-  // Export diagram as PNG
+  // Export diagram as PNG — cropped to content bounds
   const handleExportPng = useCallback(async () => {
     const el = reactFlowWrapper.current?.querySelector('.react-flow__viewport') as HTMLElement | null;
-    if (!el) return;
+    const instance = rfInstanceRef.current;
+    if (!el || !instance) return;
+
+    const nodes = instance.getNodes();
+    if (nodes.length === 0) return;
+
+    // Save current viewport to restore after export
+    const prevViewport = instance.getViewport();
+
     try {
+      const PADDING = 40;
+      const bounds = getNodesBounds(nodes);
+      const exportWidth = bounds.width + PADDING * 2;
+      const exportHeight = bounds.height + PADDING * 2;
+
+      // Compute viewport that fits all nodes into the export dimensions
+      const viewport = getViewportForBounds(bounds, exportWidth, exportHeight, 0.1, 2, PADDING);
+      instance.setViewport(viewport);
+
+      // Wait for the viewport change to render
+      await new Promise((r) => setTimeout(r, 100));
+
       const dataUrl = await toPng(el, {
         backgroundColor: '#ffffff',
+        width: exportWidth,
+        height: exportHeight,
         pixelRatio: 2,
         filter: (node) => {
-          // Exclude controls, minimap, and toolbar from export
           if (node instanceof HTMLElement) {
             const cls = node.className ?? '';
             if (typeof cls === 'string') {
@@ -233,6 +256,9 @@ export function NetworkDiagram() {
       link.click();
     } catch (err) {
       console.error('PNG export failed:', err);
+    } finally {
+      // Restore previous viewport
+      instance.setViewport(prevViewport);
     }
   }, []);
 

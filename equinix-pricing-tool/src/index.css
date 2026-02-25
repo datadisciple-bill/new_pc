@@ -35,3 +35,8 @@ body {
 .react-flow__node-metroNode {
   overflow: visible !important;
 }
+
+/* Edge labels (bandwidth/price) must always render above all nodes */
+.react-flow__edgelabel-renderer {
+  z-index: 1000 !important;
+}

@@ -74,8 +74,15 @@ export function VirtualConnectionConfig() {
     }))
   );
 
-  // Z-Side services: exclude A-Side service itself
-  const zSideServices = allServices.filter((s) => s.id !== form.aSideServiceId);
+  // Z-Side services: exclude A-Side service itself + enforce connection rules
+  const aSideService = allServices.find((s) => s.id === form.aSideServiceId);
+  const zSideServices = allServices.filter((s) => {
+    if (s.id === form.aSideServiceId) return false;
+    // Colocation cannot connect directly to Network Edge (must go via Fabric Port)
+    if (aSideService?.type === 'COLOCATION' && s.type === 'NETWORK_EDGE') return false;
+    if (aSideService?.type === 'NETWORK_EDGE' && s.type === 'COLOCATION') return false;
+    return true;
+  });
 
   const resetForm = () => {
     setForm({ ...EMPTY_FORM });
@@ -206,7 +213,7 @@ export function VirtualConnectionConfig() {
     const zSideLabel = conn.zSide.serviceProfileName
       ?? (zSvc ? `${SERVICE_TYPE_LABELS[zSvc.type] ?? zSvc.type} (${conn.zSide.metroCode})` : conn.zSide.metroCode);
     const isSameMetro = conn.aSide.metroCode === conn.zSide.metroCode;
-    return `${aSideLabel} → ${zSideLabel}${isSameMetro ? ' (local)' : ''}`;
+    return `${aSideLabel} -> ${zSideLabel}${isSameMetro ? ' (local)' : ''}`;
   };
 
   // Toggle price table on/off for existing connection without opening full edit
