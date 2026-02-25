@@ -120,13 +120,13 @@ export function mockNetworkEdgePricing(
   if (lookup) {
     return {
       monthlyRecurring: lookup.mrc,
-      nonRecurring: termLength === 1 ? lookup.nrc : 0,
+      nonRecurring: lookup.nrc ?? 0,
       currency: 'USD',
       termLength,
     };
   }
 
-  // Fall back to hardcoded formula
+  // Fall back to hardcoded formula — NRC is 0 unless the pricing data explicitly defines one
   const coreMatch = packageCode.match(/(\d+)/);
   const cores = coreMatch ? parseInt(coreMatch[1], 10) : 4;
   const priceEntry = CORE_PRICE_MAP[cores] ?? CORE_PRICE_MAP[4];
@@ -135,7 +135,7 @@ export function mockNetworkEdgePricing(
 
   return {
     monthlyRecurring: mrc,
-    nonRecurring: termLength === 1 ? 500 : 0,
+    nonRecurring: 0,
     currency: 'USD',
     termLength,
   };
