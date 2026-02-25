@@ -36,10 +36,13 @@ export const ServiceNode = memo(function ServiceNode({ data }: NodeProps) {
 
   let portRedundancy: string | null = null;
 
+  let quantity = 1;
+
   if (serviceType === 'FABRIC_PORT') {
-    const c = config as { speed?: string; type?: string };
+    const c = config as { speed?: string; type?: string; quantity?: number };
     portRedundancy = c.type ?? 'PRIMARY';
     detail = c.speed ?? '';
+    quantity = c.quantity ?? 1;
   } else if (serviceType === 'NETWORK_EDGE') {
     const c = config as { deviceTypeName?: string; redundant?: boolean };
     detail = c.deviceTypeName ?? '';
@@ -100,8 +103,10 @@ export const ServiceNode = memo(function ServiceNode({ data }: NodeProps) {
         {showPricing !== false && pricing && (
           <p className="text-[9px] text-equinix-green font-medium">
             {isHaPair
-              ? `${formatCurrency(pricing.mrc)} (each) x2 = ${formatCurrency(pricing.mrc * 2)}/mo`
-              : `${formatCurrency(pricing.mrc)}/mo`}
+              ? `${formatCurrency(pricing.mrc)} x2 = ${formatCurrency(pricing.mrc * 2)}/mo`
+              : quantity > 1
+                ? `${formatCurrency(pricing.mrc)} x${quantity} = ${formatCurrency(pricing.mrc * quantity)}/mo`
+                : `${formatCurrency(pricing.mrc)}/mo`}
           </p>
         )}
       </div>

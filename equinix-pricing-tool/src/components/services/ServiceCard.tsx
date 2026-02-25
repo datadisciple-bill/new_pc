@@ -7,10 +7,11 @@ interface Props {
   pricing: PricingResult | null;
   onRemove: () => void;
   quoteRequired?: boolean;
+  quantity?: number;
   children: ReactNode;
 }
 
-export function ServiceCard({ title, pricing, onRemove, quoteRequired, children }: Props) {
+export function ServiceCard({ title, pricing, onRemove, quoteRequired, quantity = 1, children }: Props) {
   return (
     <div className="border border-gray-200 rounded-lg overflow-hidden">
       {/* Header bar — Equinix black */}
@@ -39,18 +40,23 @@ export function ServiceCard({ title, pricing, onRemove, quoteRequired, children 
               <span className="text-xs text-amber-600 font-medium">Quote Required — Contact Equinix</span>
             </div>
           ) : pricing ? (
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-gray-500">
-                MRC: <span className="font-medium text-gray-900">{formatCurrency(pricing.mrc)}</span>
-              </span>
-              {pricing.nrc > 0 && (
+            <div className="text-xs space-y-0.5">
+              <div className="flex items-center justify-between">
                 <span className="text-gray-500">
-                  NRC: <span className="font-medium text-gray-900">{formatCurrency(pricing.nrc)}</span>
+                  MRC: <span className="font-medium text-gray-900">{formatCurrency(pricing.mrc)}</span>
+                  {quantity > 1 && (
+                    <span className="text-gray-500"> x{quantity} = <span className="font-medium text-gray-900">{formatCurrency(pricing.mrc * quantity)}</span></span>
+                  )}
                 </span>
-              )}
-              {pricing.isEstimate && (
-                <span className="text-[10px] text-amber-500">est.</span>
-              )}
+                {pricing.nrc > 0 && (
+                  <span className="text-gray-500">
+                    NRC: <span className="font-medium text-gray-900">{formatCurrency(pricing.nrc)}</span>
+                  </span>
+                )}
+                {pricing.isEstimate && (
+                  <span className="text-[10px] text-amber-500">est.</span>
+                )}
+              </div>
             </div>
           ) : (
             <span className="text-xs text-gray-400">Calculating...</span>

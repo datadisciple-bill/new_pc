@@ -1,10 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useConfigStore } from '@/store/configStore';
 import { fetchMetros } from '@/api/fabric';
 import type { Metro } from '@/types/equinix';
 
 export function useMetros() {
   const { metros: cachedMetros, metrosLoaded } = useConfigStore((s) => s.cache);
+  const sortedMetros = useMemo(
+    () => [...cachedMetros].sort((a, b) => a.code.localeCompare(b.code)),
+    [cachedMetros]
+  );
   const selectedMetros = useConfigStore((s) => s.project.metros);
   const addMetro = useConfigStore((s) => s.addMetro);
   const removeMetro = useConfigStore((s) => s.removeMetro);
@@ -38,7 +42,7 @@ export function useMetros() {
   );
 
   return {
-    allMetros: cachedMetros,
+    allMetros: sortedMetros,
     selectedMetros,
     isLoading,
     error,

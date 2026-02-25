@@ -14,10 +14,13 @@ export function FabricPortConfig({ service, onUpdate, onRemove }: Props) {
 
   const handleTypeChange = (newType: string) => {
     const updates: Record<string, unknown> = { type: newType };
-    // Redundant means a pair (Primary + Secondary) — enforce even quantity
     if (newType === 'REDUNDANT') {
+      // Redundant means a pair (Primary + Secondary) — enforce even quantity
       const qty = config.quantity < 2 ? 2 : config.quantity % 2 !== 0 ? config.quantity + 1 : config.quantity;
       updates.quantity = qty;
+    } else {
+      // Switching to Primary or Secondary — reset to 1
+      updates.quantity = 1;
     }
     onUpdate(updates);
   };
@@ -32,7 +35,7 @@ export function FabricPortConfig({ service, onUpdate, onRemove }: Props) {
   };
 
   return (
-    <ServiceCard title="Fabric Port" pricing={service.pricing} onRemove={onRemove}>
+    <ServiceCard title="Fabric Port" pricing={service.pricing} onRemove={onRemove} quantity={config.quantity}>
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">Speed</label>
