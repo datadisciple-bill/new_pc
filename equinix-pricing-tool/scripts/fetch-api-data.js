@@ -208,7 +208,7 @@ async function authenticate() {
 
 // ── Fetch Options ────────────────────────────────────────────────────────────
 
-async function fetchWithStatus(label, fn) {
+async function fetchWithStatus(label, fn, fallback = []) {
   const t = Date.now();
   process.stdout.write(`  ${ARROW} ${label}...`);
   try {
@@ -217,8 +217,9 @@ async function fetchWithStatus(label, fn) {
     console.log(`\r  ${CHECK} ${label} ${c.dim}\u2014${c.reset} ${c.bold}${count}${c.reset} items ${elapsed(t)}`);
     return result;
   } catch (err) {
-    console.log(`\r  ${CROSS} ${label} ${c.red}FAILED${c.reset} ${elapsed(t)}`);
-    throw err;
+    const msg = err.message?.length > 80 ? err.message.slice(0, 80) + '...' : err.message;
+    console.log(`\r  ${WARN} ${label} ${c.yellow}skipped${c.reset} ${c.dim}\u2014 ${msg}${c.reset} ${elapsed(t)}`);
+    return fallback;
   }
 }
 
@@ -364,13 +365,18 @@ async function fetchNetworkEdgePricing(deviceTypes, referenceMetro) {
   // Build flat list of all combinations
   const combos = [];
   for (const dt of deviceTypes) {
-    for (const pkg of dt.softwarePackages) {
+    for (const pkg of (dt.softwarePackages ?? [])) {
       for (const term of termLengths) {
         combos.push({ dt, pkg, term });
       }
     }
   }
   const total = combos.length;
+
+  if (total === 0) {
+    console.log(`  ${c.dim}  Network Edge \u2014 no device types to price${c.reset}`);
+    return pricing;
+  }
 
   for (let i = 0; i < combos.length; i++) {
     const { dt, pkg, term } = combos[i];
@@ -417,6 +423,10 @@ async function main() {
   // ── Phase 2: Options ───────────────────────────────────────────────────────
   console.log(`${c.bold}${c.cyan}[2/4]${c.reset}${c.bold} Fetching catalog data${c.reset}`);
   const metros = await fetchWithStatus('Metros', fetchMetros);
+  if (metros.length === 0) {
+    console.log(`\n  ${CROSS} ${c.red}No metros returned — cannot continue without metro data.${c.reset}\n`);
+    process.exit(1);
+  }
   const deviceTypes = await fetchWithStatus('Network Edge device types', fetchDeviceTypes);
   const serviceProfiles = await fetchWithStatus('Fabric service profiles', fetchServiceProfiles);
   const routerPackages = await fetchWithStatus('Cloud Router packages', fetchRouterPackages);
@@ -424,13 +434,26 @@ async function main() {
   console.log('');
 
   // ── Phase 3: Pricing ───────────────────────────────────────────────────────
-  const referenceMetro = metros.find((m) => m.region === 'AMER')?.code ?? 'DC';
+  const referenceMetro = metros.find((m) => m.region === 'AMER')?.code ?? metros[0]?.code ?? 'DC';
   console.log(`${c.bold}${c.cyan}[3/4]${c.reset}${c.bold} Fetching pricing${c.reset} ${c.dim}(reference metro: ${referenceMetro})${c.reset}`);
 
-  const fabricPortPricing = await fetchFabricPortPricing();
-  const vcPricing = await fetchVCPricing();
-  const cloudRouterPricing = await fetchCloudRouterPricing(routerPackages, referenceMetro);
-  const nePricing = await fetchNetworkEdgePricing(deviceTypes, referenceMetro);
+  let fabricPortPricing = {};
+  let vcPricing = {};
+  let cloudRouterPricing = {};
+  let nePricing = {};
+
+  try { fabricPortPricing = await fetchFabricPortPricing(); } catch (err) {
+    console.log(`  ${WARN} Fabric Port pricing ${c.yellow}skipped${c.reset} ${c.dim}\u2014 ${err.message}${c.reset}`);
+  }
+  try { vcPricing = await fetchVCPricing(); } catch (err) {
+    console.log(`  ${WARN} VC pricing ${c.yellow}skipped${c.reset} ${c.dim}\u2014 ${err.message}${c.reset}`);
+  }
+  try { cloudRouterPricing = await fetchCloudRouterPricing(routerPackages, referenceMetro); } catch (err) {
+    console.log(`  ${WARN} Cloud Router pricing ${c.yellow}skipped${c.reset} ${c.dim}\u2014 ${err.message}${c.reset}`);
+  }
+  try { nePricing = await fetchNetworkEdgePricing(deviceTypes, referenceMetro); } catch (err) {
+    console.log(`  ${WARN} Network Edge pricing ${c.yellow}skipped${c.reset} ${c.dim}\u2014 ${err.message}${c.reset}`);
+  }
   console.log('');
 
   // ── Phase 4: Write ─────────────────────────────────────────────────────────
