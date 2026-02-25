@@ -290,6 +290,7 @@ async function fetchFabricPortPricing() {
   const pricing = {};
   let ok = 0;
   let fail = 0;
+  const failures = [];
 
   for (let i = 0; i < combos.length; i++) {
     const { label, mbps, portProduct } = combos[i];
@@ -309,14 +310,18 @@ async function fetchFabricPortPricing() {
       const nrc = charges.find((ch) => ch.type === 'NON_RECURRING')?.price ?? 0;
       pricing[key] = { mrc, nrc };
       ok++;
-    } catch {
+    } catch (err) {
       fail++;
+      failures.push({ key, reason: err.message || 'Unknown error' });
     }
   }
   process.stdout.write('\r' + ' '.repeat(70) + '\r');
   const status = fail ? `${c.green}${ok} ok${c.reset}, ${c.red}${fail} failed${c.reset}` : `${c.green}${ok} prices${c.reset}`;
   if (fail) {
-    console.log(`  ${CHECK} Fabric Ports \u2014 ${status} ${c.dim}(400G may not be available yet)${c.reset}`);
+    console.log(`  ${CHECK} Fabric Ports \u2014 ${status}`);
+    for (const f of failures) {
+      console.log(`    ${CROSS} ${c.dim}${f.key}:${c.reset} ${c.red}${f.reason}${c.reset}`);
+    }
   } else {
     console.log(`  ${CHECK} Fabric Ports \u2014 ${status}`);
   }
@@ -329,6 +334,7 @@ async function fetchVCPricing() {
   const pricing = {};
   let ok = 0;
   let fail = 0;
+  const failures = [];
 
   for (let i = 0; i < bandwidths.length; i++) {
     const bw = bandwidths[i];
@@ -345,13 +351,19 @@ async function fetchVCPricing() {
       const nrc = charges.find((ch) => ch.type === 'NON_RECURRING')?.price ?? 0;
       pricing[String(bw)] = { mrc, nrc };
       ok++;
-    } catch {
+    } catch (err) {
       fail++;
+      failures.push({ key: label, reason: err.message || 'Unknown error' });
     }
   }
   process.stdout.write('\r' + ' '.repeat(70) + '\r');
   const status = fail ? `${c.green}${ok} ok${c.reset}, ${c.red}${fail} failed${c.reset}` : `${c.green}${ok} prices${c.reset}`;
   console.log(`  ${CHECK} Virtual Connections \u2014 ${status}`);
+  if (fail) {
+    for (const f of failures) {
+      console.log(`    ${CROSS} ${c.dim}${f.key}:${c.reset} ${c.red}${f.reason}${c.reset}`);
+    }
+  }
   return pricing;
 }
 
@@ -360,6 +372,7 @@ async function fetchCloudRouterPricing(routerPackages, referenceMetro) {
   const pricing = {};
   let ok = 0;
   let fail = 0;
+  const failures = [];
 
   for (let i = 0; i < routerPackages.length; i++) {
     const pkg = routerPackages[i];
@@ -375,13 +388,19 @@ async function fetchCloudRouterPricing(routerPackages, referenceMetro) {
       const nrc = charges.find((ch) => ch.type === 'NON_RECURRING')?.price ?? 0;
       pricing[pkg.code] = { mrc, nrc };
       ok++;
-    } catch {
+    } catch (err) {
       fail++;
+      failures.push({ key: pkg.code, reason: err.message || 'Unknown error' });
     }
   }
   process.stdout.write('\r' + ' '.repeat(70) + '\r');
   const status = fail ? `${c.green}${ok} ok${c.reset}, ${c.red}${fail} failed${c.reset}` : `${c.green}${ok} prices${c.reset}`;
   console.log(`  ${CHECK} Cloud Router \u2014 ${status}`);
+  if (fail) {
+    for (const f of failures) {
+      console.log(`    ${CROSS} ${c.dim}${f.key}:${c.reset} ${c.red}${f.reason}${c.reset}`);
+    }
+  }
   return pricing;
 }
 
@@ -390,6 +409,7 @@ async function fetchNetworkEdgePricing(deviceTypes, referenceMetro) {
   const pricing = {};
   let ok = 0;
   let fail = 0;
+  const failures = [];
 
   // Build flat list of all combinations
   const combos = [];
@@ -427,13 +447,30 @@ async function fetchNetworkEdgePricing(deviceTypes, referenceMetro) {
                   Number(licenseCharge?.monthlyRecurringCharges ?? 0);
       pricing[key] = { mrc, nrc: 0 };
       ok++;
-    } catch {
+    } catch (err) {
       fail++;
+      failures.push({ key, reason: err.message || 'Unknown error' });
     }
   }
   process.stdout.write('\r' + ' '.repeat(80) + '\r');
   const status = fail ? `${c.green}${ok} ok${c.reset}, ${c.red}${fail} failed${c.reset}` : `${c.green}${ok} prices${c.reset}`;
   console.log(`  ${CHECK} Network Edge \u2014 ${status}`);
+  if (fail) {
+    // Group NE failures by reason to avoid flooding the console
+    const byReason = new Map();
+    for (const f of failures) {
+      const existing = byReason.get(f.reason) ?? [];
+      existing.push(f.key);
+      byReason.set(f.reason, existing);
+    }
+    for (const [reason, keys] of byReason) {
+      if (keys.length <= 3) {
+        console.log(`    ${CROSS} ${c.dim}${keys.join(', ')}:${c.reset} ${c.red}${reason}${c.reset}`);
+      } else {
+        console.log(`    ${CROSS} ${c.dim}${keys.length} combos:${c.reset} ${c.red}${reason}${c.reset}`);
+      }
+    }
+  }
   return pricing;
 }
 
@@ -466,7 +503,7 @@ async function main() {
   console.log('');
 
   // ── Phase 3: Pricing ───────────────────────────────────────────────────────
-  const referenceMetro = metros.find((m) => m.region === 'AMER')?.code ?? metros[0]?.code ?? 'DC';
+  const referenceMetro = 'DC';
   console.log(`${c.bold}${c.cyan}[3/4]${c.reset}${c.bold} Fetching pricing${c.reset} ${c.dim}(reference metro: ${referenceMetro})${c.reset}`);
 
   let fabricPortPricing = {};
