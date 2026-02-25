@@ -1,4 +1,5 @@
 import type { DeviceType, NetworkEdgePriceResponse } from '@/types/equinix';
+import { lookupNEPrice } from '@/data/defaultPricing';
 
 export function mockDeviceTypes(): DeviceType[] {
   return [
@@ -93,11 +94,22 @@ const TERM_DISCOUNT: Record<number, number> = {
 };
 
 export function mockNetworkEdgePricing(
-  _deviceTypeCode: string,
+  deviceTypeCode: string,
   packageCode: string,
   termLength: number
 ): NetworkEdgePriceResponse {
-  // Extract core count from package code, default to 4
+  // Check loaded API defaults first
+  const lookup = lookupNEPrice(deviceTypeCode, packageCode, termLength);
+  if (lookup) {
+    return {
+      monthlyRecurring: lookup.mrc,
+      nonRecurring: lookup.nrc,
+      currency: 'USD',
+      termLength,
+    };
+  }
+
+  // Fall back to hardcoded formula
   const coreMatch = packageCode.match(/(\d+)/);
   const cores = coreMatch ? parseInt(coreMatch[1], 10) : 4;
   const priceEntry = CORE_PRICE_MAP[cores] ?? CORE_PRICE_MAP[4];

@@ -11,6 +11,7 @@ import { fetchMetros } from '@/api/fabric';
 import { fetchDeviceTypes } from '@/api/networkEdge';
 import { fetchServiceProfiles } from '@/api/fabric';
 import { authenticate } from '@/api/auth';
+import { setDefaultPricing } from '@/data/defaultPricing';
 
 type Tab = 'metros' | 'services' | 'diagram' | 'pricing';
 
@@ -34,16 +35,45 @@ function App() {
   const [cacheInfo, setCacheInfo] = useState<CachedOptions | null>(null);
   const [showRefreshDialog, setShowRefreshDialog] = useState(false);
 
-  // Load cached or mock data on startup — no login required
+  // Load data on startup: static defaults > IndexedDB cache > mock data
   useEffect(() => {
     (async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let staticDefaults: any = null;
+
+      // Always try to load pricing from static defaults file
+      try {
+        const res = await fetch('/data/defaults.json');
+        if (res.ok) {
+          staticDefaults = await res.json();
+          if (staticDefaults?.pricing) {
+            setDefaultPricing(staticDefaults.pricing);
+          }
+        }
+      } catch {
+        // Static defaults not available — not an error
+      }
+
+      // Check IndexedDB cache (user-refreshed data takes priority for options)
       const cached = await loadCachedOptions();
       if (cached && isCacheValid(cached)) {
-        // Use cached API data
         useConfigStore.getState().setMetros(cached.metros);
         useConfigStore.getState().setDeviceTypes(cached.deviceTypes);
         useConfigStore.getState().setServiceProfiles(cached.serviceProfiles);
         setCacheInfo(cached);
+      } else if (staticDefaults?.metros?.length) {
+        // Use static defaults for options
+        useConfigStore.getState().setMetros(staticDefaults.metros);
+        useConfigStore.getState().setDeviceTypes(staticDefaults.deviceTypes ?? []);
+        useConfigStore.getState().setServiceProfiles(staticDefaults.serviceProfiles ?? []);
+        setCacheInfo({
+          cachedAt: new Date(staticDefaults.fetchedAt).getTime(),
+          metros: staticDefaults.metros,
+          deviceTypes: staticDefaults.deviceTypes ?? [],
+          serviceProfiles: staticDefaults.serviceProfiles ?? [],
+          routerPackages: staticDefaults.routerPackages ?? [],
+          eiaLocations: staticDefaults.eiaLocations ?? [],
+        });
       } else {
         // Fall back to mock data (works without auth)
         await fetchMetros();

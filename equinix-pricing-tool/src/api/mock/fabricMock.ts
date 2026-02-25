@@ -1,4 +1,5 @@
 import type { Metro, PriceSearchResponse, ServiceProfile, RouterPackage } from '@/types/equinix';
+import { lookupPortPrice, lookupVCPrice, lookupCloudRouterPrice } from '@/data/defaultPricing';
 
 export function mockMetros(): Metro[] {
   return [
@@ -58,29 +59,32 @@ export function mockPriceSearch(
   properties: Record<string, string | number | boolean>
 ): PriceSearchResponse {
   let key = '';
+  let price = { mrc: 500, nrc: 0 };
 
   switch (filterType) {
     case 'VIRTUAL_PORT_PRODUCT': {
-      const speed = properties['/port/bandwidth'] ?? '10G';
-      const portType = properties['/port/type'] ?? 'SINGLE';
+      const speed = String(properties['/port/bandwidth'] ?? '10G');
+      const portType = String(properties['/port/type'] ?? 'SINGLE');
       key = `PORT_${speed}_${portType}`;
+      price = lookupPortPrice(speed, portType) ?? PRICING[key] ?? price;
       break;
     }
     case 'VIRTUAL_CONNECTION_PRODUCT': {
-      const bw = properties['/connection/bandwidth'] ?? 1000;
+      const bw = Number(properties['/connection/bandwidth'] ?? 1000);
       key = `VC_${bw}`;
+      price = lookupVCPrice(bw) ?? PRICING[key] ?? price;
       break;
     }
     case 'CLOUD_ROUTER_PRODUCT': {
-      const pkg = properties['/router/package/code'] ?? 'STANDARD';
+      const pkg = String(properties['/router/package/code'] ?? 'STANDARD');
       key = `FCR_${pkg}`;
+      price = lookupCloudRouterPrice(pkg) ?? PRICING[key] ?? price;
       break;
     }
     default:
       key = 'VC_1000';
+      price = PRICING[key] ?? price;
   }
-
-  const pricing = PRICING[key] ?? { mrc: 500, nrc: 0 };
 
   return {
     data: [
@@ -88,11 +92,11 @@ export function mockPriceSearch(
         type: filterType,
         code: key,
         name: key.replace(/_/g, ' '),
-        description: `Mock pricing for ${key}`,
+        description: `Pricing for ${key}`,
         charges: [
-          { type: 'MONTHLY_RECURRING', price: pricing.mrc, currency: 'USD' },
-          ...(pricing.nrc > 0
-            ? [{ type: 'NON_RECURRING' as const, price: pricing.nrc, currency: 'USD' }]
+          { type: 'MONTHLY_RECURRING', price: price.mrc, currency: 'USD' },
+          ...(price.nrc > 0
+            ? [{ type: 'NON_RECURRING' as const, price: price.nrc, currency: 'USD' }]
             : []),
         ],
       },
