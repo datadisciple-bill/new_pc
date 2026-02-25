@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useSyncExternalStore } from 'react';
 import { useConfigStore } from '@/store/configStore';
 import { MetroSelector } from '@/components/metro/MetroSelector';
 import { ServiceSelector } from '@/components/services/ServiceSelector';
@@ -6,12 +6,21 @@ import { VirtualConnectionConfig } from '@/components/services/VirtualConnection
 import { NetworkDiagram } from '@/components/diagram/NetworkDiagram';
 import { PriceSheet } from '@/components/pricing/PriceSheet';
 import { CsvExport } from '@/components/export/CsvExport';
+import { DataEditor } from '@/components/admin/DataEditor';
 import { loadCachedOptions, saveCachedOptions, isCacheValid, formatCacheAge, type CachedOptions } from '@/api/cache';
 import { fetchMetros } from '@/api/fabric';
 import { fetchDeviceTypes } from '@/api/networkEdge';
 import { fetchServiceProfiles } from '@/api/fabric';
 import { authenticate } from '@/api/auth';
 import { setDefaultPricing } from '@/data/defaultPricing';
+
+// Hash-based routing for unlisted pages
+function useHash(): string {
+  return useSyncExternalStore(
+    (cb) => { window.addEventListener('hashchange', cb); return () => window.removeEventListener('hashchange', cb); },
+    () => window.location.hash,
+  );
+}
 
 type Tab = 'metros' | 'services' | 'diagram' | 'pricing';
 
@@ -23,6 +32,7 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
 ];
 
 function App() {
+  const hash = useHash();
   const activeTab = useConfigStore((s) => s.ui.activeTab);
   const setActiveTab = useConfigStore((s) => s.setActiveTab);
   const selectedMetros = useConfigStore((s) => s.project.metros);
@@ -94,6 +104,11 @@ function App() {
         </div>
       </div>
     );
+  }
+
+  // Unlisted admin page at #/admin
+  if (hash === '#/admin') {
+    return <DataEditor />;
   }
 
   return (

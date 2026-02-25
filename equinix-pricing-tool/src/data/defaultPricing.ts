@@ -21,6 +21,10 @@ export function setDefaultPricing(data: DefaultPricingData): void {
   pricing = data;
 }
 
+export function getDefaultPricing(): DefaultPricingData | null {
+  return pricing;
+}
+
 export function hasDefaultPricing(): boolean {
   return pricing !== null;
 }
