@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { ServiceSelection, NetworkEdgeConfig as NEConfig, CorePriceEntry } from '@/types/config';
 import type { DeviceType } from '@/types/equinix';
-import { TERM_OPTIONS } from '@/constants/serviceDefaults';
+import { TERM_OPTIONS, getTermDiscountPercent } from '@/constants/serviceDefaults';
 import { fetchNetworkEdgePricing } from '@/api/networkEdge';
 import { formatCurrency } from '@/utils/priceCalculator';
 import { ServiceCard } from './ServiceCard';
@@ -30,6 +30,15 @@ export function NetworkEdgeConfig({ service, metroCode, deviceTypes, onUpdate, o
   const [showPriceTable, setShowPriceTable] = useState(config.showPriceTable ?? false);
   const [priceTable, setPriceTable] = useState<CorePriceEntry[]>(config.priceTable ?? []);
   const [loadingTable, setLoadingTable] = useState(false);
+  const prevTermRef = useRef(config.termLength);
+
+  const discountPct = getTermDiscountPercent(config.termLength);
+
+  // Sort device types alphabetically by vendor
+  const sortedDeviceTypes = useMemo(
+    () => [...deviceTypes].sort((a, b) => a.vendor.localeCompare(b.vendor)),
+    [deviceTypes]
+  );
 
   const fetchPriceTable = useCallback(async () => {
     if (!selectedDevice || !config.deviceTypeCode) return;
@@ -54,11 +63,23 @@ export function NetworkEdgeConfig({ service, metroCode, deviceTypes, onUpdate, o
     setLoadingTable(false);
   }, [selectedDevice, config.deviceTypeCode, config.termLength, metroCode, onUpdate]);
 
+  // Initial fetch when price table is toggled on
   useEffect(() => {
     if (showPriceTable && selectedDevice && priceTable.length === 0) {
       fetchPriceTable();
     }
   }, [showPriceTable, fetchPriceTable, selectedDevice, priceTable.length]);
+
+  // Re-fetch when term changes
+  useEffect(() => {
+    if (prevTermRef.current !== config.termLength) {
+      prevTermRef.current = config.termLength;
+      if (showPriceTable && selectedDevice) {
+        setPriceTable([]);
+        fetchPriceTable();
+      }
+    }
+  }, [config.termLength, showPriceTable, selectedDevice, fetchPriceTable]);
 
   const handleTogglePriceTable = (checked: boolean) => {
     setShowPriceTable(checked);
@@ -80,7 +101,7 @@ export function NetworkEdgeConfig({ service, metroCode, deviceTypes, onUpdate, o
       <div className="space-y-3">
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">Device Type</label>
-          {deviceTypes.length === 0 ? (
+          {sortedDeviceTypes.length === 0 ? (
             <p className="text-xs text-gray-400 italic py-2">
               No Network Edge device types available in this metro.
             </p>
@@ -88,7 +109,7 @@ export function NetworkEdgeConfig({ service, metroCode, deviceTypes, onUpdate, o
           <select
             value={config.deviceTypeCode}
             onChange={(e) => {
-              const dt = deviceTypes.find((d) => d.deviceTypeCode === e.target.value);
+              const dt = sortedDeviceTypes.find((d) => d.deviceTypeCode === e.target.value);
               onUpdate({
                 deviceTypeCode: e.target.value,
                 deviceTypeName: dt?.name ?? '',
@@ -100,7 +121,7 @@ export function NetworkEdgeConfig({ service, metroCode, deviceTypes, onUpdate, o
             className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md bg-white"
           >
             <option value="">Select device...</option>
-            {deviceTypes.map((dt) => (
+            {sortedDeviceTypes.map((dt) => (
               <option key={dt.deviceTypeCode} value={dt.deviceTypeCode}>
                 [{dt.category}] {dt.vendor} — {dt.name}
               </option>
@@ -205,6 +226,9 @@ export function NetworkEdgeConfig({ service, metroCode, deviceTypes, onUpdate, o
                   ) : priceTable.length > 0 ? (
                     <>
                       <p className="text-[9px] text-gray-400 mb-1">Click a row to change size</p>
+                      {discountPct > 0 && (
+                        <p className="text-[9px] text-red-600 font-semibold mb-1">{discountPct}% term discount</p>
+                      )}
                       <table className="w-full text-[10px]">
                         <thead>
                           <tr className="bg-gray-50">

@@ -58,6 +58,17 @@ export const TERM_OPTIONS = [
   { value: 36, label: '3 Years' },
 ] as const;
 
+export const TERM_DISCOUNTS: Record<number, number> = {
+  1: 0,
+  12: 15,
+  24: 25,
+  36: 35,
+};
+
+export function getTermDiscountPercent(termLength: number): number {
+  return TERM_DISCOUNTS[termLength] ?? 0;
+}
+
 export const CLOUD_SERVICE_PROFILES = [
   { name: 'AWS Direct Connect', provider: 'AWS' },
   { name: 'Azure ExpressRoute', provider: 'Microsoft Azure' },

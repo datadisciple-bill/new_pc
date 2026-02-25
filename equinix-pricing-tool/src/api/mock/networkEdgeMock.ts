@@ -120,7 +120,7 @@ export function mockNetworkEdgePricing(
   if (lookup) {
     return {
       monthlyRecurring: lookup.mrc,
-      nonRecurring: lookup.nrc,
+      nonRecurring: termLength === 1 ? lookup.nrc : 0,
       currency: 'USD',
       termLength,
     };
@@ -135,7 +135,7 @@ export function mockNetworkEdgePricing(
 
   return {
     monthlyRecurring: mrc,
-    nonRecurring: termLength === 1 ? 0 : 500,
+    nonRecurring: termLength === 1 ? 500 : 0,
     currency: 'USD',
     termLength,
   };

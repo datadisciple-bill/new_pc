@@ -219,7 +219,8 @@ export function buildDiagramLayout(
           const neConfig = service.config as NetworkEdgeConfig;
           if (neConfig.showPriceTable && neConfig.priceTable && neConfig.priceTable.length > 0) {
             const rowHeight = 14;
-            const tableHeight = 28 + neConfig.priceTable.length * rowHeight;
+            const discountBanner = (neConfig.termLength ?? 1) > 1 ? 16 : 0;
+            const tableHeight = 28 + discountBanner + neConfig.priceTable.length * rowHeight;
             const tableWidth = 220;
             nodes.push({
               id: `nepricetable-${service.id}`,
@@ -229,6 +230,7 @@ export function buildDiagramLayout(
                 serviceName: `${neConfig.deviceTypeName || 'Network Edge'} (${metro.metroCode})`,
                 selectedCores: neConfig.packageCode,
                 priceTable: neConfig.priceTable,
+                termLength: neConfig.termLength,
               },
               style: { width: tableWidth, height: tableHeight },
               width: tableWidth,
