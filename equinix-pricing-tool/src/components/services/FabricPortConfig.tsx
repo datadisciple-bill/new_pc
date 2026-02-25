@@ -1,5 +1,5 @@
 import type { ServiceSelection, FabricPortConfig as FPConfig } from '@/types/config';
-import { PORT_SPEEDS } from '@/constants/serviceDefaults';
+import { PORT_SPEEDS, PORT_PRODUCTS } from '@/constants/serviceDefaults';
 import { ServiceCard } from './ServiceCard';
 
 interface Props {
@@ -29,7 +29,20 @@ export function FabricPortConfig({ service, onUpdate, onRemove }: Props) {
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">Type</label>
+          <label className="block text-xs font-medium text-gray-500 mb-1">Port Product</label>
+          <select
+            value={config.portProduct}
+            onChange={(e) => onUpdate({ portProduct: e.target.value })}
+            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md bg-white"
+          >
+            {PORT_PRODUCTS.map((p) => (
+              <option key={p.value} value={p.value}>{p.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">Redundancy</label>
           <select
             value={config.type}
             onChange={(e) => onUpdate({ type: e.target.value })}

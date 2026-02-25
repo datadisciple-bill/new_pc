@@ -5,8 +5,10 @@ import { SERVICE_TYPE_LABELS } from '@/constants/brandColors';
 function formatServiceDescription(service: ServiceSelection): string {
   switch (service.type) {
     case 'FABRIC_PORT': {
-      const c = service.config as { speed: string; type: string; encapsulation: string; quantity: number };
-      return `${c.speed} ${c.type === 'REDUNDANT' ? 'Redundant' : 'Single'} Port, ${c.encapsulation}`;
+      const c = service.config as { speed: string; portProduct: string; type: string; encapsulation: string; quantity: number };
+      const productLabel = c.portProduct === 'UNLIMITED_PLUS' ? 'Unlimited Plus' : c.portProduct === 'UNLIMITED' ? 'Unlimited' : 'Standard';
+      const redundancy = c.type === 'REDUNDANT' ? 'Redundant' : 'Single';
+      return `${c.speed} ${productLabel} ${redundancy} Port, ${c.encapsulation}`;
     }
     case 'NETWORK_EDGE': {
       const c = service.config as { deviceTypeName: string; packageCode: string; licenseType: string; redundant: boolean };

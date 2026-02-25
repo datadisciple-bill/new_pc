@@ -2,6 +2,7 @@ import type { FabricPortConfig, NetworkEdgeConfig, InternetAccessConfig, CloudRo
 
 export const DEFAULT_FABRIC_PORT: FabricPortConfig = {
   speed: '10G',
+  portProduct: 'STANDARD',
   type: 'SINGLE',
   encapsulation: 'DOT1Q',
   quantity: 1,
@@ -34,7 +35,13 @@ export const DEFAULT_COLOCATION: ColocationConfig = {
   mrcPrice: 0,
 };
 
-export const PORT_SPEEDS = ['1G', '10G', '25G', '50G', '100G'] as const;
+export const PORT_SPEEDS = ['1G', '10G', '100G', '400G'] as const;
+
+export const PORT_PRODUCTS = [
+  { value: 'STANDARD', label: 'Standard' },
+  { value: 'UNLIMITED', label: 'Unlimited' },
+  { value: 'UNLIMITED_PLUS', label: 'Unlimited Plus' },
+] as const;
 
 export const BANDWIDTH_OPTIONS = [
   50, 100, 200, 500, 1000, 2000, 5000, 10000, 50000,

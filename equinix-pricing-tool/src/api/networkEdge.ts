@@ -19,9 +19,9 @@ export async function fetchDeviceTypes(): Promise<DeviceType[]> {
   return response;
 }
 
-export async function fetchDeviceTypesForMetro(metroCode: string): Promise<DeviceType[]> {
-  const allTypes = await fetchDeviceTypes();
-  return allTypes.filter((dt) => dt.availableMetros.includes(metroCode));
+export async function fetchDeviceTypesForMetro(_metroCode: string): Promise<DeviceType[]> {
+  // All NE device types are assumed available at all Network Edge locations
+  return fetchDeviceTypes();
 }
 
 export async function fetchNetworkEdgePricing(

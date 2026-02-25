@@ -35,12 +35,14 @@ export interface ServiceSelection {
 
 export interface FabricPortConfig {
   speed: PortSpeed;
+  portProduct: PortProduct;
   type: 'SINGLE' | 'REDUNDANT';
   encapsulation: 'DOT1Q' | 'QINQ';
   quantity: number;
 }
 
-export type PortSpeed = '1G' | '10G' | '25G' | '50G' | '100G';
+export type PortSpeed = '1G' | '10G' | '100G' | '400G';
+export type PortProduct = 'STANDARD' | 'UNLIMITED' | 'UNLIMITED_PLUS';
 
 export interface CorePriceEntry {
   cores: number;

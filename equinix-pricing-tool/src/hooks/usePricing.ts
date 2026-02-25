@@ -28,15 +28,18 @@ export function usePricing() {
         switch (service.type) {
           case 'FABRIC_PORT': {
             const c = service.config as FabricPortConfig;
+            const productLabel = c.portProduct === 'UNLIMITED_PLUS' ? 'UNLIMITED PLUS' : c.portProduct;
             const result = await searchPrices('VIRTUAL_PORT_PRODUCT', {
               '/port/bandwidth': c.speed,
+              '/port/connectivitySourceType': productLabel,
               '/port/type': c.type,
               '/port/settings/buyout': false,
             });
             const charge = result.data[0]?.charges ?? [];
             const mrc = charge.find((ch) => ch.type === 'MONTHLY_RECURRING')?.price ?? 0;
             const nrc = charge.find((ch) => ch.type === 'NON_RECURRING')?.price ?? 0;
-            pricing = { mrc, nrc, currency: 'USD', isEstimate: false, breakdown: [{ description: `${c.speed} ${c.type} Port`, mrc, nrc }] };
+            const desc = `${c.speed} ${productLabel} ${c.type} Port`;
+            pricing = { mrc, nrc, currency: 'USD', isEstimate: false, breakdown: [{ description: desc, mrc, nrc }] };
             break;
           }
           case 'NETWORK_EDGE': {

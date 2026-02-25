@@ -29,6 +29,9 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUTPUT_DIR = join(__dirname, '..', 'public', 'data');
 const OUTPUT_FILE = join(OUTPUT_DIR, 'defaults.json');
+// Also write to ./data/ for Docker volume mount persistence
+const DOCKER_DATA_DIR = join(__dirname, '..', 'data');
+const DOCKER_DATA_FILE = join(DOCKER_DATA_DIR, 'defaults.json');
 
 const API_BASE = 'https://api.equinix.com';
 const MAX_RETRIES = 3;
@@ -255,24 +258,30 @@ async function fetchEIALocations() {
 // ── Fetch Pricing ────────────────────────────────────────────────────────────
 
 async function fetchFabricPortPricing() {
-  const speeds = ['1G', '10G', '25G', '50G', '100G'];
-  const types = ['SINGLE', 'REDUNDANT'];
-  const combos = speeds.flatMap((s) => types.map((t) => ({ speed: s, portType: t })));
+  const speeds = ['1G', '10G', '100G', '400G'];
+  const portProducts = ['STANDARD', 'UNLIMITED', 'UNLIMITED_PLUS'];
+  const redundancies = ['SINGLE', 'REDUNDANT'];
+  const combos = speeds.flatMap((s) =>
+    portProducts.flatMap((p) =>
+      redundancies.map((r) => ({ speed: s, portProduct: p, redundancy: r }))
+    )
+  );
   const total = combos.length;
   const pricing = {};
   let ok = 0;
   let fail = 0;
 
   for (let i = 0; i < combos.length; i++) {
-    const { speed, portType } = combos[i];
-    const key = `${speed}_${portType}`;
+    const { speed, portProduct, redundancy } = combos[i];
+    const key = `${speed}_${portProduct}_${redundancy}`;
     process.stdout.write(`\r${progressBar(i + 1, total)} ${c.dim}${key}${c.reset}       `);
     try {
       const res = await apiPost('/fabric/v4/prices/search', {
         filter: {
           '/type': 'VIRTUAL_PORT_PRODUCT',
           '/port/bandwidth': speed,
-          '/port/type': portType,
+          '/port/connectivitySourceType': portProduct === 'UNLIMITED_PLUS' ? 'UNLIMITED PLUS' : portProduct,
+          '/port/type': redundancy,
           '/port/settings/buyout': false,
         },
       });
@@ -287,7 +296,11 @@ async function fetchFabricPortPricing() {
   }
   process.stdout.write('\r' + ' '.repeat(70) + '\r');
   const status = fail ? `${c.green}${ok} ok${c.reset}, ${c.red}${fail} failed${c.reset}` : `${c.green}${ok} prices${c.reset}`;
-  console.log(`  ${CHECK} Fabric Ports \u2014 ${status}`);
+  if (fail) {
+    console.log(`  ${CHECK} Fabric Ports \u2014 ${status} ${c.dim}(400G may not be available yet)${c.reset}`);
+  } else {
+    console.log(`  ${CHECK} Fabric Ports \u2014 ${status}`);
+  }
   return pricing;
 }
 
@@ -480,6 +493,11 @@ async function main() {
   writeFileSync(OUTPUT_FILE, json);
   const sizeKb = (Buffer.byteLength(json) / 1024).toFixed(0);
   console.log(`  ${CHECK} Wrote ${c.bold}public/data/defaults.json${c.reset} ${c.dim}(${sizeKb} KB)${c.reset}`);
+
+  // Also write to ./data/ for Docker volume mount persistence
+  mkdirSync(DOCKER_DATA_DIR, { recursive: true });
+  writeFileSync(DOCKER_DATA_FILE, json);
+  console.log(`  ${CHECK} Wrote ${c.bold}data/defaults.json${c.reset} ${c.dim}(Docker volume)${c.reset}`);
   console.log('');
 
   // ── Summary ────────────────────────────────────────────────────────────────

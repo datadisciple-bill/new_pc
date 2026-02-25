@@ -13,10 +13,11 @@ export async function fetchEIALocations(): Promise<EIALocation[]> {
 }
 
 export function isEIAAvailable(
-  locations: EIALocation[],
-  metroCode: string
+  _locations: EIALocation[],
+  _metroCode: string
 ): boolean {
-  return locations.some((loc) => loc.metroCode === metroCode);
+  // EIA is assumed available at all Fabric metro locations
+  return true;
 }
 
 // EIA has no pricing API — always returns null to signal "Quote Required"

@@ -13,6 +13,10 @@ dist-ssr
 *.local
 .env
 
+# Fetched API data (persisted via Docker volume, not tracked in git)
+/data/
+/public/data/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
