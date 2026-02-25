@@ -24,12 +24,12 @@ export interface MetroSelection {
   services: ServiceSelection[];
 }
 
-export type ServiceType = 'FABRIC_PORT' | 'NETWORK_EDGE' | 'INTERNET_ACCESS' | 'CLOUD_ROUTER' | 'COLOCATION';
+export type ServiceType = 'FABRIC_PORT' | 'NETWORK_EDGE' | 'INTERNET_ACCESS' | 'CLOUD_ROUTER' | 'COLOCATION' | 'NSP';
 
 export interface ServiceSelection {
   id: string;
   type: ServiceType;
-  config: FabricPortConfig | NetworkEdgeConfig | InternetAccessConfig | CloudRouterConfig | ColocationConfig;
+  config: FabricPortConfig | NetworkEdgeConfig | InternetAccessConfig | CloudRouterConfig | ColocationConfig | NspConfig;
   pricing: PricingResult | null;
 }
 
@@ -79,6 +79,10 @@ export interface ColocationConfig {
   mrcPrice: number;
 }
 
+export interface NspConfig {
+  providerName: string;
+}
+
 export interface VirtualConnection {
   id: string;
   name: string;
@@ -99,7 +103,7 @@ export interface BandwidthPriceEntry {
   currency: string;
 }
 
-export type EndpointType = 'PORT' | 'NETWORK_EDGE' | 'CLOUD_ROUTER' | 'SERVICE_PROFILE' | 'COLOCATION';
+export type EndpointType = 'PORT' | 'NETWORK_EDGE' | 'CLOUD_ROUTER' | 'SERVICE_PROFILE' | 'COLOCATION' | 'NSP';
 
 export interface ConnectionEndpoint {
   metroCode: string;

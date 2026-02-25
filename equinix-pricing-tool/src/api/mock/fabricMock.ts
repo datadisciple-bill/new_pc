@@ -59,6 +59,39 @@ export function mockMetros(): Metro[] {
   ];
 }
 
+// Metro region lookup for distance-based VC pricing
+const METRO_REGIONS: Record<string, string> = {
+  DC: 'AMER', NY: 'AMER', SV: 'AMER', CH: 'AMER', DA: 'AMER', AT: 'AMER',
+  LA: 'AMER', SE: 'AMER', MI: 'AMER', SP: 'AMER', DX: 'AMER', TR: 'AMER',
+  MT: 'AMER', BO: 'AMER', MX: 'AMER', RJ: 'AMER', CL: 'AMER', PH: 'AMER', MN: 'AMER',
+  LD: 'EMEA', AM: 'EMEA', FR: 'EMEA', PA: 'EMEA', ZH: 'EMEA', ML: 'EMEA',
+  MA: 'EMEA', SK: 'EMEA', HE: 'EMEA', WA: 'EMEA', DU: 'EMEA', SO: 'EMEA',
+  IL: 'EMEA', BA: 'EMEA', DB: 'EMEA', MU: 'EMEA', LS: 'EMEA', JB: 'EMEA',
+  SG: 'APAC', HK: 'APAC', TY: 'APAC', SY: 'APAC', OS: 'APAC', MB: 'APAC',
+  SL: 'APAC', ME: 'APAC', PE: 'APAC', KL: 'APAC', JK: 'APAC',
+};
+
+/**
+ * Returns a price multiplier based on the "distance" between two metros.
+ * Same region uses a lower multiplier; cross-region uses a higher one.
+ * Adjacent metros within a region get a slight bump; far-flung cross-region gets a bigger one.
+ */
+function getMetroPairMultiplier(aSide: string, zSide: string): number {
+  if (!aSide || !zSide || aSide === zSide) return 0; // same metro = free (handled upstream)
+  const aRegion = METRO_REGIONS[aSide];
+  const zRegion = METRO_REGIONS[zSide];
+  if (!aRegion || !zRegion) return 1;
+  if (aRegion === zRegion) return 1; // intra-region: base price
+  // Cross-region multipliers
+  const pair = [aRegion, zRegion].sort().join('-');
+  switch (pair) {
+    case 'AMER-EMEA': return 1.5;
+    case 'AMER-APAC': return 2.0;
+    case 'APAC-EMEA': return 1.8;
+    default: return 1.5;
+  }
+}
+
 // Realistic pricing based on type
 // Port prices are per-port; redundant pairs are 2x the single port price in the app layer.
 // Key format: PORT_{bandwidthMbps}_{product}
@@ -110,8 +143,13 @@ export function mockPriceSearch(
     }
     case 'VIRTUAL_CONNECTION_PRODUCT': {
       const bw = Number(properties['/connection/bandwidth'] ?? 1000);
+      const aSide = String(properties['/connection/aSide/accessPoint/location/metroCode'] ?? '');
+      const zSide = String(properties['/connection/zSide/accessPoint/location/metroCode'] ?? '');
       key = `VC_${bw}`;
-      price = lookupVCPrice(bw) ?? PRICING[key] ?? price;
+      const basePrice = lookupVCPrice(bw) ?? PRICING[key] ?? price;
+      // Apply distance multiplier for cross-metro connections
+      const multiplier = getMetroPairMultiplier(aSide, zSide);
+      price = { mrc: Math.round(basePrice.mrc * multiplier), nrc: basePrice.nrc };
       break;
     }
     case 'CLOUD_ROUTER_PRODUCT': {

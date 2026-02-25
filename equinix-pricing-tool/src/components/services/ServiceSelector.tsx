@@ -6,11 +6,12 @@ import { NetworkEdgeConfig } from './NetworkEdgeConfig';
 import { InternetAccessConfig } from './InternetAccessConfig';
 import { CloudRouterConfig } from './CloudRouterConfig';
 import { ColocationConfig } from './ColocationConfig';
+import { NspConfig } from './NspConfig';
 import { useConfigStore } from '@/store/configStore';
 import type { ServiceType, ServiceSelection } from '@/types/config';
 import { SERVICE_TYPE_LABELS } from '@/constants/brandColors';
 
-const SERVICE_TYPES: ServiceType[] = ['FABRIC_PORT', 'NETWORK_EDGE', 'INTERNET_ACCESS', 'CLOUD_ROUTER', 'COLOCATION'];
+const SERVICE_TYPES: ServiceType[] = ['FABRIC_PORT', 'NETWORK_EDGE', 'INTERNET_ACCESS', 'CLOUD_ROUTER', 'COLOCATION', 'NSP'];
 
 interface Props {
   metroCode: string;
@@ -56,7 +57,7 @@ export function ServiceSelector({ metroCode }: Props) {
         if (oldService.type === 'FABRIC_PORT' || oldService.type === 'NETWORK_EDGE') {
           const endpointType = oldService.type === 'FABRIC_PORT' ? 'PORT' as const : 'NETWORK_EDGE' as const;
           const connId = addConnection({
-            name: `${metroCode}→${targetMetroCode} ${SERVICE_TYPE_LABELS[oldService.type]}`,
+            name: `${metroCode} to ${targetMetroCode} ${SERVICE_TYPE_LABELS[oldService.type]}`,
             type: 'EVPL_VC',
             aSide: { metroCode, type: endpointType, serviceId: oldId },
             zSide: { metroCode: targetMetroCode, type: endpointType, serviceId: newId },
@@ -98,6 +99,8 @@ export function ServiceSelector({ metroCode }: Props) {
         return <CloudRouterConfig {...common} />;
       case 'COLOCATION':
         return <ColocationConfig {...common} />;
+      case 'NSP':
+        return <NspConfig {...common} />;
     }
   };
 

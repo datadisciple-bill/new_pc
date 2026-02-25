@@ -74,7 +74,9 @@ export function generateCsv(
     }
   }
 
-  return Papa.unparse([...rows, ...summaryRows, ...priceTableRows]);
+  // Replace Unicode symbols that break in some CSV readers (e.g. Excel Latin-1 mode)
+  const raw = Papa.unparse([...rows, ...summaryRows, ...priceTableRows]);
+  return raw.replace(/→/g, '->').replace(/←/g, '<-').replace(/►/g, '>').replace(/◄/g, '<');
 }
 
 export function downloadCsv(csvContent: string, projectName: string): void {

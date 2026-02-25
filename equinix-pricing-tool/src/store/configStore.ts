@@ -12,6 +12,7 @@ import type {
   InternetAccessConfig,
   CloudRouterConfig,
   ColocationConfig,
+  NspConfig,
   PricingResult,
 } from '@/types/config';
 import type { Metro, DeviceType, ServiceProfile } from '@/types/equinix';
@@ -21,6 +22,7 @@ import {
   DEFAULT_INTERNET_ACCESS,
   DEFAULT_CLOUD_ROUTER,
   DEFAULT_COLOCATION,
+  DEFAULT_NSP,
 } from '@/constants/serviceDefaults';
 
 interface AuthState {
@@ -124,7 +126,7 @@ function normalizeMetroCodes(raw: any[] | undefined | null): string[] {
     .filter(Boolean);
 }
 
-function getDefaultConfig(type: ServiceType): FabricPortConfig | NetworkEdgeConfig | InternetAccessConfig | CloudRouterConfig | ColocationConfig {
+function getDefaultConfig(type: ServiceType): FabricPortConfig | NetworkEdgeConfig | InternetAccessConfig | CloudRouterConfig | ColocationConfig | NspConfig {
   switch (type) {
     case 'FABRIC_PORT':
       return { ...DEFAULT_FABRIC_PORT };
@@ -136,6 +138,8 @@ function getDefaultConfig(type: ServiceType): FabricPortConfig | NetworkEdgeConf
       return { ...DEFAULT_CLOUD_ROUTER };
     case 'COLOCATION':
       return { ...DEFAULT_COLOCATION };
+    case 'NSP':
+      return { ...DEFAULT_NSP };
   }
 }
 

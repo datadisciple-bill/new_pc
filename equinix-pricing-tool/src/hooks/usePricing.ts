@@ -7,6 +7,7 @@ import { calculatePricingSummary, formatCurrency } from '@/utils/priceCalculator
 import { generateCsv, downloadCsv } from '@/utils/csvGenerator';
 import { BANDWIDTH_OPTIONS } from '@/constants/serviceDefaults';
 import { lookupIbxForMetro } from '@/data/defaultPricing';
+import { getCachedVCPrice, setCachedVCPrice } from '@/api/vcPricingCache';
 
 export function usePricing() {
   const metros = useConfigStore((s) => s.project.metros);
@@ -96,6 +97,17 @@ export function usePricing() {
             };
             break;
           }
+          case 'NSP': {
+            // Network Service Providers have no charge
+            pricing = {
+              mrc: 0,
+              nrc: 0,
+              currency: 'USD',
+              isEstimate: false,
+              breakdown: [],
+            };
+            break;
+          }
         }
 
         updateServicePricing(metroCode, service.id, pricing!);
@@ -127,24 +139,36 @@ export function usePricing() {
           return;
         }
 
-        const result = await searchPrices('VIRTUAL_CONNECTION_PRODUCT', {
-          '/connection/type': 'EVPL_VC',
-          '/connection/bandwidth': bandwidthMbps,
-          '/connection/aSide/accessPoint/type': 'COLO',
-          '/connection/aSide/accessPoint/location/metroCode': aMetro,
-          '/connection/aSide/accessPoint/port/settings/buyout': false,
-          '/connection/zSide/accessPoint/type': 'COLO',
-          '/connection/zSide/accessPoint/location/metroCode': zMetro,
-        });
-        const charge = result.data[0]?.charges ?? [];
-        const mrc = charge.find((ch) => ch.type === 'MONTHLY_RECURRING')?.price ?? 0;
-        const nrc = charge.find((ch) => ch.type === 'NON_RECURRING')?.price ?? 0;
+        // Check 24h cache first
+        const cached = getCachedVCPrice(aMetro, zMetro, bandwidthMbps);
+        let mrc: number;
+        let nrc: number;
+
+        if (cached) {
+          mrc = cached.mrc;
+          nrc = cached.nrc;
+        } else {
+          const result = await searchPrices('VIRTUAL_CONNECTION_PRODUCT', {
+            '/connection/type': 'EVPL_VC',
+            '/connection/bandwidth': bandwidthMbps,
+            '/connection/aSide/accessPoint/type': 'COLO',
+            '/connection/aSide/accessPoint/location/metroCode': aMetro,
+            '/connection/aSide/accessPoint/port/settings/buyout': false,
+            '/connection/zSide/accessPoint/type': 'COLO',
+            '/connection/zSide/accessPoint/location/metroCode': zMetro,
+          });
+          const charge = result.data[0]?.charges ?? [];
+          mrc = charge.find((ch) => ch.type === 'MONTHLY_RECURRING')?.price ?? 0;
+          nrc = charge.find((ch) => ch.type === 'NON_RECURRING')?.price ?? 0;
+          setCachedVCPrice(aMetro, zMetro, bandwidthMbps, mrc, nrc);
+        }
+
         const pricing: PricingResult = {
           mrc,
           nrc,
           currency: 'USD',
           isEstimate: false,
-          breakdown: [{ description: `${bandwidthMbps}Mbps Connection`, mrc, nrc }],
+          breakdown: [{ description: `${bandwidthMbps}Mbps ${aMetro}-${zMetro} Connection`, mrc, nrc }],
         };
         updateConnectionPricing(connectionId, pricing);
       } catch (err) {
@@ -175,17 +199,25 @@ export function usePricing() {
 
         const entries: BandwidthPriceEntry[] = [];
         for (const bw of BANDWIDTH_OPTIONS) {
-          const result = await searchPrices('VIRTUAL_CONNECTION_PRODUCT', {
-            '/connection/type': 'EVPL_VC',
-            '/connection/bandwidth': bw,
-            '/connection/aSide/accessPoint/type': 'COLO',
-            '/connection/aSide/accessPoint/location/metroCode': aMetro,
-            '/connection/aSide/accessPoint/port/settings/buyout': false,
-            '/connection/zSide/accessPoint/type': 'COLO',
-            '/connection/zSide/accessPoint/location/metroCode': zMetro,
-          });
-          const charge = result.data[0]?.charges ?? [];
-          const mrc = charge.find((ch) => ch.type === 'MONTHLY_RECURRING')?.price ?? 0;
+          const cached = getCachedVCPrice(aMetro, zMetro, bw);
+          let mrc: number;
+          if (cached) {
+            mrc = cached.mrc;
+          } else {
+            const result = await searchPrices('VIRTUAL_CONNECTION_PRODUCT', {
+              '/connection/type': 'EVPL_VC',
+              '/connection/bandwidth': bw,
+              '/connection/aSide/accessPoint/type': 'COLO',
+              '/connection/aSide/accessPoint/location/metroCode': aMetro,
+              '/connection/aSide/accessPoint/port/settings/buyout': false,
+              '/connection/zSide/accessPoint/type': 'COLO',
+              '/connection/zSide/accessPoint/location/metroCode': zMetro,
+            });
+            const charge = result.data[0]?.charges ?? [];
+            mrc = charge.find((ch) => ch.type === 'MONTHLY_RECURRING')?.price ?? 0;
+            const nrc = charge.find((ch) => ch.type === 'NON_RECURRING')?.price ?? 0;
+            setCachedVCPrice(aMetro, zMetro, bw, mrc, nrc);
+          }
           const label = bw >= 1000 ? `${bw / 1000} Gbps` : `${bw} Mbps`;
           entries.push({ bandwidthMbps: bw, label, mrc, currency: 'USD' });
         }

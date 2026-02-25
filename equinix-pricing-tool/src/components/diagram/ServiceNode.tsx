@@ -8,6 +8,7 @@ import networkEdgeIcon from '@/assets/icons/network-edge.svg';
 import internetAccessIcon from '@/assets/icons/internet-access.svg';
 import cloudRouterIcon from '@/assets/icons/cloud-router.svg';
 import colocationIcon from '@/assets/icons/colocation.svg';
+import nspIcon from '@/assets/icons/nsp.svg';
 
 interface ServiceNodeData {
   serviceId: string;
@@ -24,6 +25,7 @@ const SERVICE_ICON_URLS: Record<string, string> = {
   INTERNET_ACCESS: internetAccessIcon,
   CLOUD_ROUTER: cloudRouterIcon,
   COLOCATION: colocationIcon,
+  NSP: nspIcon,
 };
 
 export const ServiceNode = memo(function ServiceNode({ data }: NodeProps) {
@@ -57,6 +59,9 @@ export const ServiceNode = memo(function ServiceNode({ data }: NodeProps) {
   } else if (serviceType === 'COLOCATION') {
     const c = config as { description?: string };
     detail = c.description ?? '';
+  } else if (serviceType === 'NSP') {
+    const c = config as { providerName?: string };
+    detail = c.providerName ?? '';
   }
 
   return (

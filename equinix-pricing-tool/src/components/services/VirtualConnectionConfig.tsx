@@ -30,6 +30,7 @@ function endpointTypeForService(svcType: string): EndpointType {
     case 'CLOUD_ROUTER': return 'CLOUD_ROUTER';
     case 'NETWORK_EDGE': return 'NETWORK_EDGE';
     case 'COLOCATION': return 'COLOCATION';
+    case 'NSP': return 'NSP';
     default: return 'PORT';
   }
 }

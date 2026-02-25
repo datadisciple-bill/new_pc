@@ -27,6 +27,10 @@ function formatServiceDescription(service: ServiceSelection): string {
       const c = service.config as { description: string };
       return c.description || 'Colocation';
     }
+    case 'NSP': {
+      const c = service.config as { providerName: string };
+      return c.providerName || 'Network Service Provider';
+    }
   }
 }
 
