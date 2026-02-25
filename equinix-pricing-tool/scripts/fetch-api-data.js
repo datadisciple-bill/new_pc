@@ -419,12 +419,28 @@ async function fetchNetworkEdgePricing(deviceTypes, referenceMetro) {
   let fail = 0;
   const failures = [];
 
+  // Extract the smallest core count for a device type.
+  // Core counts live in deviceManagementTypes → SELF-CONFIGURED/EQUINIX-CONFIGURED
+  //   → licenseOptions → SUB/BYOL → cores[] → core
+  function getSmallestCore(dt) {
+    for (const mgmt of Object.values(dt.deviceManagementTypes ?? {})) {
+      for (const lic of Object.values(mgmt?.licenseOptions ?? {})) {
+        const cores = (lic?.cores ?? []).map((c) => c.core).filter(Boolean).sort((a, b) => a - b);
+        if (cores.length) return cores[0];
+      }
+    }
+    // Fall back to coreCounts array if present
+    if (dt.coreCounts?.length) return Math.min(...dt.coreCounts);
+    return 2; // sensible default
+  }
+
   // Build flat list of all combinations
   const combos = [];
   for (const dt of deviceTypes) {
+    const core = getSmallestCore(dt);
     for (const pkg of (dt.softwarePackages ?? [])) {
       for (const term of termLengths) {
-        combos.push({ dt, pkg, term });
+        combos.push({ dt, pkg, term, core, licenseType: pkg.licenseType });
       }
     }
   }
@@ -441,14 +457,17 @@ async function fetchNetworkEdgePricing(deviceTypes, referenceMetro) {
   for (let i = 0; i < combos.length; i += CONCURRENCY) {
     const batch = combos.slice(i, i + CONCURRENCY);
     const results = await Promise.allSettled(
-      batch.map(async ({ dt, pkg, term }) => {
+      batch.map(async ({ dt, pkg, term, core, licenseType }) => {
         const key = `${dt.deviceTypeCode}_${pkg.packageCode}_${term}`;
-        const qs = new URLSearchParams({
+        const params = {
           vendorPackage: dt.deviceTypeCode,
           softwarePackage: pkg.packageCode,
           termLength: String(term),
           metro: referenceMetro,
-        });
+          core: String(core),
+        };
+        if (licenseType) params.licenseType = licenseType;
+        const qs = new URLSearchParams(params);
         const res = await apiGet(`/ne/v1/prices?${qs}`);
         const charges = res.primary?.charges ?? [];
         const deviceCharge = charges.find((ch) => ch.description === 'VIRTUAL_DEVICE');

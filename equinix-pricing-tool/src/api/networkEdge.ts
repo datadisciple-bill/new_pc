@@ -29,17 +29,22 @@ export async function fetchNetworkEdgePricing(
   deviceTypeCode: string,
   packageCode: string,
   termLength: number,
-  metroCode: string
+  metroCode: string,
+  core?: number,
+  licenseType?: string
 ): Promise<NetworkEdgePriceResponse> {
   if (useMockData()) {
     return mockNetworkEdgePricing(deviceTypeCode, packageCode, termLength);
   }
 
-  const qs = new URLSearchParams({
+  const params: Record<string, string> = {
     vendorPackage: deviceTypeCode,
     softwarePackage: packageCode,
     termLength: String(termLength),
     metro: metroCode,
-  });
+  };
+  if (core) params.core = String(core);
+  if (licenseType) params.licenseType = licenseType;
+  const qs = new URLSearchParams(params);
   return apiRequest<NetworkEdgePriceResponse>(`/ne/v1/prices?${qs}`);
 }
