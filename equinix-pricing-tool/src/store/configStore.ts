@@ -201,25 +201,36 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
         services: [],
       };
       const newHistory = [...state.projectHistory, state.project].slice(-MAX_HISTORY);
+      const isFirstMetro = state.project.metros.length === 0;
       return {
         project: { ...state.project, metros: [...state.project.metros, newMetro] },
         projectHistory: newHistory,
         canUndo: true,
+        // Auto-select the first metro so the services panel is immediately usable
+        ui: isFirstMetro
+          ? { ...state.ui, selectedMetroCode: metro.code }
+          : state.ui,
       };
     }),
   removeMetro: (metroCode) =>
     set((state) => {
       const newHistory = [...state.projectHistory, state.project].slice(-MAX_HISTORY);
+      const remainingMetros = state.project.metros.filter((m) => m.metroCode !== metroCode);
+      // If removing the currently selected metro, auto-select the next available one
+      const needsReselect = state.ui.selectedMetroCode === metroCode;
       return {
         project: {
           ...state.project,
-          metros: state.project.metros.filter((m) => m.metroCode !== metroCode),
+          metros: remainingMetros,
           connections: state.project.connections.filter(
             (c) => c.aSide.metroCode !== metroCode && c.zSide.metroCode !== metroCode
           ),
         },
         projectHistory: newHistory,
         canUndo: true,
+        ui: needsReselect
+          ? { ...state.ui, selectedMetroCode: remainingMetros[0]?.metroCode ?? null }
+          : state.ui,
       };
     }),
 

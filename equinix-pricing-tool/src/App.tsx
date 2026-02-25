@@ -12,7 +12,7 @@ import { fetchMetros } from '@/api/fabric';
 import { fetchDeviceTypes } from '@/api/networkEdge';
 import { fetchServiceProfiles } from '@/api/fabric';
 import { authenticate } from '@/api/auth';
-import { setDefaultPricing, setDefaultLocations } from '@/data/defaultPricing';
+import { setDefaultPricing, setDefaultLocations, hasDefaultPricing } from '@/data/defaultPricing';
 
 // Hash-based routing for unlisted pages
 function useHash(): string {
@@ -45,13 +45,13 @@ function App() {
   const [cacheInfo, setCacheInfo] = useState<CachedOptions | null>(null);
   const [showRefreshDialog, setShowRefreshDialog] = useState(false);
 
-  // Load data on startup: static defaults > IndexedDB cache > mock data
+  // Load data on startup: defaults.json (API-fetched) > IndexedDB cache > mock data
   useEffect(() => {
     (async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let staticDefaults: any = null;
 
-      // Always try to load pricing from static defaults file
+      // Try to load the API-fetched defaults.json (produced by npm run fetch-data)
       try {
         const res = await fetch('/data/defaults.json');
         if (res.ok) {
@@ -67,15 +67,8 @@ function App() {
         // Static defaults not available — not an error
       }
 
-      // Check IndexedDB cache (user-refreshed data takes priority for options)
-      const cached = await loadCachedOptions();
-      if (cached && isCacheValid(cached)) {
-        useConfigStore.getState().setMetros(cached.metros);
-        useConfigStore.getState().setDeviceTypes(cached.deviceTypes);
-        useConfigStore.getState().setServiceProfiles(cached.serviceProfiles);
-        setCacheInfo(cached);
-      } else if (staticDefaults?.metros?.length) {
-        // Use static defaults for options
+      // Priority 1: defaults.json has metros/deviceTypes/etc from the real API
+      if (staticDefaults?.metros?.length) {
         useConfigStore.getState().setMetros(staticDefaults.metros);
         useConfigStore.getState().setDeviceTypes(staticDefaults.deviceTypes ?? []);
         useConfigStore.getState().setServiceProfiles(staticDefaults.serviceProfiles ?? []);
@@ -88,11 +81,20 @@ function App() {
           eiaLocations: staticDefaults.eiaLocations ?? [],
         });
       } else {
-        // Fall back to mock data (works without auth)
-        await fetchMetros();
-        await fetchDeviceTypes();
-        await fetchServiceProfiles();
-        if (cached) setCacheInfo(cached);
+        // Priority 2: IndexedDB cache (from in-app "Refresh Data" dialog)
+        const cached = await loadCachedOptions();
+        if (cached && isCacheValid(cached)) {
+          useConfigStore.getState().setMetros(cached.metros);
+          useConfigStore.getState().setDeviceTypes(cached.deviceTypes);
+          useConfigStore.getState().setServiceProfiles(cached.serviceProfiles);
+          setCacheInfo(cached);
+        } else {
+          // Priority 3: Mock data fallback (works without auth or defaults.json)
+          await fetchMetros();
+          await fetchDeviceTypes();
+          await fetchServiceProfiles();
+          if (cached) setCacheInfo(cached);
+        }
       }
       setDataReady(true);
     })();
@@ -138,7 +140,11 @@ function App() {
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
-            {cacheInfo ? formatCacheAge(cacheInfo) : 'Default data'}
+            {hasDefaultPricing() ? (
+              <span>{cacheInfo ? formatCacheAge(cacheInfo) : 'API data'}</span>
+            ) : (
+              <span className="text-yellow-400">Mock data</span>
+            )}
           </button>
         </div>
       </header>

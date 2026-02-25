@@ -245,17 +245,68 @@ async function fetchWithStatus(label, fn, fallback = []) {
 
 async function fetchMetros() {
   const res = await apiGet('/fabric/v4/metros?limit=200');
-  return res.data ?? res;
+  const raw = res.data ?? res;
+  // Normalize to our Metro type — strip extra API fields to keep defaults.json lean
+  return raw.map((m) => ({
+    code: m.code,
+    name: m.name,
+    region: m.region ?? 'AMER',
+    connectedMetros: (m.connectedMetros ?? []).map((cm) => ({
+      code: cm.code,
+      avgLatency: cm.avgLatency ?? 0,
+    })),
+  }));
 }
 
 async function fetchDeviceTypes() {
   const res = await apiGet('/ne/v1/deviceTypes?limit=200');
-  return Array.isArray(res) ? res : res.data ?? [];
+  const raw = Array.isArray(res) ? res : res.data ?? [];
+  // Normalize to our DeviceType type — extract only the fields the app needs
+  return raw.map((dt) => ({
+    deviceTypeCode: dt.deviceTypeCode ?? dt.code,
+    name: dt.name,
+    vendor: dt.vendor,
+    category: dt.category ?? 'OTHER',
+    availableMetros: dt.availableMetros ?? dt.metros?.map((m) => m.code) ?? [],
+    softwarePackages: (dt.softwarePackages ?? []).map((sp) => ({
+      code: sp.code,
+      name: sp.name,
+      licenseType: sp.licenseType,
+    })),
+    coreCounts: dt.coreCounts ?? extractCoreCounts(dt),
+    // Preserve deviceManagementTypes for core/license extraction during pricing
+    deviceManagementTypes: dt.deviceManagementTypes,
+  }));
+}
+
+/** Extract core counts from deviceManagementTypes if coreCounts isn't directly available */
+function extractCoreCounts(dt) {
+  const cores = new Set();
+  for (const mgmt of Object.values(dt.deviceManagementTypes ?? {})) {
+    for (const lic of Object.values(mgmt?.licenseOptions ?? {})) {
+      for (const c of lic?.cores ?? []) {
+        if (c.core) cores.add(c.core);
+      }
+    }
+  }
+  return cores.size > 0 ? [...cores].sort((a, b) => a - b) : [];
 }
 
 async function fetchServiceProfiles() {
   const res = await apiGet('/fabric/v4/serviceProfiles?limit=200&viewPoint=zSide');
-  return res.data ?? res;
+  const raw = res.data ?? res;
+  // Normalize to our ServiceProfile type
+  return raw.map((sp) => ({
+    uuid: sp.uuid,
+    name: sp.name,
+    type: sp.type,
+    description: sp.description ?? '',
+    visibility: sp.visibility ?? '',
+    accessPointTypeConfigs: (sp.accessPointTypeConfigs ?? []).map((c) => ({
+      type: c.type,
+      supportedBandwidths: c.supportedBandwidths ?? [],
+    })),
+  }));
 }
 
 async function fetchRouterPackages() {
