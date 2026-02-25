@@ -3,6 +3,7 @@ import { lookupPortPrice, lookupVCPrice, lookupCloudRouterPrice } from '@/data/d
 
 export function mockMetros(): Metro[] {
   return [
+    // AMER
     { code: 'DC', name: 'Washington, D.C.', region: 'AMER', connectedMetros: [{ code: 'NY', avgLatency: 5.2 }, { code: 'AT', avgLatency: 8.1 }, { code: 'CH', avgLatency: 7.4 }] },
     { code: 'NY', name: 'New York', region: 'AMER', connectedMetros: [{ code: 'DC', avgLatency: 5.2 }, { code: 'CH', avgLatency: 12.3 }, { code: 'LD', avgLatency: 35.0 }] },
     { code: 'SV', name: 'Silicon Valley', region: 'AMER', connectedMetros: [{ code: 'LA', avgLatency: 4.1 }, { code: 'SE', avgLatency: 8.5 }, { code: 'TY', avgLatency: 55.0 }] },
@@ -13,16 +14,48 @@ export function mockMetros(): Metro[] {
     { code: 'SE', name: 'Seattle', region: 'AMER', connectedMetros: [{ code: 'SV', avgLatency: 8.5 }] },
     { code: 'MI', name: 'Miami', region: 'AMER', connectedMetros: [{ code: 'AT', avgLatency: 6.8 }] },
     { code: 'SP', name: 'São Paulo', region: 'AMER', connectedMetros: [{ code: 'MI', avgLatency: 62.0 }] },
+    { code: 'DX', name: 'Denver', region: 'AMER', connectedMetros: [{ code: 'DA', avgLatency: 11.0 }, { code: 'CH', avgLatency: 13.0 }] },
+    { code: 'TR', name: 'Toronto', region: 'AMER', connectedMetros: [{ code: 'NY', avgLatency: 8.0 }, { code: 'CH', avgLatency: 10.0 }] },
+    { code: 'MT', name: 'Montreal', region: 'AMER', connectedMetros: [{ code: 'TR', avgLatency: 5.0 }, { code: 'NY', avgLatency: 9.0 }] },
+    { code: 'BO', name: 'Bogota', region: 'AMER', connectedMetros: [{ code: 'MI', avgLatency: 40.0 }] },
+    { code: 'MX', name: 'Mexico City', region: 'AMER', connectedMetros: [{ code: 'DA', avgLatency: 20.0 }, { code: 'MI', avgLatency: 28.0 }] },
+    { code: 'RJ', name: 'Rio de Janeiro', region: 'AMER', connectedMetros: [{ code: 'SP', avgLatency: 5.0 }] },
+    { code: 'CL', name: 'Cali', region: 'AMER', connectedMetros: [{ code: 'BO', avgLatency: 8.0 }] },
+    { code: 'PH', name: 'Phoenix', region: 'AMER', connectedMetros: [{ code: 'LA', avgLatency: 6.0 }, { code: 'DA', avgLatency: 12.0 }] },
+    { code: 'MN', name: 'Minneapolis', region: 'AMER', connectedMetros: [{ code: 'CH', avgLatency: 6.0 }] },
+    // EMEA
     { code: 'LD', name: 'London', region: 'EMEA', connectedMetros: [{ code: 'AM', avgLatency: 4.8 }, { code: 'FR', avgLatency: 6.2 }, { code: 'NY', avgLatency: 35.0 }] },
     { code: 'AM', name: 'Amsterdam', region: 'EMEA', connectedMetros: [{ code: 'LD', avgLatency: 4.8 }, { code: 'FR', avgLatency: 3.5 }] },
     { code: 'FR', name: 'Frankfurt', region: 'EMEA', connectedMetros: [{ code: 'LD', avgLatency: 6.2 }, { code: 'AM', avgLatency: 3.5 }, { code: 'PA', avgLatency: 5.1 }] },
     { code: 'PA', name: 'Paris', region: 'EMEA', connectedMetros: [{ code: 'FR', avgLatency: 5.1 }, { code: 'LD', avgLatency: 5.5 }] },
+    { code: 'ZH', name: 'Zurich', region: 'EMEA', connectedMetros: [{ code: 'FR', avgLatency: 3.0 }, { code: 'ML', avgLatency: 4.0 }] },
+    { code: 'ML', name: 'Milan', region: 'EMEA', connectedMetros: [{ code: 'ZH', avgLatency: 4.0 }, { code: 'FR', avgLatency: 6.0 }] },
+    { code: 'MA', name: 'Madrid', region: 'EMEA', connectedMetros: [{ code: 'PA', avgLatency: 8.0 }, { code: 'LD', avgLatency: 10.0 }] },
+    { code: 'SK', name: 'Stockholm', region: 'EMEA', connectedMetros: [{ code: 'AM', avgLatency: 12.0 }, { code: 'HE', avgLatency: 5.0 }] },
+    { code: 'HE', name: 'Helsinki', region: 'EMEA', connectedMetros: [{ code: 'SK', avgLatency: 5.0 }] },
+    { code: 'WA', name: 'Warsaw', region: 'EMEA', connectedMetros: [{ code: 'FR', avgLatency: 8.0 }] },
+    { code: 'DU', name: 'Dubai', region: 'EMEA', connectedMetros: [{ code: 'MB', avgLatency: 18.0 }, { code: 'FR', avgLatency: 45.0 }] },
+    { code: 'SO', name: 'Sofia', region: 'EMEA', connectedMetros: [{ code: 'FR', avgLatency: 12.0 }] },
+    { code: 'IL', name: 'Istanbul', region: 'EMEA', connectedMetros: [{ code: 'SO', avgLatency: 5.0 }, { code: 'DU', avgLatency: 20.0 }] },
+    { code: 'BA', name: 'Barcelona', region: 'EMEA', connectedMetros: [{ code: 'MA', avgLatency: 4.0 }, { code: 'PA', avgLatency: 7.0 }] },
+    { code: 'DB', name: 'Dublin', region: 'EMEA', connectedMetros: [{ code: 'LD', avgLatency: 5.0 }] },
+    { code: 'MU', name: 'Munich', region: 'EMEA', connectedMetros: [{ code: 'FR', avgLatency: 2.5 }, { code: 'ZH', avgLatency: 3.5 }] },
+    { code: 'LS', name: 'Lisbon', region: 'EMEA', connectedMetros: [{ code: 'MA', avgLatency: 4.0 }] },
+    { code: 'JB', name: 'Johannesburg', region: 'EMEA', connectedMetros: [{ code: 'LD', avgLatency: 70.0 }] },
+    { code: 'LA', name: 'Lagos', region: 'EMEA', connectedMetros: [{ code: 'JB', avgLatency: 35.0 }] },
+    // APAC
     { code: 'SG', name: 'Singapore', region: 'APAC', connectedMetros: [{ code: 'HK', avgLatency: 18.5 }, { code: 'TY', avgLatency: 36.0 }, { code: 'SY', avgLatency: 48.0 }] },
     { code: 'HK', name: 'Hong Kong', region: 'APAC', connectedMetros: [{ code: 'SG', avgLatency: 18.5 }, { code: 'TY', avgLatency: 25.0 }] },
     { code: 'TY', name: 'Tokyo', region: 'APAC', connectedMetros: [{ code: 'SG', avgLatency: 36.0 }, { code: 'HK', avgLatency: 25.0 }, { code: 'SV', avgLatency: 55.0 }] },
-    { code: 'SY', name: 'Sydney', region: 'APAC', connectedMetros: [{ code: 'SG', avgLatency: 48.0 }] },
+    { code: 'SY', name: 'Sydney', region: 'APAC', connectedMetros: [{ code: 'SG', avgLatency: 48.0 }, { code: 'ME', avgLatency: 8.0 }] },
     { code: 'OS', name: 'Osaka', region: 'APAC', connectedMetros: [{ code: 'TY', avgLatency: 4.2 }] },
-    { code: 'MB', name: 'Mumbai', region: 'APAC', connectedMetros: [{ code: 'SG', avgLatency: 32.0 }] },
+    { code: 'MB', name: 'Mumbai', region: 'APAC', connectedMetros: [{ code: 'SG', avgLatency: 32.0 }, { code: 'CH', avgLatency: 28.0 }] },
+    { code: 'SL', name: 'Seoul', region: 'APAC', connectedMetros: [{ code: 'TY', avgLatency: 15.0 }, { code: 'HK', avgLatency: 20.0 }] },
+    { code: 'ME', name: 'Melbourne', region: 'APAC', connectedMetros: [{ code: 'SY', avgLatency: 8.0 }] },
+    { code: 'PE', name: 'Perth', region: 'APAC', connectedMetros: [{ code: 'SG', avgLatency: 30.0 }, { code: 'SY', avgLatency: 25.0 }] },
+    { code: 'KL', name: 'Kuala Lumpur', region: 'APAC', connectedMetros: [{ code: 'SG', avgLatency: 5.0 }] },
+    { code: 'JK', name: 'Jakarta', region: 'APAC', connectedMetros: [{ code: 'SG', avgLatency: 10.0 }] },
+    { code: 'CH', name: 'Chennai', region: 'APAC', connectedMetros: [{ code: 'MB', avgLatency: 12.0 }, { code: 'SG', avgLatency: 22.0 }] },
   ];
 }
 

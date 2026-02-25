@@ -6,6 +6,14 @@ import { fetchNetworkEdgePricing } from '@/api/networkEdge';
 import { formatCurrency } from '@/utils/priceCalculator';
 import { ServiceCard } from './ServiceCard';
 
+const CATEGORY_COLORS: Record<string, string> = {
+  ROUTER: 'bg-blue-50 text-blue-700',
+  FIREWALL: 'bg-red-50 text-red-700',
+  SDWAN: 'bg-purple-50 text-purple-700',
+  'SD-WAN': 'bg-purple-50 text-purple-700',
+  OTHER: 'bg-gray-100 text-gray-600',
+};
+
 interface Props {
   service: ServiceSelection;
   metroCode: string;
@@ -89,10 +97,18 @@ export function NetworkEdgeConfig({ service, metroCode, deviceTypes, onUpdate, o
             <option value="">Select device...</option>
             {deviceTypes.map((dt) => (
               <option key={dt.deviceTypeCode} value={dt.deviceTypeCode}>
-                {dt.vendor} — {dt.name}
+                [{dt.category}] {dt.vendor} — {dt.name}
               </option>
             ))}
           </select>
+          {selectedDevice && (
+            <div className="flex items-center gap-2 mt-1.5">
+              <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded ${CATEGORY_COLORS[selectedDevice.category] ?? 'bg-gray-50 text-gray-700'}`}>
+                {selectedDevice.category}
+              </span>
+              <span className="text-xs text-gray-500">{selectedDevice.vendor}</span>
+            </div>
+          )}
         </div>
 
         {selectedDevice && (
