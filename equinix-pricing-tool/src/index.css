@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Arial', 'Helvetica Neue', 'Helvetica', sans-serif;
+
+  --color-equinix-black: #000000;
+  --color-equinix-green: #33A85C;
+  --color-equinix-green-arrow: #00A85F;
+  --color-equinix-red: #E91C24;
+  --color-equinix-gray: #F4F4F4;
+  --color-equinix-navy: #1B2A34;
+
+  --color-aws: #FF9900;
+  --color-azure: #0067B8;
+  --color-gcp: #0070F2;
+  --color-oracle: #ED1C23;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100dvh;
+}
+
+.react-flow__node {
+  font-family: Arial, sans-serif;
+}
+
+/* Metro parent nodes must allow child service nodes to render on top */
+.react-flow__node-metroNode {
+  overflow: visible !important;
+}

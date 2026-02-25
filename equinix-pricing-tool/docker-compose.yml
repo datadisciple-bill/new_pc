@@ -1,0 +1,14 @@
+services:
+  equinix-pricing-tool:
+    build: .
+    container_name: equinix-pricing-tool
+    restart: unless-stopped
+    ports:
+      - "8088:80"
+    environment:
+      - TZ=America/New_York
+    # Unraid labels for Community Applications (optional)
+    labels:
+      net.unraid.docker.managed: "dockerman"
+      net.unraid.docker.webui: "http://[IP]:[PORT:8088]"
+      net.unraid.docker.icon: "https://www.equinix.com/favicon.ico"
