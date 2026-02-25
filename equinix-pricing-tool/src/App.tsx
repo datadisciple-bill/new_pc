@@ -70,14 +70,8 @@ function App() {
       // Priority 1: defaults.json has metros/deviceTypes/etc from the real API
       if (staticDefaults?.metros?.length) {
         useConfigStore.getState().setMetros(staticDefaults.metros);
-        // Normalize availableMetros — API may return objects instead of strings
-        const normalizedDeviceTypes = (staticDefaults.deviceTypes ?? []).map((dt: Record<string, unknown>) => ({
-          ...dt,
-          availableMetros: (Array.isArray(dt.availableMetros) ? dt.availableMetros : []).map(
-            (m: string | { code: string }) => typeof m === 'string' ? m : m.code
-          ).filter(Boolean),
-        }));
-        useConfigStore.getState().setDeviceTypes(normalizedDeviceTypes);
+        // Store normalizes availableMetros (objects → strings) automatically
+        useConfigStore.getState().setDeviceTypes(staticDefaults.deviceTypes ?? []);
         useConfigStore.getState().setServiceProfiles(staticDefaults.serviceProfiles ?? []);
         setCacheInfo({
           cachedAt: new Date(staticDefaults.fetchedAt).getTime(),

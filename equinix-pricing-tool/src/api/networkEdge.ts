@@ -15,16 +15,10 @@ export async function fetchDeviceTypes(): Promise<DeviceType[]> {
   }
 
   const response = await apiRequest<{ data: DeviceType[] } | DeviceType[]>('/ne/v1/deviceTypes?limit=200');
-  const raw = Array.isArray(response) ? response : response.data;
-  // Normalize availableMetros — API may return objects like {code:'DC'} instead of strings
-  const types = raw.map((dt) => ({
-    ...dt,
-    availableMetros: (dt.availableMetros ?? []).map((m: string | { code: string }) =>
-      typeof m === 'string' ? m : m.code
-    ).filter(Boolean),
-  }));
+  const types = Array.isArray(response) ? response : response.data;
+  // Store normalizes availableMetros (objects → strings) automatically
   useConfigStore.getState().setDeviceTypes(types);
-  return types;
+  return useConfigStore.getState().cache.deviceTypes;
 }
 
 export async function fetchDeviceTypesForMetro(_metroCode: string): Promise<DeviceType[]> {

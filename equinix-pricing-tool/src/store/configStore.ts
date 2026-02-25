@@ -107,6 +107,23 @@ interface ConfigStore {
   setShowPricing: (show: boolean) => void;
 }
 
+/**
+ * Normalize an availableMetros array to plain string metro codes.
+ * The Equinix NE API may return objects like {code:'DC'} or {metroCode:'DC'}
+ * instead of plain strings. Handle all known shapes.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function normalizeMetroCodes(raw: any[] | undefined | null): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((m) => {
+      if (typeof m === 'string') return m;
+      if (m && typeof m === 'object') return m.code ?? m.metroCode ?? '';
+      return '';
+    })
+    .filter(Boolean);
+}
+
 function getDefaultConfig(type: ServiceType): FabricPortConfig | NetworkEdgeConfig | InternetAccessConfig | CloudRouterConfig | ColocationConfig {
   switch (type) {
     case 'FABRIC_PORT':
@@ -154,7 +171,15 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
     })),
   setDeviceTypes: (types) =>
     set((state) => ({
-      cache: { ...state.cache, deviceTypes: types, deviceTypesLoaded: true },
+      cache: {
+        ...state.cache,
+        // Normalize availableMetros — API may return objects instead of strings
+        deviceTypes: types.map((dt) => ({
+          ...dt,
+          availableMetros: normalizeMetroCodes(dt.availableMetros),
+        })),
+        deviceTypesLoaded: true,
+      },
     })),
   setServiceProfiles: (profiles) =>
     set((state) => ({

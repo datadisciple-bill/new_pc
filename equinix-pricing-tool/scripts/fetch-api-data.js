@@ -267,7 +267,9 @@ async function fetchDeviceTypes() {
     name: dt.name,
     vendor: dt.vendor,
     category: dt.category ?? 'OTHER',
-    availableMetros: (dt.availableMetros ?? dt.metros ?? []).map((m) => typeof m === 'string' ? m : m.code).filter(Boolean),
+    availableMetros: (dt.availableMetros ?? dt.metros ?? []).map((m) =>
+      typeof m === 'string' ? m : (m?.code ?? m?.metroCode ?? '')
+    ).filter(Boolean),
     softwarePackages: (dt.softwarePackages ?? []).map((sp) => ({
       // Raw API uses "packageCode"; our TypeScript type uses "code"
       code: sp.packageCode ?? sp.code,
