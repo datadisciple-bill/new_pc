@@ -274,7 +274,7 @@ async function fetchEIALocations() {
 
 // ── Fetch Pricing ────────────────────────────────────────────────────────────
 
-async function fetchFabricPortPricing() {
+async function fetchFabricPortPricing(referenceIbx) {
   // Bandwidth in Mbps as required by the API; label is human-friendly key
   const speeds = [
     { label: '1G', mbps: 1000 },
@@ -299,11 +299,13 @@ async function fetchFabricPortPricing() {
     try {
       const res = await apiPost('/fabric/v4/prices/search', priceFilter({
         '/type': 'VIRTUAL_PORT_PRODUCT',
+        '/port/location/ibx': referenceIbx,
         '/port/type': 'XF_PORT',
         '/port/bandwidth': mbps,
         '/port/package/code': portProduct,
         '/port/connectivitySource/type': 'COLO',
         '/port/settings/buyout': false,
+        '/port/lag/enabled': false,
       }));
       const charges = res.data?.[0]?.charges ?? [];
       const mrc = charges.find((ch) => ch.type === 'MONTHLY_RECURRING')?.price ?? 0;
@@ -328,7 +330,7 @@ async function fetchFabricPortPricing() {
   return pricing;
 }
 
-async function fetchVCPricing() {
+async function fetchVCPricing(referenceMetro) {
   const bandwidths = [50, 100, 200, 500, 1000, 2000, 5000, 10000, 50000];
   const total = bandwidths.length;
   const pricing = {};
@@ -345,6 +347,11 @@ async function fetchVCPricing() {
         '/type': 'VIRTUAL_CONNECTION_PRODUCT',
         '/connection/type': 'EVPL_VC',
         '/connection/bandwidth': bw,
+        '/connection/aSide/accessPoint/type': 'COLO',
+        '/connection/aSide/accessPoint/location/metroCode': referenceMetro,
+        '/connection/aSide/accessPoint/port/settings/buyout': false,
+        '/connection/zSide/accessPoint/type': 'COLO',
+        '/connection/zSide/accessPoint/location/metroCode': referenceMetro,
       }));
       const charges = res.data?.[0]?.charges ?? [];
       const mrc = charges.find((ch) => ch.type === 'MONTHLY_RECURRING')?.price ?? 0;
@@ -504,17 +511,19 @@ async function main() {
 
   // ── Phase 3: Pricing ───────────────────────────────────────────────────────
   const referenceMetro = 'DC';
-  console.log(`${c.bold}${c.cyan}[3/4]${c.reset}${c.bold} Fetching pricing${c.reset} ${c.dim}(reference metro: ${referenceMetro})${c.reset}`);
+  // Pick first IBX in the reference metro from EIA locations, or fall back to a well-known one
+  const referenceIbx = eiaLocations.find((loc) => loc.metroCode === referenceMetro)?.ibx ?? 'DC6';
+  console.log(`${c.bold}${c.cyan}[3/4]${c.reset}${c.bold} Fetching pricing${c.reset} ${c.dim}(reference metro: ${referenceMetro}, IBX: ${referenceIbx})${c.reset}`);
 
   let fabricPortPricing = {};
   let vcPricing = {};
   let cloudRouterPricing = {};
   let nePricing = {};
 
-  try { fabricPortPricing = await fetchFabricPortPricing(); } catch (err) {
+  try { fabricPortPricing = await fetchFabricPortPricing(referenceIbx); } catch (err) {
     console.log(`  ${WARN} Fabric Port pricing ${c.yellow}skipped${c.reset} ${c.dim}\u2014 ${err.message}${c.reset}`);
   }
-  try { vcPricing = await fetchVCPricing(); } catch (err) {
+  try { vcPricing = await fetchVCPricing(referenceMetro); } catch (err) {
     console.log(`  ${WARN} VC pricing ${c.yellow}skipped${c.reset} ${c.dim}\u2014 ${err.message}${c.reset}`);
   }
   try { cloudRouterPricing = await fetchCloudRouterPricing(routerPackages, referenceMetro); } catch (err) {
@@ -531,6 +540,7 @@ async function main() {
   const defaults = {
     fetchedAt: new Date().toISOString(),
     referenceMetro,
+    referenceIbx,
     metros,
     deviceTypes,
     serviceProfiles,

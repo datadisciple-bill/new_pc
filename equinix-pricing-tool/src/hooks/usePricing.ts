@@ -6,6 +6,7 @@ import type { ServiceSelection, FabricPortConfig, NetworkEdgeConfig, CloudRouter
 import { calculatePricingSummary, formatCurrency } from '@/utils/priceCalculator';
 import { generateCsv, downloadCsv } from '@/utils/csvGenerator';
 import { BANDWIDTH_OPTIONS } from '@/constants/serviceDefaults';
+import { lookupIbxForMetro } from '@/data/defaultPricing';
 
 export function usePricing() {
   const metros = useConfigStore((s) => s.project.metros);
@@ -29,12 +30,15 @@ export function usePricing() {
           case 'FABRIC_PORT': {
             const c = service.config as FabricPortConfig;
             const bandwidthMbps = parseInt(c.speed) * 1000; // '10G' → 10000
+            const ibx = lookupIbxForMetro(metroCode);
             const result = await searchPrices('VIRTUAL_PORT_PRODUCT', {
+              '/port/location/ibx': ibx,
               '/port/type': 'XF_PORT',
               '/port/bandwidth': bandwidthMbps,
               '/port/package/code': c.portProduct,
               '/port/connectivitySource/type': 'COLO',
               '/port/settings/buyout': false,
+              '/port/lag/enabled': false,
             });
             const charge = result.data[0]?.charges ?? [];
             const mrc = charge.find((ch) => ch.type === 'MONTHLY_RECURRING')?.price ?? 0;
@@ -102,10 +106,21 @@ export function usePricing() {
   );
 
   const fetchPriceForConnection = useCallback(
-    async (connectionId: string, bandwidthMbps: number) => {
+    async (connectionId: string, bandwidthMbps: number, aSideMetro?: string, zSideMetro?: string) => {
       try {
+        // Look up metro codes from the connection if not provided
+        const conn = connections.find((c) => c.id === connectionId);
+        const aMetro = aSideMetro ?? conn?.aSide.metroCode ?? 'DC';
+        const zMetro = zSideMetro ?? conn?.zSide.metroCode ?? aMetro;
+
         const result = await searchPrices('VIRTUAL_CONNECTION_PRODUCT', {
+          '/connection/type': 'EVPL_VC',
           '/connection/bandwidth': bandwidthMbps,
+          '/connection/aSide/accessPoint/type': 'COLO',
+          '/connection/aSide/accessPoint/location/metroCode': aMetro,
+          '/connection/aSide/accessPoint/port/settings/buyout': false,
+          '/connection/zSide/accessPoint/type': 'COLO',
+          '/connection/zSide/accessPoint/location/metroCode': zMetro,
         });
         const charge = result.data[0]?.charges ?? [];
         const mrc = charge.find((ch) => ch.type === 'MONTHLY_RECURRING')?.price ?? 0;
@@ -122,16 +137,26 @@ export function usePricing() {
         console.error('Connection pricing fetch failed:', err);
       }
     },
-    [updateConnectionPricing]
+    [connections, updateConnectionPricing]
   );
 
   const fetchPriceTableForConnection = useCallback(
     async (connectionId: string) => {
       try {
+        const conn = connections.find((c) => c.id === connectionId);
+        const aMetro = conn?.aSide.metroCode ?? 'DC';
+        const zMetro = conn?.zSide.metroCode ?? aMetro;
+
         const entries: BandwidthPriceEntry[] = [];
         for (const bw of BANDWIDTH_OPTIONS) {
           const result = await searchPrices('VIRTUAL_CONNECTION_PRODUCT', {
+            '/connection/type': 'EVPL_VC',
             '/connection/bandwidth': bw,
+            '/connection/aSide/accessPoint/type': 'COLO',
+            '/connection/aSide/accessPoint/location/metroCode': aMetro,
+            '/connection/aSide/accessPoint/port/settings/buyout': false,
+            '/connection/zSide/accessPoint/type': 'COLO',
+            '/connection/zSide/accessPoint/location/metroCode': zMetro,
           });
           const charge = result.data[0]?.charges ?? [];
           const mrc = charge.find((ch) => ch.type === 'MONTHLY_RECURRING')?.price ?? 0;
@@ -143,7 +168,7 @@ export function usePricing() {
         console.error('Price table fetch failed:', err);
       }
     },
-    [updateConnection]
+    [connections, updateConnection]
   );
 
   const exportCsv = useCallback(() => {

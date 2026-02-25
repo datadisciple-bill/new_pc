@@ -12,7 +12,7 @@ import { fetchMetros } from '@/api/fabric';
 import { fetchDeviceTypes } from '@/api/networkEdge';
 import { fetchServiceProfiles } from '@/api/fabric';
 import { authenticate } from '@/api/auth';
-import { setDefaultPricing } from '@/data/defaultPricing';
+import { setDefaultPricing, setDefaultLocations } from '@/data/defaultPricing';
 
 // Hash-based routing for unlisted pages
 function useHash(): string {
@@ -58,6 +58,9 @@ function App() {
           staticDefaults = await res.json();
           if (staticDefaults?.pricing) {
             setDefaultPricing(staticDefaults.pricing);
+          }
+          if (staticDefaults?.eiaLocations) {
+            setDefaultLocations(staticDefaults.eiaLocations, staticDefaults.referenceIbx);
           }
         }
       } catch {

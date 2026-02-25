@@ -15,10 +15,22 @@ interface DefaultPricingData {
   networkEdge: Record<string, PriceEntry>;
 }
 
+interface EIALocationEntry {
+  ibx: string;
+  metroCode: string;
+}
+
 let pricing: DefaultPricingData | null = null;
+let eiaLocations: EIALocationEntry[] = [];
+let referenceIbx: string = 'DC6';
 
 export function setDefaultPricing(data: DefaultPricingData): void {
   pricing = data;
+}
+
+export function setDefaultLocations(locations: EIALocationEntry[], ibx?: string): void {
+  eiaLocations = locations ?? [];
+  if (ibx) referenceIbx = ibx;
 }
 
 export function getDefaultPricing(): DefaultPricingData | null {
@@ -27,6 +39,12 @@ export function getDefaultPricing(): DefaultPricingData | null {
 
 export function hasDefaultPricing(): boolean {
   return pricing !== null;
+}
+
+/** Find an IBX code for a given metro. Falls back to the reference IBX. */
+export function lookupIbxForMetro(metroCode: string): string {
+  const match = eiaLocations.find((loc) => loc.metroCode === metroCode);
+  return match?.ibx ?? referenceIbx;
 }
 
 /** Lookup Fabric Port price by bandwidth (Mbps or "10G" label) and package code */
