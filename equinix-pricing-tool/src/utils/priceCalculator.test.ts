@@ -134,6 +134,8 @@ describe('calculatePricingSummary', () => {
         bandwidthMbps: 1000,
         redundant: false,
         pricing: { mrc: 1500, nrc: 0, currency: 'USD', isEstimate: false, breakdown: [] },
+        showPriceTable: false,
+        priceTable: null,
       },
     ];
 

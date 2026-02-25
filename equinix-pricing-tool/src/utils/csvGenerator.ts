@@ -1,9 +1,14 @@
 import Papa from 'papaparse';
 import type { PricingSummary } from '@/types/pricing';
 import type { CsvExportRow } from '@/types/pricing';
+import type { VirtualConnection } from '@/types/config';
 import { formatCurrency } from './priceCalculator';
 
-export function generateCsv(summary: PricingSummary, projectName: string): string {
+export function generateCsv(
+  summary: PricingSummary,
+  projectName: string,
+  connections?: VirtualConnection[]
+): string {
   const rows: CsvExportRow[] = [];
 
   for (const metro of summary.metroSubtotals) {
@@ -37,7 +42,39 @@ export function generateCsv(summary: PricingSummary, projectName: string): strin
     { ...blankRow, Metro: 'Total Annual Cost', 'Annual Cost': formatCurrency(summary.totalAnnualCost) },
   ];
 
-  return Papa.unparse([...rows, ...summaryRows]);
+  // Price tables for connections with showPriceTable enabled
+  const priceTableRows: Record<string, string | number>[] = [];
+  if (connections) {
+    for (const conn of connections) {
+      if (conn.showPriceTable && conn.priceTable && conn.priceTable.length > 0) {
+        priceTableRows.push(blankRow);
+        priceTableRows.push({
+          ...blankRow,
+          Metro: 'BANDWIDTH PRICE TABLE',
+          'Service Type': conn.name || conn.type,
+          'Service Name': `${conn.aSide.metroCode} → ${conn.zSide.serviceProfileName ?? conn.zSide.metroCode}`,
+        });
+        // Header
+        priceTableRows.push({
+          ...blankRow,
+          Metro: 'Bandwidth',
+          'MRC (Monthly)': 'MRC',
+          'Annual Cost': 'Annual Cost',
+        });
+        for (const entry of conn.priceTable) {
+          const isSelected = entry.bandwidthMbps === conn.bandwidthMbps;
+          priceTableRows.push({
+            ...blankRow,
+            Metro: `${isSelected ? '► ' : ''}${entry.label}`,
+            'MRC (Monthly)': formatCurrency(entry.mrc),
+            'Annual Cost': formatCurrency(entry.mrc * 12),
+          });
+        }
+      }
+    }
+  }
+
+  return Papa.unparse([...rows, ...summaryRows, ...priceTableRows]);
 }
 
 export function downloadCsv(csvContent: string, projectName: string): void {

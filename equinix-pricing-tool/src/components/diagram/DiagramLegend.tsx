@@ -4,11 +4,15 @@ export function DiagramLegend() {
       <p className="font-bold text-xs text-equinix-navy">Legend</p>
       <div className="flex items-center gap-2">
         <div className="w-8 h-0 border-t-2 border-black" />
-        <span className="text-gray-600">Physical / L2 Connection</span>
+        <span className="text-gray-600">Inter-metro L2 Connection</span>
       </div>
       <div className="flex items-center gap-2">
         <div className="w-8 h-0 border-t-2 border-dashed border-black" />
-        <span className="text-gray-600">Virtual / L3 Connection</span>
+        <span className="text-gray-600">Inter-metro L3 Connection</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="w-8 h-0 border-t-2 border-equinix-green" />
+        <span className="text-gray-600">Intra-metro Connection</span>
       </div>
       <div className="flex items-center gap-2">
         <div className="w-4 h-3 bg-equinix-black rounded-sm" />
@@ -17,6 +21,10 @@ export function DiagramLegend() {
       <div className="flex items-center gap-2">
         <div className="w-4 h-3 bg-aws rounded-sm" />
         <span className="text-gray-600">Cloud Provider</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="text-[8px] font-bold bg-equinix-red text-white rounded px-1">HA</span>
+        <span className="text-gray-600">High Availability Pair</span>
       </div>
     </div>
   );

@@ -2,9 +2,10 @@ import { useCallback, useMemo } from 'react';
 import { useConfigStore } from '@/store/configStore';
 import { searchPrices } from '@/api/fabric';
 import { fetchNetworkEdgePricing } from '@/api/networkEdge';
-import type { ServiceSelection, FabricPortConfig, NetworkEdgeConfig, CloudRouterConfig, PricingResult } from '@/types/config';
+import type { ServiceSelection, FabricPortConfig, NetworkEdgeConfig, CloudRouterConfig, PricingResult, BandwidthPriceEntry } from '@/types/config';
 import { calculatePricingSummary, formatCurrency } from '@/utils/priceCalculator';
 import { generateCsv, downloadCsv } from '@/utils/csvGenerator';
+import { BANDWIDTH_OPTIONS } from '@/constants/serviceDefaults';
 
 export function usePricing() {
   const metros = useConfigStore((s) => s.project.metros);
@@ -12,6 +13,7 @@ export function usePricing() {
   const projectName = useConfigStore((s) => s.project.name);
   const updateServicePricing = useConfigStore((s) => s.updateServicePricing);
   const updateConnectionPricing = useConfigStore((s) => s.updateConnectionPricing);
+  const updateConnection = useConfigStore((s) => s.updateConnection);
 
   const summary = useMemo(
     () => calculatePricingSummary(metros, connections),
@@ -107,10 +109,31 @@ export function usePricing() {
     [updateConnectionPricing]
   );
 
-  const exportCsv = useCallback(() => {
-    const csv = generateCsv(summary, projectName);
-    downloadCsv(csv, projectName);
-  }, [summary, projectName]);
+  const fetchPriceTableForConnection = useCallback(
+    async (connectionId: string) => {
+      try {
+        const entries: BandwidthPriceEntry[] = [];
+        for (const bw of BANDWIDTH_OPTIONS) {
+          const result = await searchPrices('VIRTUAL_CONNECTION_PRODUCT', {
+            '/connection/bandwidth': bw,
+          });
+          const charge = result.data[0]?.charges ?? [];
+          const mrc = charge.find((ch) => ch.type === 'MONTHLY_RECURRING')?.price ?? 0;
+          const label = bw >= 1000 ? `${bw / 1000} Gbps` : `${bw} Mbps`;
+          entries.push({ bandwidthMbps: bw, label, mrc, currency: 'USD' });
+        }
+        updateConnection(connectionId, { priceTable: entries });
+      } catch (err) {
+        console.error('Price table fetch failed:', err);
+      }
+    },
+    [updateConnection]
+  );
 
-  return { summary, fetchPriceForService, fetchPriceForConnection, exportCsv, formatCurrency };
+  const exportCsv = useCallback(() => {
+    const csv = generateCsv(summary, projectName, connections);
+    downloadCsv(csv, projectName);
+  }, [summary, projectName, connections]);
+
+  return { summary, fetchPriceForService, fetchPriceForConnection, fetchPriceTableForConnection, exportCsv, formatCurrency };
 }

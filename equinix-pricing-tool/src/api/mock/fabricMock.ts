@@ -47,6 +47,7 @@ const PRICING: Record<string, { mrc: number; nrc: number }> = {
   'VC_2000': { mrc: 2800, nrc: 0 },
   'VC_5000': { mrc: 5500, nrc: 0 },
   'VC_10000': { mrc: 9000, nrc: 0 },
+  'VC_50000': { mrc: 35000, nrc: 0 },
   // Cloud Router
   'FCR_STANDARD': { mrc: 450, nrc: 0 },
   'FCR_PREMIUM': { mrc: 900, nrc: 0 },

@@ -1,18 +1,27 @@
-import type { MetroSelection, VirtualConnection } from '@/types/config';
+import type { MetroSelection, VirtualConnection, NetworkEdgeConfig } from '@/types/config';
 import type { Node, Edge } from '@xyflow/react';
 
 const METRO_WIDTH = 280;
 const METRO_HEADER_HEIGHT = 48;
 const SERVICE_NODE_HEIGHT = 72;
+const SERVICE_NODE_HEIGHT_HA = 88;
 const SERVICE_GAP = 12;
 const METRO_PADDING = 16;
-const METRO_GAP_X = 80;
+const METRO_GAP_X = 100;
 const METRO_GAP_Y = 40;
 const METROS_PER_ROW = 3;
 
 export interface LayoutResult {
   nodes: Node[];
   edges: Edge[];
+}
+
+function getServiceNodeHeight(service: { type: string; config: unknown }): number {
+  if (service.type === 'NETWORK_EDGE') {
+    const c = service.config as NetworkEdgeConfig;
+    return c.redundant ? SERVICE_NODE_HEIGHT_HA : SERVICE_NODE_HEIGHT;
+  }
+  return SERVICE_NODE_HEIGHT;
 }
 
 export function buildDiagramLayout(
@@ -22,16 +31,22 @@ export function buildDiagramLayout(
   const nodes: Node[] = [];
   const edges: Edge[] = [];
 
+  // Track absolute positions for services so we can route edges
+  const servicePositions = new Map<string, { x: number; y: number }>();
+
   metros.forEach((metro, metroIndex) => {
     const col = metroIndex % METROS_PER_ROW;
     const row = Math.floor(metroIndex / METROS_PER_ROW);
 
-    const serviceCount = metro.services.length;
-    const metroHeight = METRO_HEADER_HEIGHT + METRO_PADDING * 2 +
-      serviceCount * (SERVICE_NODE_HEIGHT + SERVICE_GAP);
+    // Calculate metro height based on actual service heights
+    let totalServiceHeight = 0;
+    for (const svc of metro.services) {
+      totalServiceHeight += getServiceNodeHeight(svc) + SERVICE_GAP;
+    }
+    const metroHeight = METRO_HEADER_HEIGHT + METRO_PADDING * 2 + totalServiceHeight;
 
     const metroX = col * (METRO_WIDTH + METRO_GAP_X);
-    const metroY = row * (400 + METRO_GAP_Y);
+    const metroY = row * (450 + METRO_GAP_Y);
 
     // Metro container node
     nodes.push({
@@ -49,16 +64,23 @@ export function buildDiagramLayout(
       },
     });
 
-    // Service nodes inside metro
-    metro.services.forEach((service, serviceIndex) => {
-      const serviceX = metroX + METRO_PADDING;
-      const serviceY = metroY + METRO_HEADER_HEIGHT + METRO_PADDING +
-        serviceIndex * (SERVICE_NODE_HEIGHT + SERVICE_GAP);
+    // Service nodes — use relative positions within parent
+    let yOffset = METRO_HEADER_HEIGHT + METRO_PADDING;
+    metro.services.forEach((service) => {
+      const nodeHeight = getServiceNodeHeight(service);
+      const relX = METRO_PADDING;
+      const relY = yOffset;
+
+      // Store absolute position for edge routing
+      servicePositions.set(service.id, {
+        x: metroX + relX,
+        y: metroY + relY,
+      });
 
       nodes.push({
         id: `service-${service.id}`,
         type: 'serviceNode',
-        position: { x: serviceX, y: serviceY },
+        position: { x: relX, y: relY },
         data: {
           serviceId: service.id,
           serviceType: service.type,
@@ -69,10 +91,36 @@ export function buildDiagramLayout(
         extent: 'parent' as const,
         style: {
           width: METRO_WIDTH - METRO_PADDING * 2,
-          height: SERVICE_NODE_HEIGHT,
+          height: nodeHeight,
         },
       });
+
+      yOffset += nodeHeight + SERVICE_GAP;
     });
+  });
+
+  // Price table nodes — positioned to the right of the rightmost metro column
+  const maxCol = Math.min(metros.length, METROS_PER_ROW) - 1;
+  const priceTableX = (maxCol + 1) * (METRO_WIDTH + METRO_GAP_X) + 40;
+  let priceTableY = 0;
+
+  connections.forEach((conn) => {
+    if (conn.showPriceTable && conn.priceTable && conn.priceTable.length > 0) {
+      const rowHeight = 14;
+      const tableHeight = 28 + conn.priceTable.length * rowHeight;
+      nodes.push({
+        id: `pricetable-${conn.id}`,
+        type: 'priceTableNode',
+        position: { x: priceTableX, y: priceTableY },
+        data: {
+          connectionName: conn.name || conn.type,
+          selectedBandwidthMbps: conn.bandwidthMbps,
+          priceTable: conn.priceTable,
+        },
+        style: { width: 180, height: tableHeight },
+      });
+      priceTableY += tableHeight + 16;
+    }
   });
 
   // Connection edges
@@ -86,15 +134,16 @@ export function buildDiagramLayout(
     if (conn.zSide.type === 'SERVICE_PROFILE' && conn.zSide.serviceProfileName) {
       const existingCloud = nodes.find((n) => n.id === targetId);
       if (!existingCloud) {
-        const zMetroIndex = metros.findIndex((m) => m.metroCode === conn.zSide.metroCode);
-        const col = zMetroIndex >= 0 ? zMetroIndex % METROS_PER_ROW : metros.length % METROS_PER_ROW;
-        const row = zMetroIndex >= 0 ? Math.floor(zMetroIndex / METROS_PER_ROW) : 0;
+        const aPos = servicePositions.get(conn.aSide.serviceId);
+        const aMetroIndex = metros.findIndex((m) => m.metroCode === conn.aSide.metroCode);
+        const col = aMetroIndex >= 0 ? aMetroIndex % METROS_PER_ROW : 0;
+        const row = aMetroIndex >= 0 ? Math.floor(aMetroIndex / METROS_PER_ROW) : 0;
         nodes.push({
           id: targetId,
           type: 'cloudNode',
           position: {
             x: col * (METRO_WIDTH + METRO_GAP_X) + METRO_WIDTH + 40,
-            y: row * (400 + METRO_GAP_Y) + 60,
+            y: aPos?.y ?? (row * (450 + METRO_GAP_Y) + 60),
           },
           data: {
             provider: conn.zSide.serviceProfileName,
@@ -103,17 +152,24 @@ export function buildDiagramLayout(
       }
     }
 
+    // Determine if this is an intra-metro connection
+    const isSameMetro = conn.aSide.metroCode === conn.zSide.metroCode;
+
+    const bwLabel = conn.bandwidthMbps >= 1000
+      ? `${conn.bandwidthMbps / 1000}G`
+      : `${conn.bandwidthMbps}M`;
+
     edges.push({
       id: `edge-${conn.id}`,
       source: sourceId,
       target: targetId,
-      type: conn.type === 'EVPL_VC' ? 'default' : 'default',
       style: {
-        stroke: '#000000',
+        stroke: isSameMetro ? '#33A85C' : '#000000',
         strokeWidth: conn.redundant ? 3 : 1.5,
         strokeDasharray: conn.type === 'IP_VC' ? '8 4' : undefined,
       },
-      label: `${conn.bandwidthMbps >= 1000 ? `${conn.bandwidthMbps / 1000}G` : `${conn.bandwidthMbps}M`}`,
+      label: bwLabel,
+      labelStyle: { fontSize: 9, fill: isSameMetro ? '#33A85C' : '#000000' },
       animated: false,
     });
 
@@ -123,7 +179,7 @@ export function buildDiagramLayout(
         source: sourceId,
         target: targetId,
         style: {
-          stroke: '#000000',
+          stroke: isSameMetro ? '#33A85C' : '#000000',
           strokeWidth: 1.5,
           strokeDasharray: conn.type === 'IP_VC' ? '8 4' : undefined,
         },

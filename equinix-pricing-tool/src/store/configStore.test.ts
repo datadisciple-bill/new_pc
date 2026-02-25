@@ -137,4 +137,52 @@ describe('configStore', () => {
       expect(useConfigStore.getState().project.connections).toHaveLength(0);
     });
   });
+
+  describe('copyMetroServices', () => {
+    it('copies all services from one metro to another', () => {
+      useConfigStore.getState().addMetro(testMetro);
+      useConfigStore.getState().addMetro({ ...testMetro, code: 'AT', name: 'Atlanta' });
+
+      useConfigStore.getState().addService('DC', 'FABRIC_PORT');
+      useConfigStore.getState().addService('DC', 'NETWORK_EDGE');
+
+      const oldToNew = useConfigStore.getState().copyMetroServices('DC', 'AT');
+
+      const atMetro = useConfigStore.getState().project.metros.find((m) => m.metroCode === 'AT');
+      expect(atMetro?.services).toHaveLength(2);
+      expect(oldToNew.size).toBe(2);
+
+      // New IDs should be different from old IDs
+      const dcMetro = useConfigStore.getState().project.metros.find((m) => m.metroCode === 'DC');
+      for (const [oldId, newId] of oldToNew) {
+        expect(oldId).not.toBe(newId);
+        expect(dcMetro?.services.some((s) => s.id === oldId)).toBe(true);
+        expect(atMetro?.services.some((s) => s.id === newId)).toBe(true);
+      }
+    });
+
+    it('copies service configs but resets pricing to null', () => {
+      useConfigStore.getState().addMetro(testMetro);
+      useConfigStore.getState().addMetro({ ...testMetro, code: 'AT', name: 'Atlanta' });
+
+      const serviceId = useConfigStore.getState().addService('DC', 'FABRIC_PORT');
+      useConfigStore.getState().updateServiceConfig('DC', serviceId, { speed: '100G' });
+      useConfigStore.getState().updateServicePricing('DC', serviceId, {
+        mrc: 7500, nrc: 0, currency: 'USD', isEstimate: false, breakdown: [],
+      });
+
+      useConfigStore.getState().copyMetroServices('DC', 'AT');
+
+      const atMetro = useConfigStore.getState().project.metros.find((m) => m.metroCode === 'AT');
+      const copiedService = atMetro?.services[0];
+      expect((copiedService?.config as { speed: string }).speed).toBe('100G');
+      expect(copiedService?.pricing).toBeNull(); // pricing should be re-fetched
+    });
+
+    it('returns empty map when source metro not found', () => {
+      useConfigStore.getState().addMetro(testMetro);
+      const result = useConfigStore.getState().copyMetroServices('ZZ', 'DC');
+      expect(result.size).toBe(0);
+    });
+  });
 });

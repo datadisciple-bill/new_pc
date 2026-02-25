@@ -12,12 +12,14 @@ import { buildDiagramLayout } from '@/utils/diagramLayout';
 import { MetroNode } from './MetroNode';
 import { ServiceNode } from './ServiceNode';
 import { CloudNode } from './CloudNode';
+import { PriceTableNode } from './PriceTableNode';
 import { DiagramLegend } from './DiagramLegend';
 
 const nodeTypes: NodeTypes = {
   metroNode: MetroNode,
   serviceNode: ServiceNode,
   cloudNode: CloudNode,
+  priceTableNode: PriceTableNode,
 };
 
 export function NetworkDiagram() {

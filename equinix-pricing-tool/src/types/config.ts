@@ -63,6 +63,15 @@ export interface VirtualConnection {
   bandwidthMbps: number;
   redundant: boolean;
   pricing: PricingResult | null;
+  showPriceTable: boolean;
+  priceTable: BandwidthPriceEntry[] | null;
+}
+
+export interface BandwidthPriceEntry {
+  bandwidthMbps: number;
+  label: string;
+  mrc: number;
+  currency: string;
 }
 
 export type EndpointType = 'PORT' | 'NETWORK_EDGE' | 'CLOUD_ROUTER' | 'SERVICE_PROFILE';

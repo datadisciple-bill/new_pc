@@ -73,8 +73,11 @@ interface ConfigStore {
   ) => void;
   updateServicePricing: (metroCode: string, serviceId: string, pricing: PricingResult) => void;
 
+  // Copy services between metros
+  copyMetroServices: (fromMetroCode: string, toMetroCode: string) => Map<string, string>;
+
   // Connection actions
-  addConnection: (connection: Omit<VirtualConnection, 'id' | 'pricing'>) => string;
+  addConnection: (connection: Omit<VirtualConnection, 'id' | 'pricing' | 'priceTable' | 'showPriceTable'> & { showPriceTable?: boolean }) => string;
   removeConnection: (connectionId: string) => void;
   updateConnection: (connectionId: string, updates: Partial<VirtualConnection>) => void;
   updateConnectionPricing: (connectionId: string, pricing: PricingResult) => void;
@@ -249,6 +252,38 @@ export const useConfigStore = create<ConfigStore>((set) => ({
       },
     })),
 
+  // Copy services between metros
+  copyMetroServices: (fromMetroCode, toMetroCode) => {
+    const state = useConfigStore.getState();
+    const sourceMetro = state.project.metros.find((m) => m.metroCode === fromMetroCode);
+    if (!sourceMetro) return new Map<string, string>();
+
+    const oldToNew = new Map<string, string>();
+    const copiedServices: ServiceSelection[] = sourceMetro.services.map((s) => {
+      const newId = uuidv4();
+      oldToNew.set(s.id, newId);
+      return {
+        ...s,
+        id: newId,
+        config: { ...s.config },
+        pricing: null, // Will be re-fetched
+      };
+    });
+
+    set((st) => ({
+      project: {
+        ...st.project,
+        metros: st.project.metros.map((m) =>
+          m.metroCode === toMetroCode
+            ? { ...m, services: [...m.services, ...copiedServices] }
+            : m
+        ),
+      },
+    }));
+
+    return oldToNew;
+  },
+
   // Connection actions
   addConnection: (connection) => {
     const connectionId = uuidv4();
@@ -256,6 +291,8 @@ export const useConfigStore = create<ConfigStore>((set) => ({
       ...connection,
       id: connectionId,
       pricing: null,
+      showPriceTable: connection.showPriceTable ?? false,
+      priceTable: null,
     };
     set((state) => ({
       project: {
