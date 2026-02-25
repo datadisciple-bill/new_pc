@@ -36,7 +36,7 @@ export function FabricPortConfig({ service, onUpdate, onRemove }: Props) {
             className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md bg-white"
           >
             <option value="SINGLE">Single</option>
-            <option value="REDUNDANT">Redundant (LAG)</option>
+            <option value="REDUNDANT">Redundant (Primary/Secondary)</option>
           </select>
         </div>
 

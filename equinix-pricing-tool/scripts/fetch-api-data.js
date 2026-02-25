@@ -9,7 +9,11 @@
  * and Network Edge devices.
  *
  * Usage:
- *   EQUINIX_CLIENT_ID=xxx EQUINIX_CLIENT_SECRET=xxx npm run fetch-data
+ *   1. Add credentials to .env in the project root:
+ *        EQUINIX_CLIENT_ID=your_client_id
+ *        EQUINIX_CLIENT_SECRET=your_client_secret
+ *
+ *   2. Run:  npm run fetch-data
  *
  * Output: public/data/defaults.json
  *
@@ -18,7 +22,7 @@
  * loads it at startup — no end-user authentication required.
  */
 
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -29,6 +33,34 @@ const OUTPUT_FILE = join(OUTPUT_DIR, 'defaults.json');
 const API_BASE = 'https://api.equinix.com';
 const MAX_RETRIES = 3;
 const RATE_LIMIT_MS = 200; // 5 requests/sec
+
+// ── Load .env ────────────────────────────────────────────────────────────────
+
+function loadEnvFile() {
+  const envPath = join(__dirname, '..', '.env');
+  if (!existsSync(envPath)) return;
+
+  const contents = readFileSync(envPath, 'utf-8');
+  for (const line of contents.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eqIndex = trimmed.indexOf('=');
+    if (eqIndex === -1) continue;
+    const key = trimmed.slice(0, eqIndex).trim();
+    let value = trimmed.slice(eqIndex + 1).trim();
+    // Strip surrounding quotes
+    if ((value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
+    }
+    // Don't override existing env vars (CLI takes precedence)
+    if (!process.env[key]) {
+      process.env[key] = value;
+    }
+  }
+}
+
+loadEnvFile();
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -106,8 +138,11 @@ async function authenticate() {
 
   if (!clientId || !clientSecret) {
     console.error(
-      'Error: Set EQUINIX_CLIENT_ID and EQUINIX_CLIENT_SECRET environment variables.\n\n' +
-        '  EQUINIX_CLIENT_ID=xxx EQUINIX_CLIENT_SECRET=xxx npm run fetch-data\n'
+      'Error: EQUINIX_CLIENT_ID and EQUINIX_CLIENT_SECRET are required.\n\n' +
+        '  Add them to .env in the project root:\n' +
+        '    EQUINIX_CLIENT_ID=your_client_id\n' +
+        '    EQUINIX_CLIENT_SECRET=your_client_secret\n\n' +
+        '  Then run:  npm run fetch-data\n'
     );
     process.exit(1);
   }
