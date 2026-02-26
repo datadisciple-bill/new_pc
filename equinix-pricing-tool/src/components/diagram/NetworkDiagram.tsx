@@ -21,6 +21,9 @@ import { CloudNode } from './CloudNode';
 import { PriceTableNode } from './PriceTableNode';
 import { NEPriceTableNode } from './NEPriceTableNode';
 import { TextBoxNode } from './TextBoxNode';
+import { LocalSiteNode } from './LocalSiteNode';
+import { AnnotationMarkerNode } from './AnnotationMarkerNode';
+import { AnnotationLegendNode } from './AnnotationLegendNode';
 import { CustomEdge } from './CustomEdge';
 import { DiagramLegend } from './DiagramLegend';
 
@@ -31,6 +34,9 @@ const nodeTypes: NodeTypes = {
   priceTableNode: PriceTableNode,
   nePriceTableNode: NEPriceTableNode,
   textBoxNode: TextBoxNode,
+  localSiteNode: LocalSiteNode,
+  annotationMarkerNode: AnnotationMarkerNode,
+  annotationLegendNode: AnnotationLegendNode,
 };
 
 const edgeTypes: EdgeTypes = {
@@ -38,7 +44,10 @@ const edgeTypes: EdgeTypes = {
 };
 
 // Node types that can be freely repositioned by dragging
-const DRAGGABLE_NODE_TYPES = new Set(['priceTableNode', 'nePriceTableNode', 'cloudNode', 'textBoxNode']);
+const DRAGGABLE_NODE_TYPES = new Set([
+  'priceTableNode', 'nePriceTableNode', 'cloudNode', 'textBoxNode',
+  'localSiteNode', 'annotationMarkerNode', 'annotationLegendNode',
+]);
 
 const METRO_PAD = 16;
 const METRO_HEADER_H = 48;
@@ -112,12 +121,18 @@ export function NetworkDiagram() {
   const metros = useConfigStore((s) => s.project.metros);
   const connections = useConfigStore((s) => s.project.connections);
   const textBoxes = useConfigStore((s) => s.project.textBoxes);
+  const localSites = useConfigStore((s) => s.project.localSites);
+  const annotationMarkers = useConfigStore((s) => s.project.annotationMarkers);
   const showPricing = useConfigStore((s) => s.ui.showPricing);
   const setShowPricing = useConfigStore((s) => s.setShowPricing);
   const undo = useConfigStore((s) => s.undo);
   const canUndo = useConfigStore((s) => s.canUndo);
   const addTextBox = useConfigStore((s) => s.addTextBox);
   const updateTextBox = useConfigStore((s) => s.updateTextBox);
+  const addLocalSite = useConfigStore((s) => s.addLocalSite);
+  const updateLocalSite = useConfigStore((s) => s.updateLocalSite);
+  const addAnnotationMarker = useConfigStore((s) => s.addAnnotationMarker);
+  const updateAnnotationMarker = useConfigStore((s) => s.updateAnnotationMarker);
 
   // Controlled nodes state
   const [reactFlowNodes, setReactFlowNodes] = useState<Node[]>([]);
@@ -127,8 +142,8 @@ export function NetworkDiagram() {
   const rfInstanceRef = useRef<ReactFlowInstance | null>(null);
 
   const { nodes: layoutNodes, edges } = useMemo(
-    () => buildDiagramLayout(metros, connections, showPricing, textBoxes),
-    [metros, connections, showPricing, textBoxes]
+    () => buildDiagramLayout(metros, connections, showPricing, textBoxes, localSites, annotationMarkers),
+    [metros, connections, showPricing, textBoxes, localSites, annotationMarkers]
   );
 
   // Store layout-computed metro sizes as minimum floors
@@ -199,6 +214,14 @@ export function NetworkDiagram() {
                 const tbId = (node.data as { textBoxId: string }).textBoxId;
                 updateTextBox(tbId, { x: change.position.x, y: change.position.y });
               }
+              if (node.type === 'localSiteNode' && change.dragging === false) {
+                const lsId = (node.data as { localSiteId: string }).localSiteId;
+                updateLocalSite(lsId, { x: change.position.x, y: change.position.y });
+              }
+              if (node.type === 'annotationMarkerNode' && change.dragging === false) {
+                const mId = (node.data as { markerId: string }).markerId;
+                updateAnnotationMarker(mId, { x: change.position.x, y: change.position.y });
+              }
             }
 
             if (node.type === 'metroNode') {
@@ -230,7 +253,7 @@ export function NetworkDiagram() {
         return applied;
       });
     },
-    [updateTextBox]
+    [updateTextBox, updateLocalSite, updateAnnotationMarker]
   );
 
   const onInit = useCallback((instance: ReactFlowInstance) => {
@@ -245,21 +268,38 @@ export function NetworkDiagram() {
     setTimeout(() => rfInstanceRef.current?.fitView(), 50);
   }, [layoutNodes]);
 
-  // Add text box at center of viewport
-  const handleAddTextBox = useCallback(() => {
+  // Helper: compute position at center of viewport
+  const getViewportCenter = useCallback(() => {
     const instance = rfInstanceRef.current;
-    if (instance) {
+    const wrapper = reactFlowWrapper.current;
+    if (instance && wrapper) {
       const viewport = instance.getViewport();
-      const wrapper = reactFlowWrapper.current;
-      const centerX = wrapper ? wrapper.clientWidth / 2 : 400;
-      const centerY = wrapper ? wrapper.clientHeight / 2 : 300;
+      const centerX = wrapper.clientWidth / 2;
+      const centerY = wrapper.clientHeight / 2;
       const flowX = (centerX - viewport.x) / viewport.zoom;
       const flowY = (centerY - viewport.y) / viewport.zoom;
-      addTextBox(flowX - 80, flowY - 20);
-    } else {
-      addTextBox(100, 100);
+      return { x: flowX, y: flowY };
     }
-  }, [addTextBox]);
+    return { x: 100, y: 100 };
+  }, []);
+
+  // Add text box at center of viewport
+  const handleAddTextBox = useCallback(() => {
+    const { x, y } = getViewportCenter();
+    addTextBox(x - 80, y - 20);
+  }, [addTextBox, getViewportCenter]);
+
+  // Add local site to the left of the metro grid
+  const handleAddLocalSite = useCallback(() => {
+    const { x, y } = getViewportCenter();
+    addLocalSite(x - 80, y - 32);
+  }, [addLocalSite, getViewportCenter]);
+
+  // Add annotation marker at center of viewport
+  const handleAddMarker = useCallback(() => {
+    const { x, y } = getViewportCenter();
+    addAnnotationMarker(x - 14, y - 14);
+  }, [addAnnotationMarker, getViewportCenter]);
 
   // Export diagram as PNG — uses fitView for tight crop
   const handleExportPng = useCallback(async () => {
@@ -342,6 +382,8 @@ export function NetworkDiagram() {
             if (node.type === 'cloudNode') return '#FF9900';
             if (node.type === 'priceTableNode' || node.type === 'nePriceTableNode') return '#d1fae5';
             if (node.type === 'textBoxNode') return '#fef3c7';
+            if (node.type === 'localSiteNode') return '#e5e7eb';
+            if (node.type === 'annotationMarkerNode') return '#E91C24';
             return '#1f2937';
           }}
           nodeStrokeWidth={2}
@@ -396,6 +438,24 @@ export function NetworkDiagram() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
           </svg>
           Text
+        </button>
+        <button
+          onClick={handleAddLocalSite}
+          title="Add a local site outside Equinix"
+          className="px-3 py-1.5 text-[10px] font-medium rounded-md shadow-sm border bg-white border-gray-300 transition-colors hover:bg-gray-50 flex items-center gap-1"
+        >
+          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+          </svg>
+          Local Site
+        </button>
+        <button
+          onClick={handleAddMarker}
+          title="Add a numbered annotation marker"
+          className="px-3 py-1.5 text-[10px] font-medium rounded-md shadow-sm border bg-white border-gray-300 transition-colors hover:bg-gray-50 flex items-center gap-1"
+        >
+          <span className="w-3.5 h-3.5 rounded-full bg-red-500 text-white text-[8px] font-bold flex items-center justify-center">#</span>
+          Marker
         </button>
         <button
           onClick={handleExportPng}

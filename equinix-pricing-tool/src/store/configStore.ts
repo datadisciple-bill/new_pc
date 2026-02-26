@@ -7,6 +7,8 @@ import type {
   ServiceType,
   VirtualConnection,
   TextBox,
+  LocalSite,
+  AnnotationMarker,
   FabricPortConfig,
   NetworkEdgeConfig,
   InternetAccessConfig,
@@ -99,6 +101,16 @@ interface ConfigStore {
   addTextBox: (x: number, y: number) => string;
   removeTextBox: (id: string) => void;
   updateTextBox: (id: string, updates: Partial<TextBox>) => void;
+
+  // Local site actions
+  addLocalSite: (x: number, y: number) => string;
+  removeLocalSite: (id: string) => void;
+  updateLocalSite: (id: string, updates: Partial<LocalSite>) => void;
+
+  // Annotation marker actions
+  addAnnotationMarker: (x: number, y: number) => string;
+  removeAnnotationMarker: (id: string) => void;
+  updateAnnotationMarker: (id: string, updates: Partial<AnnotationMarker>) => void;
 
   // UI state
   ui: UIState;
@@ -197,6 +209,8 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
     metros: [],
     connections: [],
     textBoxes: [],
+    localSites: [],
+    annotationMarkers: [],
   },
   projectHistory: [],
   canUndo: false,
@@ -235,7 +249,6 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
         project: { ...state.project, metros: [...state.project.metros, newMetro] },
         projectHistory: newHistory,
         canUndo: true,
-        // Auto-select the first metro so the services panel is immediately usable
         ui: isFirstMetro
           ? { ...state.ui, selectedMetroCode: metro.code }
           : state.ui,
@@ -245,7 +258,6 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
     set((state) => {
       const newHistory = [...state.projectHistory, state.project].slice(-MAX_HISTORY);
       const remainingMetros = state.project.metros.filter((m) => m.metroCode !== metroCode);
-      // If removing the currently selected metro, auto-select the next available one
       const needsReselect = state.ui.selectedMetroCode === metroCode;
       return {
         project: {
@@ -476,6 +488,91 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
         ...state.project,
         textBoxes: state.project.textBoxes.map((t) =>
           t.id === id ? { ...t, ...updates } : t
+        ),
+      },
+    })),
+
+  // Local site actions
+  addLocalSite: (x, y) => {
+    const id = uuidv4();
+    set((state) => {
+      const newHistory = [...state.projectHistory, state.project].slice(-MAX_HISTORY);
+      return {
+        project: {
+          ...state.project,
+          localSites: [...state.project.localSites, { id, name: 'Local Site', x, y }],
+        },
+        projectHistory: newHistory,
+        canUndo: true,
+      };
+    });
+    return id;
+  },
+  removeLocalSite: (id) =>
+    set((state) => {
+      const newHistory = [...state.projectHistory, state.project].slice(-MAX_HISTORY);
+      return {
+        project: {
+          ...state.project,
+          localSites: state.project.localSites.filter((s) => s.id !== id),
+          connections: state.project.connections.filter(
+            (c) => c.aSide.serviceId !== id && c.zSide.serviceId !== id
+          ),
+        },
+        projectHistory: newHistory,
+        canUndo: true,
+      };
+    }),
+  updateLocalSite: (id, updates) =>
+    set((state) => ({
+      project: {
+        ...state.project,
+        localSites: state.project.localSites.map((s) =>
+          s.id === id ? { ...s, ...updates } : s
+        ),
+      },
+    })),
+
+  // Annotation marker actions
+  addAnnotationMarker: (x, y) => {
+    const id = uuidv4();
+    set((state) => {
+      const nextNumber = state.project.annotationMarkers.length > 0
+        ? Math.max(...state.project.annotationMarkers.map((m) => m.number)) + 1
+        : 1;
+      const newHistory = [...state.projectHistory, state.project].slice(-MAX_HISTORY);
+      return {
+        project: {
+          ...state.project,
+          annotationMarkers: [
+            ...state.project.annotationMarkers,
+            { id, number: nextNumber, x, y, color: '#E91C24', text: '' },
+          ],
+        },
+        projectHistory: newHistory,
+        canUndo: true,
+      };
+    });
+    return id;
+  },
+  removeAnnotationMarker: (id) =>
+    set((state) => {
+      const newHistory = [...state.projectHistory, state.project].slice(-MAX_HISTORY);
+      return {
+        project: {
+          ...state.project,
+          annotationMarkers: state.project.annotationMarkers.filter((m) => m.id !== id),
+        },
+        projectHistory: newHistory,
+        canUndo: true,
+      };
+    }),
+  updateAnnotationMarker: (id, updates) =>
+    set((state) => ({
+      project: {
+        ...state.project,
+        annotationMarkers: state.project.annotationMarkers.map((m) =>
+          m.id === id ? { ...m, ...updates } : m
         ),
       },
     })),

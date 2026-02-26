@@ -1,4 +1,4 @@
-import type { MetroSelection, VirtualConnection, NetworkEdgeConfig, ServiceSelection, TextBox } from '@/types/config';
+import type { MetroSelection, VirtualConnection, NetworkEdgeConfig, ServiceSelection, TextBox, LocalSite, AnnotationMarker } from '@/types/config';
 import type { Node, Edge } from '@xyflow/react';
 import { formatCurrency } from './priceCalculator';
 
@@ -67,7 +67,9 @@ export function buildDiagramLayout(
   metros: MetroSelection[],
   connections: VirtualConnection[],
   showPricing = true,
-  textBoxes: TextBox[] = []
+  textBoxes: TextBox[] = [],
+  localSites: LocalSite[] = [],
+  annotationMarkers: AnnotationMarker[] = []
 ): LayoutResult {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
@@ -182,6 +184,21 @@ export function buildDiagramLayout(
     });
   });
 
+  // Local site nodes
+  localSites.forEach((site) => {
+    nodes.push({
+      id: `localsite-${site.id}`,
+      type: 'localSiteNode',
+      position: { x: site.x, y: site.y },
+      data: { localSiteId: site.id, name: site.name },
+      style: { width: 160, height: 64 },
+      width: 160,
+      height: 64,
+      draggable: true,
+      zIndex: 3,
+    });
+  });
+
   // Price tables: positioned below the metro grid so they don't overlap metro containers
   const PT_GAP = 16;
   let ptX = 0;
@@ -275,12 +292,54 @@ export function buildDiagramLayout(
     });
   });
 
+  // Annotation marker nodes
+  annotationMarkers.forEach((marker) => {
+    nodes.push({
+      id: `marker-${marker.id}`,
+      type: 'annotationMarkerNode',
+      position: { x: marker.x, y: marker.y },
+      data: { markerId: marker.id, number: marker.number, color: marker.color },
+      style: { width: 28, height: 28 },
+      width: 28,
+      height: 28,
+      draggable: true,
+      zIndex: 15,
+    });
+  });
+
+  // Annotation legend node — auto-generated when markers exist
+  if (annotationMarkers.length > 0) {
+    const legendX = Math.max(cumX, 280) + 40;
+    const legendY = 0;
+    nodes.push({
+      id: 'annotation-legend',
+      type: 'annotationLegendNode',
+      position: { x: legendX, y: legendY },
+      data: { markers: annotationMarkers },
+      style: { width: 260, minHeight: 40 },
+      width: 260,
+      draggable: true,
+      zIndex: 12,
+    });
+  }
+
   // Connection edges
   connections.forEach((conn) => {
-    const sourceId = `service-${conn.aSide.serviceId}`;
-    const targetId = conn.zSide.type === 'SERVICE_PROFILE'
-      ? `cloud-${conn.zSide.serviceProfileName?.replace(/\s+/g, '-')}`
-      : `service-${conn.zSide.serviceId}`;
+    const isLocalSiteASide = conn.aSide.type === 'LOCAL_SITE';
+    const isLocalSiteZSide = conn.zSide.type === 'LOCAL_SITE';
+
+    const sourceId = isLocalSiteASide
+      ? `localsite-${conn.aSide.serviceId}`
+      : `service-${conn.aSide.serviceId}`;
+
+    let targetId: string;
+    if (isLocalSiteZSide) {
+      targetId = `localsite-${conn.zSide.serviceId}`;
+    } else if (conn.zSide.type === 'SERVICE_PROFILE') {
+      targetId = `cloud-${conn.zSide.serviceProfileName?.replace(/\s+/g, '-')}`;
+    } else {
+      targetId = `service-${conn.zSide.serviceId}`;
+    }
 
     // Cloud service profile node
     if (conn.zSide.type === 'SERVICE_PROFILE' && conn.zSide.serviceProfileName) {
@@ -304,7 +363,8 @@ export function buildDiagramLayout(
       }
     }
 
-    const isSameMetro = conn.aSide.metroCode === conn.zSide.metroCode;
+    const isSameMetro = conn.aSide.metroCode === conn.zSide.metroCode && !isLocalSiteASide && !isLocalSiteZSide;
+    const isLocalSiteConnection = isLocalSiteASide || isLocalSiteZSide;
 
     const bwLabel = conn.bandwidthMbps >= 1000
       ? `${conn.bandwidthMbps / 1000}G`
@@ -319,7 +379,7 @@ export function buildDiagramLayout(
       if (conn.redundant) labelLine2 += ' ea.';
     }
 
-    const strokeColor = isSameMetro ? '#33A85C' : '#000000';
+    const strokeColor = isLocalSiteConnection ? '#6B7280' : isSameMetro ? '#33A85C' : '#000000';
 
     edges.push({
       id: `edge-${conn.id}`,
@@ -328,7 +388,7 @@ export function buildDiagramLayout(
       type: 'customEdge',
       style: {
         stroke: strokeColor,
-        strokeWidth: conn.redundant ? 4 : 1.5,
+        strokeWidth: 1.5,
         strokeDasharray: conn.type === 'IP_VC' ? '8 4' : undefined,
       },
       data: {
@@ -336,6 +396,7 @@ export function buildDiagramLayout(
         labelLine2,
         showPricing,
         isSameMetro,
+        isRedundant: conn.redundant,
       },
       zIndex: 5,
     });

@@ -6,6 +6,8 @@ export interface ProjectConfig {
   metros: MetroSelection[];
   connections: VirtualConnection[];
   textBoxes: TextBox[];
+  localSites: LocalSite[];
+  annotationMarkers: AnnotationMarker[];
 }
 
 export interface TextBox {
@@ -15,6 +17,22 @@ export interface TextBox {
   y: number;
   width: number;
   height: number;
+}
+
+export interface LocalSite {
+  id: string;
+  name: string;
+  x: number;
+  y: number;
+}
+
+export interface AnnotationMarker {
+  id: string;
+  number: number;
+  x: number;
+  y: number;
+  color: string;
+  text: string;
 }
 
 export interface MetroSelection {
@@ -103,7 +121,7 @@ export interface BandwidthPriceEntry {
   currency: string;
 }
 
-export type EndpointType = 'PORT' | 'NETWORK_EDGE' | 'CLOUD_ROUTER' | 'SERVICE_PROFILE' | 'COLOCATION' | 'NSP';
+export type EndpointType = 'PORT' | 'NETWORK_EDGE' | 'CLOUD_ROUTER' | 'SERVICE_PROFILE' | 'COLOCATION' | 'NSP' | 'LOCAL_SITE';
 
 export interface ConnectionEndpoint {
   metroCode: string;

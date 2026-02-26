@@ -123,6 +123,16 @@ export function usePricing() {
       try {
         // Look up metro codes from the connection if not provided
         const conn = connections.find((c) => c.id === connectionId);
+
+        // Local site connections have no Equinix pricing
+        if (conn && (conn.aSide.type === 'LOCAL_SITE' || conn.zSide.type === 'LOCAL_SITE')) {
+          updateConnectionPricing(connectionId, {
+            mrc: 0, nrc: 0, currency: 'USD', isEstimate: false,
+            breakdown: [{ description: 'Local site connection', mrc: 0, nrc: 0 }],
+          });
+          return;
+        }
+
         const aMetro = aSideMetro ?? conn?.aSide.metroCode ?? 'DC';
         const zMetro = zSideMetro ?? conn?.zSide.metroCode ?? aMetro;
 

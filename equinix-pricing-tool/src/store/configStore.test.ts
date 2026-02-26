@@ -14,7 +14,7 @@ describe('configStore', () => {
     // Reset store between tests
     useConfigStore.setState({
       auth: { token: null, tokenExpiry: null, isAuthenticated: false, userName: null },
-      project: { id: 'test', name: 'Test', metros: [], connections: [], textBoxes: [] },
+      project: { id: 'test', name: 'Test', metros: [], connections: [], textBoxes: [], localSites: [], annotationMarkers: [] },
       projectHistory: [],
       canUndo: false,
     });
