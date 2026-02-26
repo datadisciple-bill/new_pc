@@ -41,6 +41,14 @@ export function useMetros() {
     [selectedMetros]
   );
 
+  const metroHasServices = useCallback(
+    (metroCode: string) => {
+      const metro = selectedMetros.find((m) => m.metroCode === metroCode);
+      return (metro?.services.length ?? 0) > 0;
+    },
+    [selectedMetros]
+  );
+
   return {
     allMetros: sortedMetros,
     selectedMetros,
@@ -48,5 +56,6 @@ export function useMetros() {
     error,
     toggleMetro,
     isSelected,
+    metroHasServices,
   };
 }

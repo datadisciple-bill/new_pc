@@ -14,7 +14,7 @@ interface MetroSelectorProps {
 }
 
 export function MetroSelector({ compact = false }: MetroSelectorProps) {
-  const { allMetros, isLoading, error, toggleMetro, isSelected } = useMetros();
+  const { allMetros, isLoading, error, toggleMetro, isSelected, metroHasServices } = useMetros();
   const [search, setSearch] = useState('');
   const [activeRegion, setActiveRegion] = useState<string>('ALL');
 
@@ -87,6 +87,7 @@ export function MetroSelector({ compact = false }: MetroSelectorProps) {
             selected={isSelected(metro.code)}
             onToggle={() => toggleMetro(metro)}
             compact={compact}
+            hasServices={metroHasServices(metro.code)}
           />
         ))}
       </div>

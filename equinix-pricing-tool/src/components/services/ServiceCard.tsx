@@ -2,6 +2,7 @@ import { type ReactNode, useRef, useEffect } from 'react';
 import type { PricingResult } from '@/types/config';
 import { formatCurrency } from '@/utils/priceCalculator';
 import { useConfigStore } from '@/store/configStore';
+import { ConfirmDeleteButton } from '@/components/shared/ConfirmDeleteButton';
 
 interface Props {
   serviceId?: string;
@@ -19,6 +20,9 @@ export function ServiceCard({ serviceId, title, pricing, onRemove, quoteRequired
   const clearHighlight = useConfigStore((s) => s.clearHighlight);
   const isHighlighted = serviceId != null && serviceId === highlightedServiceId;
   const cardRef = useRef<HTMLDivElement>(null);
+
+  // A service is "configured" once it has pricing (fetched on add/edit)
+  const isConfigured = pricing !== null || quoteRequired === true;
 
   useEffect(() => {
     if (isHighlighted && cardRef.current) {
@@ -38,17 +42,19 @@ export function ServiceCard({ serviceId, title, pricing, onRemove, quoteRequired
       }`}
     >
       {/* Header bar — Equinix black */}
-      <div className="bg-equinix-black text-white px-3 py-2 flex items-center justify-between">
-        <span className="text-xs font-bold">{title}</span>
-        <button
-          onClick={onRemove}
-          className="text-gray-400 hover:text-white transition-colors"
+      <div className="bg-equinix-black text-white px-3 py-2 flex items-center justify-between gap-2">
+        <span className="text-xs font-bold flex-1 truncate">{title}</span>
+        <ConfirmDeleteButton
+          onDelete={onRemove}
+          requiresConfirm={isConfigured}
+          className="text-gray-400 hover:text-white transition-colors flex-shrink-0"
+          confirmClassName="text-white"
           title="Remove"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
-        </button>
+        </ConfirmDeleteButton>
       </div>
 
       {/* Config body */}

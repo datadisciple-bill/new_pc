@@ -2,6 +2,7 @@ import { memo, useState, useRef, useEffect, useCallback } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { useConfigStore } from '@/store/configStore';
 import type { LocalSiteIcon } from '@/types/config';
+import { ConfirmDeleteButton } from '@/components/shared/ConfirmDeleteButton';
 import fabricPortIcon from '@/assets/icons/fabric-port.svg';
 import networkEdgeIcon from '@/assets/icons/network-edge.svg';
 import internetAccessIcon from '@/assets/icons/internet-access.svg';
@@ -202,13 +203,15 @@ export const LocalSiteNode = memo(function LocalSiteNode({ data, selected }: Nod
       )}
 
       {/* Delete button */}
-      <button
-        onClick={(e) => { e.stopPropagation(); removeLocalSite(localSiteId); }}
+      <ConfirmDeleteButton
+        onDelete={() => removeLocalSite(localSiteId)}
+        requiresConfirm={name !== 'Local Site' || !!(description?.trim())}
         className="absolute -top-2 -right-2 w-4 h-4 bg-red-500 text-white rounded-full text-[8px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
         title="Remove local site"
+        confirmClassName="absolute -top-1 -right-1 z-50 bg-white border border-gray-200 rounded-md shadow-md px-1.5 py-1"
       >
         ×
-      </button>
+      </ConfirmDeleteButton>
       <Handle type="target" position={Position.Left} className="!bg-equinix-black !w-2 !h-2" />
       <Handle type="source" position={Position.Right} className="!bg-equinix-black !w-2 !h-2" />
     </div>

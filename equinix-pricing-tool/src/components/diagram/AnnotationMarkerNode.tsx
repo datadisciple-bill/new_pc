@@ -1,6 +1,7 @@
 import { memo, useState, useCallback } from 'react';
 import { type NodeProps } from '@xyflow/react';
 import { useConfigStore } from '@/store/configStore';
+import { ConfirmDeleteButton } from '@/components/shared/ConfirmDeleteButton';
 
 const MARKER_COLORS = [
   { label: 'Red', value: '#E91C24' },
@@ -43,13 +44,15 @@ export const AnnotationMarkerNode = memo(function AnnotationMarkerNode({ data, s
         {number}
       </div>
       {/* Delete button */}
-      <button
-        onClick={(e) => { e.stopPropagation(); removeAnnotationMarker(markerId); }}
+      <ConfirmDeleteButton
+        onDelete={() => removeAnnotationMarker(markerId)}
+        requiresConfirm={true}
         className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-gray-600 text-white rounded-full text-[7px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
         title="Remove marker"
+        confirmClassName="absolute -top-1 -right-1 z-50 bg-white border border-gray-200 rounded-md shadow-md px-1.5 py-1 text-gray-700"
       >
         ×
-      </button>
+      </ConfirmDeleteButton>
       {/* Color picker dropdown */}
       {showColorPicker && (
         <div
