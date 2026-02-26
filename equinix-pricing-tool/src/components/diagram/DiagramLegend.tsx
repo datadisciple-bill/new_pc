@@ -34,8 +34,11 @@ export function DiagramLegend() {
         <span className="text-gray-600">Cloud Provider</span>
       </div>
       <div className="flex items-center gap-2">
-        <div className="w-4 h-3 bg-gray-200 rounded-sm border border-gray-400" />
-        <span className="text-gray-600">Local Site</span>
+        <div className="w-4 h-3 rounded-sm border border-gray-200 overflow-hidden flex flex-col">
+          <div className="h-1.5 bg-equinix-black" />
+          <div className="flex-1 bg-white" />
+        </div>
+        <span className="text-gray-600">Local / Remote Site</span>
       </div>
       <div className="flex items-center gap-2">
         <span className="text-[8px] font-bold bg-equinix-red text-white rounded px-1">HA</span>

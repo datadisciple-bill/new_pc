@@ -184,16 +184,18 @@ export function buildDiagramLayout(
     });
   });
 
-  // Local site nodes
+  // Local site nodes — styled to match service nodes
+  const LOCAL_SITE_WIDTH = SERVICE_NODE_WIDTH;
+  const LOCAL_SITE_HEIGHT = 52;
   localSites.forEach((site) => {
     nodes.push({
       id: `localsite-${site.id}`,
       type: 'localSiteNode',
       position: { x: site.x, y: site.y },
-      data: { localSiteId: site.id, name: site.name },
-      style: { width: 160, height: 64 },
-      width: 160,
-      height: 64,
+      data: { localSiteId: site.id, name: site.name, icon: site.icon },
+      style: { width: LOCAL_SITE_WIDTH, height: LOCAL_SITE_HEIGHT },
+      width: LOCAL_SITE_WIDTH,
+      height: LOCAL_SITE_HEIGHT,
       draggable: true,
       zIndex: 3,
     });
