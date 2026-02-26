@@ -166,6 +166,120 @@ describe('configStore', () => {
     });
   });
 
+  describe('textBoxes', () => {
+    it('adds a text box with default text', () => {
+      const id = useConfigStore.getState().addTextBox(100, 200);
+      const boxes = useConfigStore.getState().project.textBoxes;
+      expect(boxes).toHaveLength(1);
+      expect(boxes[0].id).toBe(id);
+      expect(boxes[0].text).toBe('Text');
+      expect(boxes[0].x).toBe(100);
+      expect(boxes[0].y).toBe(200);
+    });
+
+    it('removes a text box', () => {
+      const id = useConfigStore.getState().addTextBox(0, 0);
+      useConfigStore.getState().removeTextBox(id);
+      expect(useConfigStore.getState().project.textBoxes).toHaveLength(0);
+    });
+
+    it('updates a text box', () => {
+      const id = useConfigStore.getState().addTextBox(0, 0);
+      useConfigStore.getState().updateTextBox(id, { text: 'Updated', x: 50 });
+      const box = useConfigStore.getState().project.textBoxes[0];
+      expect(box.text).toBe('Updated');
+      expect(box.x).toBe(50);
+    });
+  });
+
+  describe('localSites', () => {
+    it('adds a local site with defaults', () => {
+      const id = useConfigStore.getState().addLocalSite(300, 400);
+      const sites = useConfigStore.getState().project.localSites;
+      expect(sites).toHaveLength(1);
+      expect(sites[0].id).toBe(id);
+      expect(sites[0].name).toBe('Local Site');
+      expect(sites[0].icon).toBe('colocation');
+    });
+
+    it('removes a local site', () => {
+      const id = useConfigStore.getState().addLocalSite(0, 0);
+      useConfigStore.getState().removeLocalSite(id);
+      expect(useConfigStore.getState().project.localSites).toHaveLength(0);
+    });
+
+    it('cascades removal to connections referencing the site', () => {
+      const siteId = useConfigStore.getState().addLocalSite(0, 0);
+      useConfigStore.getState().addConnection({
+        name: 'Site Link',
+        type: 'EVPL_VC',
+        aSide: { metroCode: 'DC', type: 'PORT', serviceId: siteId },
+        zSide: { metroCode: 'NY', type: 'PORT', serviceId: 'other' },
+        bandwidthMbps: 1000,
+        redundant: false,
+      });
+      expect(useConfigStore.getState().project.connections).toHaveLength(1);
+
+      useConfigStore.getState().removeLocalSite(siteId);
+      expect(useConfigStore.getState().project.localSites).toHaveLength(0);
+      expect(useConfigStore.getState().project.connections).toHaveLength(0);
+    });
+
+    it('updates a local site', () => {
+      const id = useConfigStore.getState().addLocalSite(0, 0);
+      useConfigStore.getState().updateLocalSite(id, { name: 'HQ', icon: 'building-corporate' });
+      const site = useConfigStore.getState().project.localSites[0];
+      expect(site.name).toBe('HQ');
+      expect(site.icon).toBe('building-corporate');
+    });
+  });
+
+  describe('annotationMarkers', () => {
+    it('adds a marker with auto-incremented number starting at 1', () => {
+      const id = useConfigStore.getState().addAnnotationMarker(10, 20);
+      const markers = useConfigStore.getState().project.annotationMarkers;
+      expect(markers).toHaveLength(1);
+      expect(markers[0].id).toBe(id);
+      expect(markers[0].number).toBe(1);
+      expect(markers[0].color).toBe('#E91C24');
+    });
+
+    it('auto-increments marker number', () => {
+      useConfigStore.getState().addAnnotationMarker(0, 0);
+      useConfigStore.getState().addAnnotationMarker(0, 0);
+      useConfigStore.getState().addAnnotationMarker(0, 0);
+      const markers = useConfigStore.getState().project.annotationMarkers;
+      expect(markers.map((m) => m.number)).toEqual([1, 2, 3]);
+    });
+
+    it('continues numbering after removal (uses max, not length)', () => {
+      useConfigStore.getState().addAnnotationMarker(0, 0);
+      const id2 = useConfigStore.getState().addAnnotationMarker(0, 0);
+      useConfigStore.getState().addAnnotationMarker(0, 0);
+
+      // Remove marker #2 — next should be 4, not 3
+      useConfigStore.getState().removeAnnotationMarker(id2);
+      useConfigStore.getState().addAnnotationMarker(0, 0);
+      const markers = useConfigStore.getState().project.annotationMarkers;
+      const numbers = markers.map((m) => m.number);
+      expect(numbers).toEqual([1, 3, 4]);
+    });
+
+    it('removes a marker', () => {
+      const id = useConfigStore.getState().addAnnotationMarker(0, 0);
+      useConfigStore.getState().removeAnnotationMarker(id);
+      expect(useConfigStore.getState().project.annotationMarkers).toHaveLength(0);
+    });
+
+    it('updates a marker', () => {
+      const id = useConfigStore.getState().addAnnotationMarker(0, 0);
+      useConfigStore.getState().updateAnnotationMarker(id, { text: 'Note', color: '#00FF00' });
+      const marker = useConfigStore.getState().project.annotationMarkers[0];
+      expect(marker.text).toBe('Note');
+      expect(marker.color).toBe('#00FF00');
+    });
+  });
+
   describe('copyMetroServices', () => {
     it('copies all services from one metro to another', () => {
       useConfigStore.getState().addMetro(testMetro);
