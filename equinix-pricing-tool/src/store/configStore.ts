@@ -113,6 +113,9 @@ interface ConfigStore {
   removeAnnotationMarker: (id: string) => void;
   updateAnnotationMarker: (id: string, updates: Partial<AnnotationMarker>) => void;
 
+  // Load project from imported file
+  loadProject: (project: ProjectConfig) => void;
+
   // UI state
   ui: UIState;
   setActiveTab: (tab: UIState['activeTab']) => void;
@@ -579,6 +582,14 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
         ),
       },
     })),
+
+  // Load project from imported file
+  loadProject: (project) =>
+    set({
+      project,
+      projectHistory: [],
+      canUndo: false,
+    }),
 
   // UI
   ui: {

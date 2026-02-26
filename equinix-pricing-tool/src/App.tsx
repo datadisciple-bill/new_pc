@@ -6,6 +6,8 @@ import { VirtualConnectionConfig } from '@/components/services/VirtualConnection
 import { NetworkDiagram } from '@/components/diagram/NetworkDiagram';
 import { PriceSheet } from '@/components/pricing/PriceSheet';
 import { CsvExport } from '@/components/export/CsvExport';
+import { ConfigExportImport } from '@/components/export/ConfigExportImport';
+import type { ParseResult } from '@/utils/configSerializer';
 import { DataEditor } from '@/components/admin/DataEditor';
 import { loadCachedOptions, saveCachedOptions, isCacheValid, formatCacheAge, type CachedOptions } from '@/api/cache';
 import { fetchMetros } from '@/api/fabric';
@@ -40,10 +42,12 @@ function App() {
   const setSelectedMetro = useConfigStore((s) => s.setSelectedMetro);
   const projectName = useConfigStore((s) => s.project.name);
   const setProjectName = useConfigStore((s) => s.setProjectName);
+  const loadProject = useConfigStore((s) => s.loadProject);
 
   const [dataReady, setDataReady] = useState(false);
   const [cacheInfo, setCacheInfo] = useState<CachedOptions | null>(null);
   const [showRefreshDialog, setShowRefreshDialog] = useState(false);
+  const [importResult, setImportResult] = useState<ParseResult | null>(null);
 
   // Load data on startup: defaults.json (API-fetched) > IndexedDB cache > mock data
   useEffect(() => {
@@ -123,7 +127,7 @@ function App() {
       <header className="bg-equinix-black text-white flex items-center justify-between px-4 py-2 flex-shrink-0">
         <div className="flex items-center gap-3">
           <h1 className="text-sm font-bold">Equinix</h1>
-          <span className="text-[10px] text-gray-500">v7</span>
+          <span className="text-[10px] text-gray-500">v8</span>
           <input
             type="text"
             value={projectName}
@@ -132,6 +136,7 @@ function App() {
           />
         </div>
         <div className="flex items-center gap-3">
+          <ConfigExportImport onImport={setImportResult} />
           <CsvExport />
           <button
             onClick={() => setShowRefreshDialog(true)}
@@ -159,6 +164,21 @@ function App() {
             setCacheInfo(newCache);
             setShowRefreshDialog(false);
           }}
+        />
+      )}
+
+      {/* Import Confirmation/Error Dialog */}
+      {importResult && (
+        <ImportDialog
+          result={importResult}
+          onConfirm={(project) => {
+            loadProject(project);
+            setImportResult(null);
+            if (project.metros.length > 0) {
+              setSelectedMetro(project.metros[0].metroCode);
+            }
+          }}
+          onClose={() => setImportResult(null)}
         />
       )}
 
@@ -395,6 +415,88 @@ function RefreshDataDialog({
           <p className="text-xs text-gray-400 text-center">
             Credentials are used once and not stored. Cached data persists in your browser.
           </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Dialog for confirming or showing error on project import */
+function ImportDialog({
+  result,
+  onConfirm,
+  onClose,
+}: {
+  result: ParseResult;
+  onConfirm: (project: import('@/types/config').ProjectConfig) => void;
+  onClose: () => void;
+}) {
+  if (!result.ok) {
+    return (
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+          <div className="bg-red-600 text-white px-6 py-4 rounded-t-lg flex items-center justify-between">
+            <h2 className="text-sm font-bold">Import Error</h2>
+            <button onClick={onClose} className="text-white/70 hover:text-white">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div className="p-6 space-y-4">
+            <p className="text-sm text-gray-700">{result.error}</p>
+            <button
+              onClick={onClose}
+              className="w-full py-2.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const { project } = result;
+  const serviceCount = project.metros.reduce((sum, m) => sum + m.services.length, 0);
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+        <div className="bg-equinix-black text-white px-6 py-4 rounded-t-lg flex items-center justify-between">
+          <h2 className="text-sm font-bold">Load Project</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-white">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div className="text-sm space-y-2">
+            <p className="font-medium text-gray-900">{project.name}</p>
+            <div className="text-gray-600 space-y-1">
+              <p>{project.metros.length} metro{project.metros.length !== 1 ? 's' : ''}</p>
+              <p>{serviceCount} service{serviceCount !== 1 ? 's' : ''}</p>
+              <p>{project.connections.length} connection{project.connections.length !== 1 ? 's' : ''}</p>
+            </div>
+          </div>
+          <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
+            <p className="text-sm text-yellow-800">This will replace your current project. Pricing will be re-fetched.</p>
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={() => onConfirm(project)}
+              className="flex-1 bg-equinix-black text-white py-2.5 rounded-md font-medium text-sm hover:bg-gray-800"
+            >
+              Load Project
+            </button>
+            <button
+              onClick={onClose}
+              className="px-4 py-2.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       </div>
     </div>
