@@ -3,6 +3,7 @@ import { useConfigStore } from '@/store/configStore';
 import { usePricing } from '@/hooks/usePricing';
 import { BANDWIDTH_OPTIONS, CLOUD_SERVICE_PROFILES } from '@/constants/serviceDefaults';
 import { SERVICE_TYPE_LABELS } from '@/constants/brandColors';
+import { ConfirmDeleteButton } from '@/components/shared/ConfirmDeleteButton';
 import { formatCurrency } from '@/utils/priceCalculator';
 import type { VirtualConnection, EndpointType } from '@/types/config';
 
@@ -18,6 +19,9 @@ function serviceLabel(svc: { type: string; metroCode: string; config: Record<str
   } else if (svc.type === 'CLOUD_ROUTER') {
     const c = svc.config as { package?: string };
     detail = ` ${c.package ?? ''}`;
+  } else if (svc.type === 'COLOCATION') {
+    const c = svc.config as { description?: string };
+    detail = c.description ? ` ${c.description}` : '';
   }
   return `${typeLabel}${detail} (${svc.metroCode})`;
 }
@@ -26,6 +30,8 @@ function endpointTypeForService(svcType: string): EndpointType {
   switch (svcType) {
     case 'CLOUD_ROUTER': return 'CLOUD_ROUTER';
     case 'NETWORK_EDGE': return 'NETWORK_EDGE';
+    case 'COLOCATION': return 'COLOCATION';
+    case 'NSP': return 'NSP';
     default: return 'PORT';
   }
 }
@@ -70,8 +76,21 @@ export function VirtualConnectionConfig() {
     }))
   );
 
-  // Z-Side services: exclude A-Side service itself
-  const zSideServices = allServices.filter((s) => s.id !== form.aSideServiceId);
+  // Colocation can only connect to Fabric Port or Internet Access
+  const COLOCATION_ALLOWED_TYPES = new Set(['FABRIC_PORT', 'INTERNET_ACCESS']);
+
+  // Z-Side services: exclude A-Side service itself + enforce connection rules
+  const aSideService = allServices.find((s) => s.id === form.aSideServiceId);
+  const zSideServices = allServices.filter((s) => {
+    if (s.id === form.aSideServiceId) return false;
+    // Colocation ↔ only Fabric Port and Internet Access
+    if (aSideService?.type === 'COLOCATION' && !COLOCATION_ALLOWED_TYPES.has(s.type)) return false;
+    if (s.type === 'COLOCATION' && aSideService && !COLOCATION_ALLOWED_TYPES.has(aSideService.type)) return false;
+    return true;
+  });
+
+  // When A-side is Colocation, disable Cloud Provider z-side option
+  const canSelectCloudProvider = aSideService?.type !== 'COLOCATION';
 
   const resetForm = () => {
     setForm({ ...EMPTY_FORM });
@@ -116,7 +135,8 @@ export function VirtualConnectionConfig() {
       redundant: form.redundant,
       showPriceTable: form.showPriceTable,
     });
-    fetchPriceForConnection(connId, form.bandwidth);
+    const aMetro = aSvc?.metroCode ?? form.aSideMetro;
+    fetchPriceForConnection(connId, form.bandwidth, aMetro, zMetro);
     if (form.showPriceTable) {
       fetchPriceTableForConnection(connId);
     }
@@ -179,7 +199,8 @@ export function VirtualConnectionConfig() {
       redundant: form.redundant,
       showPriceTable: form.showPriceTable,
     });
-    fetchPriceForConnection(editingId, form.bandwidth);
+    const aMetroEdit = aSvc?.metroCode ?? form.aSideMetro;
+    fetchPriceForConnection(editingId, form.bandwidth, aMetroEdit, zMetro);
 
     // Fetch or clear price table based on checkbox
     const existingConn = connections.find((c) => c.id === editingId);
@@ -202,7 +223,7 @@ export function VirtualConnectionConfig() {
     const zSideLabel = conn.zSide.serviceProfileName
       ?? (zSvc ? `${SERVICE_TYPE_LABELS[zSvc.type] ?? zSvc.type} (${conn.zSide.metroCode})` : conn.zSide.metroCode);
     const isSameMetro = conn.aSide.metroCode === conn.zSide.metroCode;
-    return `${aSideLabel} → ${zSideLabel}${isSameMetro ? ' (local)' : ''}`;
+    return `${aSideLabel} -> ${zSideLabel}${isSameMetro ? ' (local)' : ''}`;
   };
 
   // Toggle price table on/off for existing connection without opening full edit
@@ -314,7 +335,9 @@ export function VirtualConnectionConfig() {
                   className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md bg-white"
                 >
                   <option value="SERVICE">Equinix Service</option>
-                  <option value="SERVICE_PROFILE">Cloud Provider</option>
+                  {canSelectCloudProvider && (
+                    <option value="SERVICE_PROFILE">Cloud Provider</option>
+                  )}
                 </select>
               </div>
               <div>
@@ -424,15 +447,16 @@ export function VirtualConnectionConfig() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                   </svg>
                 </button>
-                <button
-                  onClick={() => removeConnection(conn.id)}
+                <ConfirmDeleteButton
+                  onDelete={() => removeConnection(conn.id)}
+                  requiresConfirm
                   className="text-gray-400 hover:text-red-500 transition-colors p-1"
                   title="Remove"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                   </svg>
-                </button>
+                </ConfirmDeleteButton>
               </div>
             </div>
 

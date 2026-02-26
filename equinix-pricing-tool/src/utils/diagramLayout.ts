@@ -1,9 +1,9 @@
-import type { MetroSelection, VirtualConnection, NetworkEdgeConfig, ServiceSelection } from '@/types/config';
+import type { MetroSelection, VirtualConnection, NetworkEdgeConfig, ServiceSelection, TextBox, LocalSite, AnnotationMarker } from '@/types/config';
 import type { Node, Edge } from '@xyflow/react';
 import { formatCurrency } from './priceCalculator';
 
-export const METRO_WIDTH = 480;
 export const COL_WIDTH = 220;
+const SERVICE_NODE_WIDTH = COL_WIDTH - 16;
 const METRO_HEADER_HEIGHT = 48;
 const SERVICE_NODE_HEIGHT = 72;
 const SERVICE_NODE_HEIGHT_HA = 88;
@@ -18,9 +18,9 @@ export interface LayoutResult {
   edges: Edge[];
 }
 
-// Left column: Fabric Port, Internet Access. Right column: Network Edge, Cloud Router.
+// Left column: Fabric Port, Internet Access, Colocation, NSP. Right column: Network Edge, Cloud Router.
 function isLeftColumn(type: string): boolean {
-  return type === 'FABRIC_PORT' || type === 'INTERNET_ACCESS';
+  return type === 'FABRIC_PORT' || type === 'INTERNET_ACCESS' || type === 'COLOCATION' || type === 'NSP';
 }
 
 function getServiceNodeHeight(service: { type: string; config: unknown }): number {
@@ -42,10 +42,19 @@ function computeColumnHeights(services: ServiceSelection[]): { left: number; rig
       right += h;
     }
   }
-  // Remove trailing gap from each column
   if (left > 0) left -= SERVICE_GAP;
   if (right > 0) right -= SERVICE_GAP;
   return { left, right };
+}
+
+function computeMetroWidth(metro: MetroSelection): number {
+  const hasLeft = metro.services.some((s) => isLeftColumn(s.type));
+  const hasRight = metro.services.some((s) => !isLeftColumn(s.type));
+  if (hasLeft && hasRight) {
+    return METRO_PADDING + COL_WIDTH + METRO_PADDING + COL_WIDTH + METRO_PADDING;
+  }
+  // Single column or empty
+  return METRO_PADDING + COL_WIDTH + METRO_PADDING;
 }
 
 function computeMetroHeight(metro: MetroSelection): number {
@@ -57,12 +66,33 @@ function computeMetroHeight(metro: MetroSelection): number {
 export function buildDiagramLayout(
   metros: MetroSelection[],
   connections: VirtualConnection[],
-  showPricing = true
+  showPricing = true,
+  textBoxes: TextBox[] = [],
+  localSites: LocalSite[] = [],
+  annotationMarkers: AnnotationMarker[] = []
 ): LayoutResult {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
 
   const servicePositions = new Map<string, { x: number; y: number }>();
+
+  // Per-metro widths
+  const metroWidths = metros.map(computeMetroWidth);
+
+  // Per grid-column max widths
+  const colMaxWidths: number[] = [];
+  metros.forEach((_, i) => {
+    const col = i % METROS_PER_ROW;
+    colMaxWidths[col] = Math.max(colMaxWidths[col] ?? 0, metroWidths[i]);
+  });
+
+  // Column X offsets (based on max width in each grid column)
+  const colXOffsets: number[] = [];
+  let cumX = 0;
+  for (let c = 0; c <= Math.min(metros.length - 1, METROS_PER_ROW - 1); c++) {
+    colXOffsets[c] = cumX;
+    cumX += (colMaxWidths[c] ?? 0) + METRO_GAP_X;
+  }
 
   // Pre-compute max height per row
   const rowMaxHeights: number[] = [];
@@ -83,9 +113,14 @@ export function buildDiagramLayout(
     const col = metroIndex % METROS_PER_ROW;
     const row = Math.floor(metroIndex / METROS_PER_ROW);
 
+    const metroWidth = metroWidths[metroIndex];
     const metroHeight = computeMetroHeight(metro);
-    const metroX = col * (METRO_WIDTH + METRO_GAP_X);
+    const metroX = colXOffsets[col] ?? 0;
     const metroY = rowYOffsets[row];
+
+    const hasLeft = metro.services.some((s) => isLeftColumn(s.type));
+    const hasRight = metro.services.some((s) => !isLeftColumn(s.type));
+    const isSingleColumn = !(hasLeft && hasRight);
 
     nodes.push({
       id: `metro-${metro.metroCode}`,
@@ -96,22 +131,27 @@ export function buildDiagramLayout(
         metroName: metro.metroName,
         region: metro.region,
       },
-      style: { width: METRO_WIDTH, height: metroHeight },
-      width: METRO_WIDTH,
+      style: { width: metroWidth, height: metroHeight },
+      width: metroWidth,
       height: metroHeight,
       zIndex: 0,
     });
 
-    // Two-column layout: left = FP+EIA, right = NE+FCR
     let leftY = METRO_HEADER_HEIGHT + METRO_PADDING;
     let rightY = METRO_HEADER_HEIGHT + METRO_PADDING;
 
     metro.services.forEach((service) => {
       const nodeHeight = getServiceNodeHeight(service);
       const left = isLeftColumn(service.type);
-      const relX = left ? METRO_PADDING : METRO_PADDING + COL_WIDTH + METRO_PADDING;
+
+      // If single column, all services in first column position
+      let relX: number;
+      if (isSingleColumn) {
+        relX = METRO_PADDING;
+      } else {
+        relX = left ? METRO_PADDING : METRO_PADDING + COL_WIDTH + METRO_PADDING;
+      }
       const relY = left ? leftY : rightY;
-      const nodeWidth = COL_WIDTH - METRO_PADDING;
 
       servicePositions.set(service.id, {
         x: metroX + relX,
@@ -124,14 +164,15 @@ export function buildDiagramLayout(
         position: { x: relX, y: relY },
         data: {
           serviceId: service.id,
+          metroCode: metro.metroCode,
           serviceType: service.type,
           config: service.config,
           pricing: service.pricing,
           showPricing,
         },
         parentId: `metro-${metro.metroCode}`,
-        style: { width: nodeWidth, height: nodeHeight },
-        width: nodeWidth,
+        style: { width: SERVICE_NODE_WIDTH, height: nodeHeight },
+        width: SERVICE_NODE_WIDTH,
         height: nodeHeight,
         zIndex: 2,
       });
@@ -144,10 +185,29 @@ export function buildDiagramLayout(
     });
   });
 
-  // Price table column X: right of last metro column
-  const maxCol = Math.min(metros.length, METROS_PER_ROW) - 1;
-  const priceTableX = (maxCol + 1) * (METRO_WIDTH + METRO_GAP_X) + 40;
-  let priceTableY = 0;
+  // Local site nodes — styled to match service nodes
+  const LOCAL_SITE_WIDTH = SERVICE_NODE_WIDTH;
+  const LOCAL_SITE_HEIGHT = 52;
+  localSites.forEach((site) => {
+    nodes.push({
+      id: `localsite-${site.id}`,
+      type: 'localSiteNode',
+      position: { x: site.x, y: site.y },
+      data: { localSiteId: site.id, name: site.name, description: site.description, icon: site.icon },
+      style: { width: LOCAL_SITE_WIDTH, height: LOCAL_SITE_HEIGHT },
+      width: LOCAL_SITE_WIDTH,
+      height: LOCAL_SITE_HEIGHT,
+      draggable: true,
+      zIndex: 3,
+    });
+  });
+
+  // Price tables: positioned below the metro grid so they don't overlap metro containers
+  const PT_GAP = 16;
+  let ptX = 0;
+  let ptY = cumulativeY + 20; // below all metro rows
+  let ptRowMaxH = 0;
+  const ptRowMaxWidth = Math.max(cumX, 600); // wrap within metro grid width
 
   // VC price table nodes
   if (showPricing) {
@@ -156,11 +216,17 @@ export function buildDiagramLayout(
         const rowHeight = 14;
         const tableHeight = 28 + conn.priceTable.length * rowHeight;
         const tableWidth = 200;
+        if (ptX > 0 && ptX + tableWidth > ptRowMaxWidth) {
+          ptX = 0;
+          ptY += ptRowMaxH + PT_GAP;
+          ptRowMaxH = 0;
+        }
         nodes.push({
           id: `pricetable-${conn.id}`,
           type: 'priceTableNode',
-          position: { x: priceTableX, y: priceTableY },
+          position: { x: ptX, y: ptY },
           data: {
+            connectionId: conn.id,
             connectionName: conn.name || conn.type,
             selectedBandwidthMbps: conn.bandwidthMbps,
             priceTable: conn.priceTable,
@@ -169,49 +235,117 @@ export function buildDiagramLayout(
           width: tableWidth,
           height: tableHeight,
           draggable: true,
-          zIndex: 3,
+          zIndex: 10,
         });
-        priceTableY += tableHeight + 16;
+        ptX += tableWidth + PT_GAP;
+        ptRowMaxH = Math.max(ptRowMaxH, tableHeight);
       }
     });
 
-    // NE price table nodes — one per NE service with showPriceTable
+    // NE price table nodes
     metros.forEach((metro) => {
       metro.services.forEach((service) => {
         if (service.type === 'NETWORK_EDGE') {
           const neConfig = service.config as NetworkEdgeConfig;
           if (neConfig.showPriceTable && neConfig.priceTable && neConfig.priceTable.length > 0) {
             const rowHeight = 14;
-            const tableHeight = 28 + neConfig.priceTable.length * rowHeight;
+            const discountBanner = (neConfig.termLength ?? 1) > 1 ? 16 : 0;
+            const tableHeight = 28 + discountBanner + neConfig.priceTable.length * rowHeight;
             const tableWidth = 220;
+            if (ptX > 0 && ptX + tableWidth > ptRowMaxWidth) {
+              ptX = 0;
+              ptY += ptRowMaxH + PT_GAP;
+              ptRowMaxH = 0;
+            }
             nodes.push({
               id: `nepricetable-${service.id}`,
               type: 'nePriceTableNode',
-              position: { x: priceTableX, y: priceTableY },
+              position: { x: ptX, y: ptY },
               data: {
+                serviceId: service.id,
+                metroCode: metro.metroCode,
                 serviceName: `${neConfig.deviceTypeName || 'Network Edge'} (${metro.metroCode})`,
                 selectedCores: neConfig.packageCode,
                 priceTable: neConfig.priceTable,
+                termLength: neConfig.termLength,
               },
               style: { width: tableWidth, height: tableHeight },
               width: tableWidth,
               height: tableHeight,
               draggable: true,
-              zIndex: 3,
+              zIndex: 10,
             });
-            priceTableY += tableHeight + 16;
+            ptX += tableWidth + PT_GAP;
+            ptRowMaxH = Math.max(ptRowMaxH, tableHeight);
           }
         }
       });
     });
   }
 
+  // Text box nodes
+  textBoxes.forEach((tb) => {
+    nodes.push({
+      id: `textbox-${tb.id}`,
+      type: 'textBoxNode',
+      position: { x: tb.x, y: tb.y },
+      data: { textBoxId: tb.id, text: tb.text, tbWidth: tb.width, tbHeight: tb.height },
+      style: { width: tb.width, height: tb.height },
+      width: tb.width,
+      height: tb.height,
+      draggable: true,
+      zIndex: 4,
+    });
+  });
+
+  // Annotation marker nodes
+  annotationMarkers.forEach((marker) => {
+    nodes.push({
+      id: `marker-${marker.id}`,
+      type: 'annotationMarkerNode',
+      position: { x: marker.x, y: marker.y },
+      data: { markerId: marker.id, number: marker.number, color: marker.color },
+      style: { width: 28, height: 28 },
+      width: 28,
+      height: 28,
+      draggable: true,
+      zIndex: 1000,
+    });
+  });
+
+  // Annotation legend node — auto-generated when markers exist
+  if (annotationMarkers.length > 0) {
+    const legendX = Math.max(cumX, 280) + 40;
+    const legendY = 0;
+    nodes.push({
+      id: 'annotation-legend',
+      type: 'annotationLegendNode',
+      position: { x: legendX, y: legendY },
+      data: { markers: annotationMarkers },
+      style: { width: 260, minHeight: 40 },
+      width: 260,
+      draggable: true,
+      zIndex: 12,
+    });
+  }
+
   // Connection edges
   connections.forEach((conn) => {
-    const sourceId = `service-${conn.aSide.serviceId}`;
-    const targetId = conn.zSide.type === 'SERVICE_PROFILE'
-      ? `cloud-${conn.zSide.serviceProfileName?.replace(/\s+/g, '-')}`
-      : `service-${conn.zSide.serviceId}`;
+    const isLocalSiteASide = conn.aSide.type === 'LOCAL_SITE';
+    const isLocalSiteZSide = conn.zSide.type === 'LOCAL_SITE';
+
+    const sourceId = isLocalSiteASide
+      ? `localsite-${conn.aSide.serviceId}`
+      : `service-${conn.aSide.serviceId}`;
+
+    let targetId: string;
+    if (isLocalSiteZSide) {
+      targetId = `localsite-${conn.zSide.serviceId}`;
+    } else if (conn.zSide.type === 'SERVICE_PROFILE') {
+      targetId = `cloud-${conn.zSide.serviceProfileName?.replace(/\s+/g, '-')}`;
+    } else {
+      targetId = `service-${conn.zSide.serviceId}`;
+    }
 
     // Cloud service profile node
     if (conn.zSide.type === 'SERVICE_PROFILE' && conn.zSide.serviceProfileName) {
@@ -221,11 +355,12 @@ export function buildDiagramLayout(
         const aMetroIndex = metros.findIndex((m) => m.metroCode === conn.aSide.metroCode);
         const mCol = aMetroIndex >= 0 ? aMetroIndex % METROS_PER_ROW : 0;
         const mRow = aMetroIndex >= 0 ? Math.floor(aMetroIndex / METROS_PER_ROW) : 0;
+        const mWidth = aMetroIndex >= 0 ? metroWidths[aMetroIndex] : 480;
         nodes.push({
           id: targetId,
           type: 'cloudNode',
           position: {
-            x: mCol * (METRO_WIDTH + METRO_GAP_X) + METRO_WIDTH + 40,
+            x: (colXOffsets[mCol] ?? 0) + mWidth + 40,
             y: aPos?.y ?? (rowYOffsets[mRow] + 60),
           },
           data: { provider: conn.zSide.serviceProfileName },
@@ -234,7 +369,8 @@ export function buildDiagramLayout(
       }
     }
 
-    const isSameMetro = conn.aSide.metroCode === conn.zSide.metroCode;
+    const isSameMetro = conn.aSide.metroCode === conn.zSide.metroCode && !isLocalSiteASide && !isLocalSiteZSide;
+    const isLocalSiteConnection = isLocalSiteASide || isLocalSiteZSide;
 
     const bwLabel = conn.bandwidthMbps >= 1000
       ? `${conn.bandwidthMbps / 1000}G`
@@ -244,12 +380,12 @@ export function buildDiagramLayout(
     if (conn.redundant) labelLine1 += ' ×2';
 
     let labelLine2 = '';
-    if (showPricing && conn.pricing) {
+    if (showPricing && conn.pricing && conn.pricing.mrc > 0) {
       labelLine2 = formatCurrency(conn.pricing.mrc) + '/mo';
       if (conn.redundant) labelLine2 += ' ea.';
     }
 
-    const strokeColor = isSameMetro ? '#33A85C' : '#000000';
+    const strokeColor = isLocalSiteConnection ? '#6B7280' : isSameMetro ? '#33A85C' : '#000000';
 
     edges.push({
       id: `edge-${conn.id}`,
@@ -258,7 +394,7 @@ export function buildDiagramLayout(
       type: 'customEdge',
       style: {
         stroke: strokeColor,
-        strokeWidth: conn.redundant ? 4 : 1.5,
+        strokeWidth: 1.5,
         strokeDasharray: conn.type === 'IP_VC' ? '8 4' : undefined,
       },
       data: {
@@ -266,8 +402,9 @@ export function buildDiagramLayout(
         labelLine2,
         showPricing,
         isSameMetro,
+        isRedundant: conn.redundant,
       },
-      zIndex: 1,
+      zIndex: 5,
     });
   });
 

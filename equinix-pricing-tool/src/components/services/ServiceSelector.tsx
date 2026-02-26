@@ -5,11 +5,13 @@ import { FabricPortConfig } from './FabricPortConfig';
 import { NetworkEdgeConfig } from './NetworkEdgeConfig';
 import { InternetAccessConfig } from './InternetAccessConfig';
 import { CloudRouterConfig } from './CloudRouterConfig';
+import { ColocationConfig } from './ColocationConfig';
+import { NspConfig } from './NspConfig';
 import { useConfigStore } from '@/store/configStore';
 import type { ServiceType, ServiceSelection } from '@/types/config';
 import { SERVICE_TYPE_LABELS } from '@/constants/brandColors';
 
-const SERVICE_TYPES: ServiceType[] = ['FABRIC_PORT', 'NETWORK_EDGE', 'INTERNET_ACCESS', 'CLOUD_ROUTER'];
+const SERVICE_TYPES: ServiceType[] = ['FABRIC_PORT', 'NETWORK_EDGE', 'INTERNET_ACCESS', 'CLOUD_ROUTER', 'COLOCATION', 'NSP'];
 
 interface Props {
   metroCode: string;
@@ -32,7 +34,8 @@ export function ServiceSelector({ metroCode }: Props) {
     const oldToNew = copyMetroServices(metroCode, targetMetroCode);
 
     // Re-fetch pricing for all copied services
-    const targetMetro = useConfigStore.getState().project.metros.find(
+    const updatedState = useConfigStore.getState();
+    const targetMetro = updatedState.project.metros.find(
       (m) => m.metroCode === targetMetroCode
     );
     if (targetMetro) {
@@ -43,27 +46,52 @@ export function ServiceSelector({ metroCode }: Props) {
       }
     }
 
-    // Create connections between matching services (old → new) via Equinix Fabric
-    const sourceMetro = useConfigStore.getState().project.metros.find(
-      (m) => m.metroCode === metroCode
-    );
-    if (sourceMetro) {
-      for (const [oldId, newId] of oldToNew) {
-        const oldService = sourceMetro.services.find((s) => s.id === oldId);
-        if (!oldService) continue;
-        // Connect port-to-port and NE-to-NE across metros
-        if (oldService.type === 'FABRIC_PORT' || oldService.type === 'NETWORK_EDGE') {
-          const endpointType = oldService.type === 'FABRIC_PORT' ? 'PORT' as const : 'NETWORK_EDGE' as const;
-          const connId = addConnection({
-            name: `${metroCode}→${targetMetroCode} ${SERVICE_TYPE_LABELS[oldService.type]}`,
-            type: 'EVPL_VC',
-            aSide: { metroCode, type: endpointType, serviceId: oldId },
-            zSide: { metroCode: targetMetroCode, type: endpointType, serviceId: newId },
-            bandwidthMbps: 1000,
-            redundant: false,
-          });
-          fetchPriceForConnection(connId, 1000);
-        }
+    // Create a single cross-metro VC for each existing metro ↔ target metro pair (full mesh).
+    // Prefer NE-to-NE if both metros have NE devices, otherwise Port-to-Port.
+    const existingConnections = updatedState.project.connections;
+    const allMetrosNow = updatedState.project.metros;
+
+    for (const otherMetro of allMetrosNow) {
+      if (otherMetro.metroCode === targetMetroCode) continue;
+
+      // Skip if already connected
+      const alreadyConnected = existingConnections.some(
+        (c) =>
+          (c.aSide.metroCode === otherMetro.metroCode && c.zSide.metroCode === targetMetroCode) ||
+          (c.aSide.metroCode === targetMetroCode && c.zSide.metroCode === otherMetro.metroCode)
+      );
+      if (alreadyConnected) continue;
+
+      // Find preferred endpoint in each metro: NE first, then Fabric Port
+      const srcNE = otherMetro.services.find((s) => s.type === 'NETWORK_EDGE');
+      const srcPort = otherMetro.services.find((s) => s.type === 'FABRIC_PORT');
+      const dstNE = targetMetro?.services.find((s) => s.type === 'NETWORK_EDGE');
+      const dstPort = targetMetro?.services.find((s) => s.type === 'FABRIC_PORT');
+
+      let aSideServiceId: string | undefined;
+      let zSideServiceId: string | undefined;
+      let endpointType: 'PORT' | 'NETWORK_EDGE' | undefined;
+
+      if (srcNE && dstNE) {
+        aSideServiceId = srcNE.id;
+        zSideServiceId = dstNE.id;
+        endpointType = 'NETWORK_EDGE';
+      } else if (srcPort && dstPort) {
+        aSideServiceId = srcPort.id;
+        zSideServiceId = dstPort.id;
+        endpointType = 'PORT';
+      }
+
+      if (aSideServiceId && zSideServiceId && endpointType) {
+        const connId = addConnection({
+          name: `${otherMetro.metroCode} to ${targetMetroCode}`,
+          type: 'EVPL_VC',
+          aSide: { metroCode: otherMetro.metroCode, type: endpointType, serviceId: aSideServiceId },
+          zSide: { metroCode: targetMetroCode, type: endpointType, serviceId: zSideServiceId },
+          bandwidthMbps: 1000,
+          redundant: false,
+        });
+        fetchPriceForConnection(connId, 1000, otherMetro.metroCode, targetMetroCode);
       }
     }
 
@@ -95,6 +123,10 @@ export function ServiceSelector({ metroCode }: Props) {
         return <InternetAccessConfig {...common} />;
       case 'CLOUD_ROUTER':
         return <CloudRouterConfig {...common} />;
+      case 'COLOCATION':
+        return <ColocationConfig {...common} />;
+      case 'NSP':
+        return <NspConfig {...common} />;
     }
   };
 

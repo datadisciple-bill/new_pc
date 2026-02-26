@@ -22,7 +22,7 @@ describe('buildLineItemFromService', () => {
     const service: ServiceSelection = {
       id: 'test-1',
       type: 'FABRIC_PORT',
-      config: { speed: '10G', type: 'REDUNDANT', encapsulation: 'DOT1Q', quantity: 2 },
+      config: { speed: '10G', portProduct: 'STANDARD', type: 'REDUNDANT', encapsulation: 'DOT1Q', quantity: 2 },
       pricing: { mrc: 3000, nrc: 0, currency: 'USD', isEstimate: false, breakdown: [] },
     };
 
@@ -104,7 +104,7 @@ describe('calculatePricingSummary', () => {
           {
             id: 's1',
             type: 'FABRIC_PORT',
-            config: { speed: '10G', type: 'SINGLE', encapsulation: 'DOT1Q', quantity: 1 },
+            config: { speed: '10G', portProduct: 'STANDARD', type: 'PRIMARY', encapsulation: 'DOT1Q', quantity: 1 },
             pricing: { mrc: 1500, nrc: 0, currency: 'USD', isEstimate: false, breakdown: [] },
           },
         ],

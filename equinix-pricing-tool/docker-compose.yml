@@ -7,8 +7,31 @@ services:
       - "8088:80"
     environment:
       - TZ=America/New_York
+    volumes:
+      # Persist fetched API data across rebuilds.
+      # Run `npm run fetch-data` locally, then the file at
+      # ./data/defaults.json will be served at /data/defaults.json.
+      - ./data:/usr/share/nginx/html/data
+    networks:
+      - cloudflared
     # Unraid labels for Community Applications (optional)
     labels:
       net.unraid.docker.managed: "dockerman"
       net.unraid.docker.webui: "http://[IP]:[PORT:8088]"
       net.unraid.docker.icon: "https://www.equinix.com/favicon.ico"
+
+  cloudflared:
+    image: cloudflare/cloudflared
+    container_name: cloudflared
+    environment:
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN}
+    command: tunnel --no-autoupdate run
+    restart: unless-stopped
+    depends_on:
+      - equinix-pricing-tool
+    networks:
+      - cloudflared
+
+networks:
+  cloudflared:
+    name: cloudflared

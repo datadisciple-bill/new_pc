@@ -1,9 +1,11 @@
-import { memo } from 'react';
+import { memo, useCallback } from 'react';
 import type { NodeProps } from '@xyflow/react';
 import type { BandwidthPriceEntry } from '@/types/config';
 import { formatCurrency } from '@/utils/priceCalculator';
+import { useConfigStore } from '@/store/configStore';
 
 interface PriceTableNodeData {
+  connectionId: string;
   connectionName: string;
   selectedBandwidthMbps: number;
   priceTable: BandwidthPriceEntry[];
@@ -11,12 +13,24 @@ interface PriceTableNodeData {
 }
 
 export const PriceTableNode = memo(function PriceTableNode({ data }: NodeProps) {
-  const { connectionName, selectedBandwidthMbps, priceTable } = data as PriceTableNodeData;
+  const { connectionId, connectionName, selectedBandwidthMbps, priceTable } = data as PriceTableNodeData;
+  const updateConnection = useConfigStore((s) => s.updateConnection);
+
+  const handleClose = useCallback(() => {
+    updateConnection(connectionId, { showPriceTable: false, priceTable: null });
+  }, [connectionId, updateConnection]);
 
   return (
-    <div className="bg-white border border-gray-300 rounded-md shadow-sm overflow-hidden" style={{ width: '100%' }}>
-      <div className="bg-equinix-green text-white px-2 py-1">
-        <p className="text-[9px] font-bold truncate">{connectionName} — Price Table</p>
+    <div className="bg-white border border-gray-300 rounded-md shadow-sm overflow-hidden relative group" style={{ width: '100%' }}>
+      <div className="bg-equinix-green text-white px-2 py-1 flex items-center">
+        <p className="text-[9px] font-bold truncate flex-1">{connectionName} — Price Table</p>
+        <button
+          onClick={(e) => { e.stopPropagation(); handleClose(); }}
+          className="ml-1 flex-shrink-0 w-3.5 h-3.5 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors text-white text-[9px] leading-none"
+          title="Hide price table"
+        >
+          ×
+        </button>
       </div>
       <table className="w-full text-[8px]">
         <thead>

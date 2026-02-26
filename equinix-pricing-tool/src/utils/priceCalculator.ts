@@ -5,8 +5,10 @@ import { SERVICE_TYPE_LABELS } from '@/constants/brandColors';
 function formatServiceDescription(service: ServiceSelection): string {
   switch (service.type) {
     case 'FABRIC_PORT': {
-      const c = service.config as { speed: string; type: string; encapsulation: string; quantity: number };
-      return `${c.speed} ${c.type === 'REDUNDANT' ? 'Redundant' : 'Single'} Port, ${c.encapsulation}`;
+      const c = service.config as { speed: string; portProduct: string; type: string; encapsulation: string; quantity: number };
+      const productLabel = c.portProduct === 'UNLIMITED_PLUS' ? 'Unlimited Plus' : c.portProduct === 'UNLIMITED' ? 'Unlimited' : 'Standard';
+      const typeLabel = c.type === 'REDUNDANT' ? 'Redundant' : c.type === 'SECONDARY' ? 'Secondary' : 'Primary';
+      return `${c.speed} ${productLabel} ${typeLabel} Port, ${c.encapsulation}`;
     }
     case 'NETWORK_EDGE': {
       const c = service.config as { deviceTypeName: string; packageCode: string; licenseType: string; redundant: boolean };
@@ -20,6 +22,14 @@ function formatServiceDescription(service: ServiceSelection): string {
     case 'CLOUD_ROUTER': {
       const c = service.config as { package: string };
       return `${c.package} Package`;
+    }
+    case 'COLOCATION': {
+      const c = service.config as { description: string };
+      return c.description || 'Colocation';
+    }
+    case 'NSP': {
+      const c = service.config as { providerName: string };
+      return c.providerName || 'Network Service Provider';
     }
   }
 }
@@ -105,7 +115,9 @@ export function calculatePricingSummary(
   const metroSubtotals: MetroSubtotal[] = [];
 
   for (const metro of metros) {
-    const serviceItems = metro.services.map((s) => buildLineItemFromService(metro, s));
+    const serviceItems = metro.services
+      .filter((s) => s.type !== 'NSP')
+      .map((s) => buildLineItemFromService(metro, s));
     const connItems = connections
       .filter((c) => c.aSide.metroCode === metro.metroCode)
       .map((c) => buildLineItemFromConnection(c, metros));

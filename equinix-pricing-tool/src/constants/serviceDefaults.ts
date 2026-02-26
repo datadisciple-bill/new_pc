@@ -1,8 +1,9 @@
-import type { FabricPortConfig, NetworkEdgeConfig, InternetAccessConfig, CloudRouterConfig } from '@/types/config';
+import type { FabricPortConfig, NetworkEdgeConfig, InternetAccessConfig, CloudRouterConfig, ColocationConfig, NspConfig } from '@/types/config';
 
 export const DEFAULT_FABRIC_PORT: FabricPortConfig = {
   speed: '10G',
-  type: 'SINGLE',
+  portProduct: 'STANDARD',
+  type: 'PRIMARY',
   encapsulation: 'DOT1Q',
   quantity: 1,
 };
@@ -29,7 +30,22 @@ export const DEFAULT_CLOUD_ROUTER: CloudRouterConfig = {
   package: 'STANDARD',
 };
 
-export const PORT_SPEEDS = ['1G', '10G', '25G', '50G', '100G'] as const;
+export const DEFAULT_COLOCATION: ColocationConfig = {
+  description: 'Cage / Cabinet',
+  mrcPrice: 0,
+};
+
+export const DEFAULT_NSP: NspConfig = {
+  providerName: '',
+};
+
+export const PORT_SPEEDS = ['1G', '10G', '100G', '400G'] as const;
+
+export const PORT_PRODUCTS = [
+  { value: 'STANDARD', label: 'Standard' },
+  { value: 'UNLIMITED', label: 'Unlimited' },
+  { value: 'UNLIMITED_PLUS', label: 'Unlimited Plus' },
+] as const;
 
 export const BANDWIDTH_OPTIONS = [
   50, 100, 200, 500, 1000, 2000, 5000, 10000, 50000,
@@ -41,6 +57,17 @@ export const TERM_OPTIONS = [
   { value: 24, label: '2 Years' },
   { value: 36, label: '3 Years' },
 ] as const;
+
+export const TERM_DISCOUNTS: Record<number, number> = {
+  1: 0,
+  12: 15,
+  24: 25,
+  36: 35,
+};
+
+export function getTermDiscountPercent(termLength: number): number {
+  return TERM_DISCOUNTS[termLength] ?? 0;
+}
 
 export const CLOUD_SERVICE_PROFILES = [
   { name: 'AWS Direct Connect', provider: 'AWS' },

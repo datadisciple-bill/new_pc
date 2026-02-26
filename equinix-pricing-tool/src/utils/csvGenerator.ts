@@ -52,7 +52,7 @@ export function generateCsv(
           ...blankRow,
           Metro: 'BANDWIDTH PRICE TABLE',
           'Service Type': conn.name || conn.type,
-          'Service Name': `${conn.aSide.metroCode} → ${conn.zSide.serviceProfileName ?? conn.zSide.metroCode}`,
+          'Service Name': `${conn.aSide.metroCode} -> ${conn.zSide.serviceProfileName ?? conn.zSide.metroCode}`,
         });
         // Header
         priceTableRows.push({
@@ -65,7 +65,7 @@ export function generateCsv(
           const isSelected = entry.bandwidthMbps === conn.bandwidthMbps;
           priceTableRows.push({
             ...blankRow,
-            Metro: `${isSelected ? '► ' : ''}${entry.label}`,
+            Metro: `${isSelected ? '> ' : ''}${entry.label}`,
             'MRC (Monthly)': formatCurrency(entry.mrc),
             'Annual Cost': formatCurrency(entry.mrc * 12),
           });
@@ -74,13 +74,16 @@ export function generateCsv(
     }
   }
 
-  return Papa.unparse([...rows, ...summaryRows, ...priceTableRows]);
+  // Replace Unicode symbols that break in some CSV readers (e.g. Excel Latin-1 mode)
+  const raw = Papa.unparse([...rows, ...summaryRows, ...priceTableRows]);
+  return raw.replace(/→/g, '->').replace(/←/g, '<-').replace(/►/g, '>').replace(/◄/g, '<');
 }
 
 export function downloadCsv(csvContent: string, projectName: string): void {
   const date = new Date().toISOString().slice(0, 10);
   const filename = `Equinix_Pricing_${projectName.replace(/\s+/g, '_')}_${date}.csv`;
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const bom = '\uFEFF';
+  const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;

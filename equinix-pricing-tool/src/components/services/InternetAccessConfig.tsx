@@ -14,6 +14,7 @@ export function InternetAccessConfig({ service, onUpdate, onRemove }: Props) {
 
   return (
     <ServiceCard
+      serviceId={service.id}
       title="Internet Access"
       pricing={service.pricing}
       onRemove={onRemove}

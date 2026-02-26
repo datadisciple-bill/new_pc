@@ -1,4 +1,22 @@
 import type { DeviceType, NetworkEdgePriceResponse } from '@/types/equinix';
+import { lookupNEPrice } from '@/data/defaultPricing';
+
+// All metro codes from the mock metros list — NE devices are broadly available
+const ALL_METROS = [
+  // AMER
+  'DC', 'NY', 'SV', 'CH', 'DA', 'AT', 'LA', 'SE', 'MI', 'SP', 'DX', 'TR', 'MT', 'BO', 'MX', 'RJ', 'CL', 'PH', 'MN',
+  // EMEA
+  'LD', 'AM', 'FR', 'PA', 'ZH', 'ML', 'MA', 'SK', 'HE', 'WA', 'DU', 'SO', 'IL', 'BA', 'DB', 'MU', 'LS', 'JB',
+  // APAC
+  'SG', 'HK', 'TY', 'SY', 'OS', 'MB', 'SL', 'ME', 'PE', 'KL', 'JK',
+];
+
+// Major metros — wider availability for popular vendors
+const MAJOR_METROS = [
+  'DC', 'NY', 'SV', 'CH', 'DA', 'AT', 'LA', 'SE', 'MI', 'SP', 'TR',
+  'LD', 'AM', 'FR', 'PA', 'ZH', 'MA', 'SK', 'DB', 'MU', 'DU',
+  'SG', 'HK', 'TY', 'SY', 'OS', 'MB', 'SL',
+];
 
 export function mockDeviceTypes(): DeviceType[] {
   return [
@@ -7,7 +25,7 @@ export function mockDeviceTypes(): DeviceType[] {
       name: 'Cisco CSR 1000V',
       vendor: 'Cisco',
       category: 'ROUTER',
-      availableMetros: ['DC', 'NY', 'SV', 'CH', 'DA', 'AT', 'LA', 'LD', 'AM', 'FR', 'SG', 'HK', 'TY', 'SY'],
+      availableMetros: ALL_METROS,
       softwarePackages: [{ code: 'CSR_SEC', name: 'Security Package' }, { code: 'CSR_APPX', name: 'Application Experience' }],
       coreCounts: [2, 4, 8, 16],
     },
@@ -16,7 +34,7 @@ export function mockDeviceTypes(): DeviceType[] {
       name: 'Cisco Catalyst 8000V',
       vendor: 'Cisco',
       category: 'ROUTER',
-      availableMetros: ['DC', 'NY', 'SV', 'CH', 'DA', 'LD', 'AM', 'FR', 'SG', 'TY'],
+      availableMetros: ALL_METROS,
       softwarePackages: [{ code: 'C8_DNA', name: 'DNA Essentials' }, { code: 'C8_DNA_ADV', name: 'DNA Advantage' }],
       coreCounts: [2, 4, 8],
     },
@@ -25,7 +43,7 @@ export function mockDeviceTypes(): DeviceType[] {
       name: 'Palo Alto VM-Series',
       vendor: 'Palo Alto Networks',
       category: 'FIREWALL',
-      availableMetros: ['DC', 'NY', 'SV', 'CH', 'DA', 'LD', 'FR', 'SG', 'TY', 'HK'],
+      availableMetros: ALL_METROS,
       softwarePackages: [{ code: 'PA_NGFW', name: 'NGFW Bundle' }, { code: 'PA_THREAT', name: 'Threat Prevention' }],
       coreCounts: [2, 4, 8],
     },
@@ -34,7 +52,7 @@ export function mockDeviceTypes(): DeviceType[] {
       name: 'Fortinet FortiGate VM',
       vendor: 'Fortinet',
       category: 'FIREWALL',
-      availableMetros: ['DC', 'NY', 'SV', 'LD', 'FR', 'AM', 'SG', 'TY', 'SY'],
+      availableMetros: ALL_METROS,
       softwarePackages: [{ code: 'FG_UTM', name: 'UTM Bundle' }, { code: 'FG_ENT', name: 'Enterprise Bundle' }],
       coreCounts: [2, 4, 8, 16],
     },
@@ -43,7 +61,7 @@ export function mockDeviceTypes(): DeviceType[] {
       name: 'Juniper vSRX',
       vendor: 'Juniper',
       category: 'FIREWALL',
-      availableMetros: ['DC', 'NY', 'SV', 'LD', 'FR', 'SG', 'TY'],
+      availableMetros: MAJOR_METROS,
       softwarePackages: [{ code: 'VSRX_STD', name: 'Standard' }, { code: 'VSRX_ADV', name: 'Advanced' }],
       coreCounts: [2, 4, 8],
     },
@@ -52,7 +70,7 @@ export function mockDeviceTypes(): DeviceType[] {
       name: 'Aviatrix Transit Gateway',
       vendor: 'Aviatrix',
       category: 'SDWAN',
-      availableMetros: ['DC', 'NY', 'SV', 'CH', 'LD', 'FR', 'AM', 'SG', 'TY'],
+      availableMetros: MAJOR_METROS,
       softwarePackages: [{ code: 'AVX_ADV', name: 'Advanced Networking' }],
       coreCounts: [2, 4],
     },
@@ -61,7 +79,7 @@ export function mockDeviceTypes(): DeviceType[] {
       name: 'Versa SD-WAN',
       vendor: 'Versa Networks',
       category: 'SDWAN',
-      availableMetros: ['DC', 'NY', 'SV', 'DA', 'LD', 'FR', 'SG'],
+      availableMetros: MAJOR_METROS,
       softwarePackages: [{ code: 'VERSA_TITAN', name: 'Titan' }],
       coreCounts: [2, 4, 8],
     },
@@ -70,7 +88,7 @@ export function mockDeviceTypes(): DeviceType[] {
       name: 'Juniper vSRX 3.0',
       vendor: 'Juniper',
       category: 'FIREWALL',
-      availableMetros: ['DC', 'NY', 'SV', 'LD', 'FR', 'SG'],
+      availableMetros: MAJOR_METROS,
       softwarePackages: [{ code: 'VSRX3_STD', name: 'Standard' }],
       coreCounts: [2, 4, 8, 16],
     },
@@ -93,11 +111,22 @@ const TERM_DISCOUNT: Record<number, number> = {
 };
 
 export function mockNetworkEdgePricing(
-  _deviceTypeCode: string,
+  deviceTypeCode: string,
   packageCode: string,
   termLength: number
 ): NetworkEdgePriceResponse {
-  // Extract core count from package code, default to 4
+  // Check loaded API defaults first
+  const lookup = lookupNEPrice(deviceTypeCode, packageCode, termLength);
+  if (lookup) {
+    return {
+      monthlyRecurring: lookup.mrc,
+      nonRecurring: lookup.nrc ?? 0,
+      currency: 'USD',
+      termLength,
+    };
+  }
+
+  // Fall back to hardcoded formula — NRC is 0 unless the pricing data explicitly defines one
   const coreMatch = packageCode.match(/(\d+)/);
   const cores = coreMatch ? parseInt(coreMatch[1], 10) : 4;
   const priceEntry = CORE_PRICE_MAP[cores] ?? CORE_PRICE_MAP[4];
@@ -106,7 +135,7 @@ export function mockNetworkEdgePricing(
 
   return {
     monthlyRecurring: mrc,
-    nonRecurring: termLength === 1 ? 0 : 500,
+    nonRecurring: 0,
     currency: 'USD',
     termLength,
   };

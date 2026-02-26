@@ -13,6 +13,9 @@ dist-ssr
 *.local
 .env
 
+# Fetched API data — Docker volume copy not tracked, but public/ copy is committed
+/data/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

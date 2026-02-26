@@ -6,10 +6,15 @@ import type {
   ServiceSelection,
   ServiceType,
   VirtualConnection,
+  TextBox,
+  LocalSite,
+  AnnotationMarker,
   FabricPortConfig,
   NetworkEdgeConfig,
   InternetAccessConfig,
   CloudRouterConfig,
+  ColocationConfig,
+  NspConfig,
   PricingResult,
 } from '@/types/config';
 import type { Metro, DeviceType, ServiceProfile } from '@/types/equinix';
@@ -18,6 +23,8 @@ import {
   DEFAULT_NETWORK_EDGE,
   DEFAULT_INTERNET_ACCESS,
   DEFAULT_CLOUD_ROUTER,
+  DEFAULT_COLOCATION,
+  DEFAULT_NSP,
 } from '@/constants/serviceDefaults';
 
 interface AuthState {
@@ -39,6 +46,7 @@ interface CacheState {
 interface UIState {
   activeTab: 'metros' | 'services' | 'diagram' | 'pricing';
   selectedMetroCode: string | null;
+  highlightedServiceId: string | null;
   isLoading: boolean;
   error: string | null;
   showPricing: boolean;
@@ -90,16 +98,50 @@ interface ConfigStore {
   updateConnection: (connectionId: string, updates: Partial<VirtualConnection>) => void;
   updateConnectionPricing: (connectionId: string, pricing: PricingResult) => void;
 
+  // Text box actions
+  addTextBox: (x: number, y: number) => string;
+  removeTextBox: (id: string) => void;
+  updateTextBox: (id: string, updates: Partial<TextBox>) => void;
+
+  // Local site actions
+  addLocalSite: (x: number, y: number) => string;
+  removeLocalSite: (id: string) => void;
+  updateLocalSite: (id: string, updates: Partial<LocalSite>) => void;
+
+  // Annotation marker actions
+  addAnnotationMarker: (x: number, y: number) => string;
+  removeAnnotationMarker: (id: string) => void;
+  updateAnnotationMarker: (id: string, updates: Partial<AnnotationMarker>) => void;
+
   // UI state
   ui: UIState;
   setActiveTab: (tab: UIState['activeTab']) => void;
   setSelectedMetro: (metroCode: string | null) => void;
+  highlightService: (metroCode: string, serviceId: string) => void;
+  clearHighlight: () => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   setShowPricing: (show: boolean) => void;
 }
 
-function getDefaultConfig(type: ServiceType): FabricPortConfig | NetworkEdgeConfig | InternetAccessConfig | CloudRouterConfig {
+/**
+ * Normalize an availableMetros array to plain string metro codes.
+ * The Equinix NE API may return objects like {code:'DC'} or {metroCode:'DC'}
+ * instead of plain strings. Handle all known shapes.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function normalizeMetroCodes(raw: any[] | undefined | null): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((m) => {
+      if (typeof m === 'string') return m;
+      if (m && typeof m === 'object') return m.code ?? m.metroCode ?? '';
+      return '';
+    })
+    .filter(Boolean);
+}
+
+function getDefaultConfig(type: ServiceType): FabricPortConfig | NetworkEdgeConfig | InternetAccessConfig | CloudRouterConfig | ColocationConfig | NspConfig {
   switch (type) {
     case 'FABRIC_PORT':
       return { ...DEFAULT_FABRIC_PORT };
@@ -109,6 +151,10 @@ function getDefaultConfig(type: ServiceType): FabricPortConfig | NetworkEdgeConf
       return { ...DEFAULT_INTERNET_ACCESS };
     case 'CLOUD_ROUTER':
       return { ...DEFAULT_CLOUD_ROUTER };
+    case 'COLOCATION':
+      return { ...DEFAULT_COLOCATION };
+    case 'NSP':
+      return { ...DEFAULT_NSP };
   }
 }
 
@@ -144,7 +190,15 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
     })),
   setDeviceTypes: (types) =>
     set((state) => ({
-      cache: { ...state.cache, deviceTypes: types, deviceTypesLoaded: true },
+      cache: {
+        ...state.cache,
+        // Normalize availableMetros — API may return objects instead of strings
+        deviceTypes: types.map((dt) => ({
+          ...dt,
+          availableMetros: normalizeMetroCodes(dt.availableMetros),
+        })),
+        deviceTypesLoaded: true,
+      },
     })),
   setServiceProfiles: (profiles) =>
     set((state) => ({
@@ -157,6 +211,9 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
     name: 'New Project',
     metros: [],
     connections: [],
+    textBoxes: [],
+    localSites: [],
+    annotationMarkers: [],
   },
   projectHistory: [],
   canUndo: false,
@@ -190,25 +247,34 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
         services: [],
       };
       const newHistory = [...state.projectHistory, state.project].slice(-MAX_HISTORY);
+      const isFirstMetro = state.project.metros.length === 0;
       return {
         project: { ...state.project, metros: [...state.project.metros, newMetro] },
         projectHistory: newHistory,
         canUndo: true,
+        ui: isFirstMetro
+          ? { ...state.ui, selectedMetroCode: metro.code }
+          : state.ui,
       };
     }),
   removeMetro: (metroCode) =>
     set((state) => {
       const newHistory = [...state.projectHistory, state.project].slice(-MAX_HISTORY);
+      const remainingMetros = state.project.metros.filter((m) => m.metroCode !== metroCode);
+      const needsReselect = state.ui.selectedMetroCode === metroCode;
       return {
         project: {
           ...state.project,
-          metros: state.project.metros.filter((m) => m.metroCode !== metroCode),
+          metros: remainingMetros,
           connections: state.project.connections.filter(
             (c) => c.aSide.metroCode !== metroCode && c.zSide.metroCode !== metroCode
           ),
         },
         projectHistory: newHistory,
         canUndo: true,
+        ui: needsReselect
+          ? { ...state.ui, selectedMetroCode: remainingMetros[0]?.metroCode ?? null }
+          : state.ui,
       };
     }),
 
@@ -391,10 +457,134 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
       },
     })),
 
+  // Text box actions
+  addTextBox: (x, y) => {
+    const id = uuidv4();
+    set((state) => {
+      const newHistory = [...state.projectHistory, state.project].slice(-MAX_HISTORY);
+      return {
+        project: {
+          ...state.project,
+          textBoxes: [...state.project.textBoxes, { id, text: 'Text', x, y, width: 160, height: 40 }],
+        },
+        projectHistory: newHistory,
+        canUndo: true,
+      };
+    });
+    return id;
+  },
+  removeTextBox: (id) =>
+    set((state) => {
+      const newHistory = [...state.projectHistory, state.project].slice(-MAX_HISTORY);
+      return {
+        project: {
+          ...state.project,
+          textBoxes: state.project.textBoxes.filter((t) => t.id !== id),
+        },
+        projectHistory: newHistory,
+        canUndo: true,
+      };
+    }),
+  updateTextBox: (id, updates) =>
+    set((state) => ({
+      project: {
+        ...state.project,
+        textBoxes: state.project.textBoxes.map((t) =>
+          t.id === id ? { ...t, ...updates } : t
+        ),
+      },
+    })),
+
+  // Local site actions
+  addLocalSite: (x, y) => {
+    const id = uuidv4();
+    set((state) => {
+      const newHistory = [...state.projectHistory, state.project].slice(-MAX_HISTORY);
+      return {
+        project: {
+          ...state.project,
+          localSites: [...state.project.localSites, { id, name: 'Local Site', description: 'Data Center', icon: 'colocation', x, y }],
+        },
+        projectHistory: newHistory,
+        canUndo: true,
+      };
+    });
+    return id;
+  },
+  removeLocalSite: (id) =>
+    set((state) => {
+      const newHistory = [...state.projectHistory, state.project].slice(-MAX_HISTORY);
+      return {
+        project: {
+          ...state.project,
+          localSites: state.project.localSites.filter((s) => s.id !== id),
+          connections: state.project.connections.filter(
+            (c) => c.aSide.serviceId !== id && c.zSide.serviceId !== id
+          ),
+        },
+        projectHistory: newHistory,
+        canUndo: true,
+      };
+    }),
+  updateLocalSite: (id, updates) =>
+    set((state) => ({
+      project: {
+        ...state.project,
+        localSites: state.project.localSites.map((s) =>
+          s.id === id ? { ...s, ...updates } : s
+        ),
+      },
+    })),
+
+  // Annotation marker actions
+  addAnnotationMarker: (x, y) => {
+    const id = uuidv4();
+    set((state) => {
+      const nextNumber = state.project.annotationMarkers.length > 0
+        ? Math.max(...state.project.annotationMarkers.map((m) => m.number)) + 1
+        : 1;
+      const newHistory = [...state.projectHistory, state.project].slice(-MAX_HISTORY);
+      return {
+        project: {
+          ...state.project,
+          annotationMarkers: [
+            ...state.project.annotationMarkers,
+            { id, number: nextNumber, x, y, color: '#E91C24', text: '' },
+          ],
+        },
+        projectHistory: newHistory,
+        canUndo: true,
+      };
+    });
+    return id;
+  },
+  removeAnnotationMarker: (id) =>
+    set((state) => {
+      const newHistory = [...state.projectHistory, state.project].slice(-MAX_HISTORY);
+      return {
+        project: {
+          ...state.project,
+          annotationMarkers: state.project.annotationMarkers.filter((m) => m.id !== id),
+        },
+        projectHistory: newHistory,
+        canUndo: true,
+      };
+    }),
+  updateAnnotationMarker: (id, updates) =>
+    set((state) => ({
+      project: {
+        ...state.project,
+        annotationMarkers: state.project.annotationMarkers.map((m) =>
+          m.id === id ? { ...m, ...updates } : m
+        ),
+      },
+    })),
+
   // UI
   ui: {
     activeTab: 'metros',
     selectedMetroCode: null,
+    highlightedServiceId: null,
     isLoading: false,
     error: null,
     showPricing: true,
@@ -403,6 +593,18 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
     set((state) => ({ ui: { ...state.ui, activeTab: tab } })),
   setSelectedMetro: (metroCode) =>
     set((state) => ({ ui: { ...state.ui, selectedMetroCode: metroCode } })),
+  highlightService: (metroCode, serviceId) =>
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        selectedMetroCode: metroCode,
+        highlightedServiceId: serviceId,
+        // On mobile, switch to services tab
+        activeTab: state.ui.activeTab === 'diagram' ? 'services' : state.ui.activeTab,
+      },
+    })),
+  clearHighlight: () =>
+    set((state) => ({ ui: { ...state.ui, highlightedServiceId: null } })),
   setLoading: (loading) =>
     set((state) => ({ ui: { ...state.ui, isLoading: loading } })),
   setError: (error) =>

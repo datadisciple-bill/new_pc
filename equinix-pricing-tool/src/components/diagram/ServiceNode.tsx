@@ -7,6 +7,8 @@ import fabricPortIcon from '@/assets/icons/fabric-port.svg';
 import networkEdgeIcon from '@/assets/icons/network-edge.svg';
 import internetAccessIcon from '@/assets/icons/internet-access.svg';
 import cloudRouterIcon from '@/assets/icons/cloud-router.svg';
+import colocationIcon from '@/assets/icons/colocation.svg';
+import nspIcon from '@/assets/icons/nsp.svg';
 
 interface ServiceNodeData {
   serviceId: string;
@@ -22,6 +24,8 @@ const SERVICE_ICON_URLS: Record<string, string> = {
   NETWORK_EDGE: networkEdgeIcon,
   INTERNET_ACCESS: internetAccessIcon,
   CLOUD_ROUTER: cloudRouterIcon,
+  COLOCATION: colocationIcon,
+  NSP: nspIcon,
 };
 
 export const ServiceNode = memo(function ServiceNode({ data }: NodeProps) {
@@ -32,9 +36,15 @@ export const ServiceNode = memo(function ServiceNode({ data }: NodeProps) {
   let detail = '';
   let isHaPair = false;
 
+  let portRedundancy: string | null = null;
+
+  let quantity = 1;
+
   if (serviceType === 'FABRIC_PORT') {
-    const c = config as { speed?: string; type?: string };
-    detail = `${c.speed ?? ''} ${c.type === 'REDUNDANT' ? 'Redundant' : 'Single'}`;
+    const c = config as { speed?: string; type?: string; quantity?: number };
+    portRedundancy = c.type ?? 'PRIMARY';
+    detail = c.speed ?? '';
+    quantity = c.quantity ?? 1;
   } else if (serviceType === 'NETWORK_EDGE') {
     const c = config as { deviceTypeName?: string; redundant?: boolean };
     detail = c.deviceTypeName ?? '';
@@ -46,10 +56,16 @@ export const ServiceNode = memo(function ServiceNode({ data }: NodeProps) {
   } else if (serviceType === 'CLOUD_ROUTER') {
     const c = config as { package?: string };
     detail = c.package ?? '';
+  } else if (serviceType === 'COLOCATION') {
+    const c = config as { description?: string };
+    detail = c.description ?? '';
+  } else if (serviceType === 'NSP') {
+    const c = config as { providerName?: string };
+    detail = c.providerName ?? '';
   }
 
   return (
-    <div className="rounded-md overflow-hidden shadow-sm border border-gray-200" style={{ width: '100%', height: '100%' }}>
+    <div className="rounded-md overflow-hidden shadow-sm border border-gray-200 bg-white" style={{ width: '100%', height: '100%' }}>
       {/* Black Equinix product bar */}
       <div className="bg-equinix-black text-white px-2 py-1 flex items-center gap-1.5">
         {iconUrl ? (
@@ -70,15 +86,32 @@ export const ServiceNode = memo(function ServiceNode({ data }: NodeProps) {
         )}
       </div>
       <div className="bg-white px-2 py-1">
-        <p className="text-[9px] text-gray-600 truncate">{detail}</p>
+        <p className="text-[9px] text-gray-600 truncate">
+          {detail}
+          {portRedundancy === 'PRIMARY' && (
+            <span className="ml-1 font-bold" style={{ color: '#0067B8' }}>Primary</span>
+          )}
+          {portRedundancy === 'SECONDARY' && (
+            <span className="ml-1 font-bold" style={{ color: '#E91C24' }}>Secondary</span>
+          )}
+          {portRedundancy === 'REDUNDANT' && (
+            <>
+              <span className="ml-1 font-bold" style={{ color: '#0067B8' }}>Primary</span>
+              <span className="mx-0.5 text-gray-400">/</span>
+              <span className="font-bold" style={{ color: '#E91C24' }}>Secondary</span>
+            </>
+          )}
+        </p>
         {isHaPair && (
           <p className="text-[9px] text-equinix-red font-medium">HA Pair (2x devices)</p>
         )}
-        {showPricing !== false && pricing && (
+        {showPricing !== false && pricing && pricing.mrc > 0 && (
           <p className="text-[9px] text-equinix-green font-medium">
             {isHaPair
-              ? `${formatCurrency(pricing.mrc)} (each) x2 = ${formatCurrency(pricing.mrc * 2)}/mo`
-              : `${formatCurrency(pricing.mrc)}/mo`}
+              ? `${formatCurrency(pricing.mrc)} x2 = ${formatCurrency(pricing.mrc * 2)}/mo`
+              : quantity > 1
+                ? `${formatCurrency(pricing.mrc)} x${quantity} = ${formatCurrency(pricing.mrc * quantity)}/mo`
+                : `${formatCurrency(pricing.mrc)}/mo`}
           </p>
         )}
       </div>

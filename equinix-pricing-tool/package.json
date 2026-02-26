@@ -1,7 +1,7 @@
 {
   "name": "equinix-pricing-tool",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,10 +9,12 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "fetch-data": "node scripts/fetch-api-data.js"
   },
   "dependencies": {
     "@xyflow/react": "^12.10.1",
+    "html-to-image": "^1.11.13",
     "papaparse": "^5.5.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

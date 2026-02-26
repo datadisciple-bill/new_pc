@@ -5,6 +5,38 @@ export interface ProjectConfig {
   name: string;
   metros: MetroSelection[];
   connections: VirtualConnection[];
+  textBoxes: TextBox[];
+  localSites: LocalSite[];
+  annotationMarkers: AnnotationMarker[];
+}
+
+export interface TextBox {
+  id: string;
+  text: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export type LocalSiteIcon = 'colocation' | 'network-edge' | 'fabric-port' | 'internet-access' | 'cloud-router' | 'building-corporate' | 'building-factory' | 'building-home' | 'people-user';
+
+export interface LocalSite {
+  id: string;
+  name: string;
+  description: string;
+  icon: LocalSiteIcon;
+  x: number;
+  y: number;
+}
+
+export interface AnnotationMarker {
+  id: string;
+  number: number;
+  x: number;
+  y: number;
+  color: string;
+  text: string;
 }
 
 export interface MetroSelection {
@@ -14,23 +46,25 @@ export interface MetroSelection {
   services: ServiceSelection[];
 }
 
-export type ServiceType = 'FABRIC_PORT' | 'NETWORK_EDGE' | 'INTERNET_ACCESS' | 'CLOUD_ROUTER';
+export type ServiceType = 'FABRIC_PORT' | 'NETWORK_EDGE' | 'INTERNET_ACCESS' | 'CLOUD_ROUTER' | 'COLOCATION' | 'NSP';
 
 export interface ServiceSelection {
   id: string;
   type: ServiceType;
-  config: FabricPortConfig | NetworkEdgeConfig | InternetAccessConfig | CloudRouterConfig;
+  config: FabricPortConfig | NetworkEdgeConfig | InternetAccessConfig | CloudRouterConfig | ColocationConfig | NspConfig;
   pricing: PricingResult | null;
 }
 
 export interface FabricPortConfig {
   speed: PortSpeed;
-  type: 'SINGLE' | 'REDUNDANT';
+  portProduct: PortProduct;
+  type: 'PRIMARY' | 'SECONDARY' | 'REDUNDANT';
   encapsulation: 'DOT1Q' | 'QINQ';
   quantity: number;
 }
 
-export type PortSpeed = '1G' | '10G' | '25G' | '50G' | '100G';
+export type PortSpeed = '1G' | '10G' | '100G' | '400G';
+export type PortProduct = 'STANDARD' | 'UNLIMITED' | 'UNLIMITED_PLUS';
 
 export interface CorePriceEntry {
   cores: number;
@@ -62,6 +96,15 @@ export interface CloudRouterConfig {
   package: 'STANDARD' | 'PREMIUM';
 }
 
+export interface ColocationConfig {
+  description: string;
+  mrcPrice: number;
+}
+
+export interface NspConfig {
+  providerName: string;
+}
+
 export interface VirtualConnection {
   id: string;
   name: string;
@@ -82,7 +125,7 @@ export interface BandwidthPriceEntry {
   currency: string;
 }
 
-export type EndpointType = 'PORT' | 'NETWORK_EDGE' | 'CLOUD_ROUTER' | 'SERVICE_PROFILE';
+export type EndpointType = 'PORT' | 'NETWORK_EDGE' | 'CLOUD_ROUTER' | 'SERVICE_PROFILE' | 'COLOCATION' | 'NSP' | 'LOCAL_SITE';
 
 export interface ConnectionEndpoint {
   metroCode: string;

@@ -45,19 +45,38 @@ export async function fetchRouterPackages(): Promise<RouterPackage[]> {
   return response.data;
 }
 
+type FilterValue = string | number | boolean;
+
+/**
+ * Build a Fabric v4 price search filter in the required {and: [...]} format.
+ * Each property becomes a {property, operator, values} entry.
+ */
+function buildPriceFilter(
+  filterType: string,
+  properties: Record<string, FilterValue | FilterValue[]>
+) {
+  const conditions: Array<{ property: string; operator: string; values: FilterValue[] }> = [
+    { property: '/type', operator: '=', values: [filterType] },
+  ];
+  for (const [prop, val] of Object.entries(properties)) {
+    if (Array.isArray(val)) {
+      conditions.push({ property: prop, operator: 'IN', values: val });
+    } else {
+      conditions.push({ property: prop, operator: '=', values: [val] });
+    }
+  }
+  return { filter: { and: conditions } };
+}
+
 export async function searchPrices(
   filterType: string,
-  properties: Record<string, string | number | boolean>
+  properties: Record<string, FilterValue | FilterValue[]>
 ): Promise<PriceSearchResponse> {
   if (useMockData()) return mockPriceSearch(filterType, properties);
 
+  const body = buildPriceFilter(filterType, properties);
   return apiRequest<PriceSearchResponse>('/fabric/v4/prices/search', {
     method: 'POST',
-    body: {
-      filter: {
-        '/type': filterType,
-        ...properties,
-      },
-    },
+    body,
   });
 }

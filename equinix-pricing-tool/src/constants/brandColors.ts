@@ -40,4 +40,6 @@ export const SERVICE_TYPE_LABELS: Record<string, string> = {
   INTERNET_ACCESS: 'Internet Access',
   CLOUD_ROUTER: 'Fabric Cloud Router',
   VIRTUAL_CONNECTION: 'Virtual Connection',
+  COLOCATION: 'Colocation',
+  NSP: 'Network Service Provider',
 } as const;
