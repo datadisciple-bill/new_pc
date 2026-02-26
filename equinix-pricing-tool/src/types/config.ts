@@ -19,11 +19,12 @@ export interface TextBox {
   height: number;
 }
 
-export type LocalSiteIcon = 'colocation' | 'network-edge' | 'fabric-port' | 'internet-access' | 'cloud-router';
+export type LocalSiteIcon = 'colocation' | 'network-edge' | 'fabric-port' | 'internet-access' | 'cloud-router' | 'building-corporate' | 'building-factory' | 'building-home' | 'people-user';
 
 export interface LocalSite {
   id: string;
   name: string;
+  description: string;
   icon: LocalSiteIcon;
   x: number;
   y: number;

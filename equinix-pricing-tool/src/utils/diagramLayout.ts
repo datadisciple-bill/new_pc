@@ -192,7 +192,7 @@ export function buildDiagramLayout(
       id: `localsite-${site.id}`,
       type: 'localSiteNode',
       position: { x: site.x, y: site.y },
-      data: { localSiteId: site.id, name: site.name, icon: site.icon },
+      data: { localSiteId: site.id, name: site.name, description: site.description, icon: site.icon },
       style: { width: LOCAL_SITE_WIDTH, height: LOCAL_SITE_HEIGHT },
       width: LOCAL_SITE_WIDTH,
       height: LOCAL_SITE_HEIGHT,

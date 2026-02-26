@@ -146,10 +146,11 @@ export function mockPriceSearch(
       const bw = Number(properties['/connection/bandwidth'] ?? 1000);
       const aSide = String(properties['/connection/aSide/accessPoint/location/metroCode'] ?? '');
       const zSide = String(properties['/connection/zSide/accessPoint/location/metroCode'] ?? '');
+      const zSideType = String(properties['/connection/zSide/accessPoint/type'] ?? 'COLO');
       key = `VC_${bw}`;
       const basePrice = lookupVCPrice(bw) ?? PRICING[key] ?? price;
-      // Apply distance multiplier for cross-metro connections
-      const multiplier = getMetroPairMultiplier(aSide, zSide);
+      // Cloud (SP) connections use full base price — no same-metro discount
+      const multiplier = zSideType === 'SP' ? 1 : getMetroPairMultiplier(aSide, zSide);
       price = { mrc: Math.round(basePrice.mrc * multiplier), nrc: basePrice.nrc };
       break;
     }

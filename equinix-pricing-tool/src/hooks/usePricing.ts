@@ -135,10 +135,11 @@ export function usePricing() {
 
         const aMetro = aSideMetro ?? conn?.aSide.metroCode ?? 'DC';
         const zMetro = zSideMetro ?? conn?.zSide.metroCode ?? aMetro;
+        const isCloudConnection = conn?.zSide.type === 'SERVICE_PROFILE';
 
         // Same-metro connections between same endpoint types are $0;
-        // mixed-type (e.g. Port ↔ NE) connections still have a cost.
-        if (aMetro === zMetro) {
+        // mixed-type (e.g. Port ↔ NE) and cloud connections still have a cost.
+        if (aMetro === zMetro && !isCloudConnection) {
           const isMixedType = conn && conn.aSide.type !== conn.zSide.type;
           if (!isMixedType) {
             const pricing: PricingResult = {
@@ -153,8 +154,12 @@ export function usePricing() {
           }
         }
 
+        // Cloud provider connections: z-side is a Service Profile (SP), not COLO
+        const zSideType = isCloudConnection ? 'SP' : 'COLO';
+        const cacheKey = isCloudConnection ? `${aMetro}-SP` : zMetro;
+
         // Check 24h cache first
-        const cached = getCachedVCPrice(aMetro, zMetro, bandwidthMbps);
+        const cached = getCachedVCPrice(aMetro, cacheKey, bandwidthMbps);
         let mrc: number;
         let nrc: number;
 
@@ -168,21 +173,22 @@ export function usePricing() {
             '/connection/aSide/accessPoint/type': 'COLO',
             '/connection/aSide/accessPoint/location/metroCode': aMetro,
             '/connection/aSide/accessPoint/port/settings/buyout': false,
-            '/connection/zSide/accessPoint/type': 'COLO',
+            '/connection/zSide/accessPoint/type': zSideType,
             '/connection/zSide/accessPoint/location/metroCode': zMetro,
           });
           const charge = result.data[0]?.charges ?? [];
           mrc = charge.find((ch) => ch.type === 'MONTHLY_RECURRING')?.price ?? 0;
           nrc = charge.find((ch) => ch.type === 'NON_RECURRING')?.price ?? 0;
-          setCachedVCPrice(aMetro, zMetro, bandwidthMbps, mrc, nrc);
+          setCachedVCPrice(aMetro, cacheKey, bandwidthMbps, mrc, nrc);
         }
 
+        const cloudLabel = isCloudConnection ? conn?.zSide.serviceProfileName ?? 'Cloud' : `${zMetro}`;
         const pricing: PricingResult = {
           mrc,
           nrc,
           currency: 'USD',
           isEstimate: false,
-          breakdown: [{ description: `${bandwidthMbps}Mbps ${aMetro}-${zMetro} Connection`, mrc, nrc }],
+          breakdown: [{ description: `${bandwidthMbps}Mbps ${aMetro}-${cloudLabel} Connection`, mrc, nrc }],
         };
         updateConnectionPricing(connectionId, pricing);
       } catch (err) {
@@ -198,9 +204,10 @@ export function usePricing() {
         const conn = connections.find((c) => c.id === connectionId);
         const aMetro = conn?.aSide.metroCode ?? 'DC';
         const zMetro = conn?.zSide.metroCode ?? aMetro;
+        const isCloudConnection = conn?.zSide.type === 'SERVICE_PROFILE';
 
-        // Same-metro same-type connections are $0 at all bandwidths
-        if (aMetro === zMetro) {
+        // Same-metro same-type connections are $0 at all bandwidths (not cloud)
+        if (aMetro === zMetro && !isCloudConnection) {
           const isMixedType = conn && conn.aSide.type !== conn.zSide.type;
           if (!isMixedType) {
             const entries: BandwidthPriceEntry[] = BANDWIDTH_OPTIONS.map((bw) => ({
@@ -214,9 +221,12 @@ export function usePricing() {
           }
         }
 
+        const zSideType = isCloudConnection ? 'SP' : 'COLO';
+        const cacheKey = isCloudConnection ? `${aMetro}-SP` : zMetro;
+
         const entries: BandwidthPriceEntry[] = [];
         for (const bw of BANDWIDTH_OPTIONS) {
-          const cached = getCachedVCPrice(aMetro, zMetro, bw);
+          const cached = getCachedVCPrice(aMetro, cacheKey, bw);
           let mrc: number;
           if (cached) {
             mrc = cached.mrc;
@@ -227,13 +237,13 @@ export function usePricing() {
               '/connection/aSide/accessPoint/type': 'COLO',
               '/connection/aSide/accessPoint/location/metroCode': aMetro,
               '/connection/aSide/accessPoint/port/settings/buyout': false,
-              '/connection/zSide/accessPoint/type': 'COLO',
+              '/connection/zSide/accessPoint/type': zSideType,
               '/connection/zSide/accessPoint/location/metroCode': zMetro,
             });
             const charge = result.data[0]?.charges ?? [];
             mrc = charge.find((ch) => ch.type === 'MONTHLY_RECURRING')?.price ?? 0;
             const nrc = charge.find((ch) => ch.type === 'NON_RECURRING')?.price ?? 0;
-            setCachedVCPrice(aMetro, zMetro, bw, mrc, nrc);
+            setCachedVCPrice(aMetro, cacheKey, bw, mrc, nrc);
           }
           const label = bw >= 1000 ? `${bw / 1000} Gbps` : `${bw} Mbps`;
           entries.push({ bandwidthMbps: bw, label, mrc, currency: 'USD' });

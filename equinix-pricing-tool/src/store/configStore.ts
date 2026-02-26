@@ -500,7 +500,7 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
       return {
         project: {
           ...state.project,
-          localSites: [...state.project.localSites, { id, name: 'Local Site', icon: 'colocation', x, y }],
+          localSites: [...state.project.localSites, { id, name: 'Local Site', description: 'Data Center', icon: 'colocation', x, y }],
         },
         projectHistory: newHistory,
         canUndo: true,

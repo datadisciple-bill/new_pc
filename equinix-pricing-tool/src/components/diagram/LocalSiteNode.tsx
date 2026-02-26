@@ -7,16 +7,25 @@ import networkEdgeIcon from '@/assets/icons/network-edge.svg';
 import internetAccessIcon from '@/assets/icons/internet-access.svg';
 import cloudRouterIcon from '@/assets/icons/cloud-router.svg';
 import colocationIcon from '@/assets/icons/colocation.svg';
+import buildingCorporateIcon from '@/assets/icons/building-corporate.svg';
+import buildingFactoryIcon from '@/assets/icons/building-factory.svg';
+import buildingHomeIcon from '@/assets/icons/building-home.svg';
+import peopleUserIcon from '@/assets/icons/people-user.svg';
 
 interface LocalSiteNodeData {
   localSiteId: string;
   name: string;
+  description: string;
   icon: LocalSiteIcon;
   [key: string]: unknown;
 }
 
 const ICON_OPTIONS: { key: LocalSiteIcon; label: string; src: string }[] = [
   { key: 'colocation', label: 'Data Center', src: colocationIcon },
+  { key: 'building-corporate', label: 'Corporate / Enterprise', src: buildingCorporateIcon },
+  { key: 'building-factory', label: 'Factory / Manufacturing', src: buildingFactoryIcon },
+  { key: 'building-home', label: 'Home / Branch Office', src: buildingHomeIcon },
+  { key: 'people-user', label: 'User / People', src: peopleUserIcon },
   { key: 'network-edge', label: 'Network Device', src: networkEdgeIcon },
   { key: 'fabric-port', label: 'Port', src: fabricPortIcon },
   { key: 'internet-access', label: 'Internet / Globe', src: internetAccessIcon },
@@ -28,23 +37,33 @@ function getIconSrc(icon: LocalSiteIcon): string {
 }
 
 export const LocalSiteNode = memo(function LocalSiteNode({ data, selected }: NodeProps) {
-  const { localSiteId, name, icon } = data as LocalSiteNodeData;
+  const { localSiteId, name, description, icon } = data as LocalSiteNodeData;
   const updateLocalSite = useConfigStore((s) => s.updateLocalSite);
   const removeLocalSite = useConfigStore((s) => s.removeLocalSite);
 
-  const [editing, setEditing] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [editingDesc, setEditingDesc] = useState(false);
   const [localName, setLocalName] = useState(name);
+  const [localDesc, setLocalDesc] = useState(description ?? '');
   const [showIconPicker, setShowIconPicker] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const descInputRef = useRef<HTMLInputElement>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { setLocalName(name); }, [name]);
+  useEffect(() => { setLocalDesc(description ?? ''); }, [description]);
   useEffect(() => {
-    if (editing && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
+    if (editingName && nameInputRef.current) {
+      nameInputRef.current.focus();
+      nameInputRef.current.select();
     }
-  }, [editing]);
+  }, [editingName]);
+  useEffect(() => {
+    if (editingDesc && descInputRef.current) {
+      descInputRef.current.focus();
+      descInputRef.current.select();
+    }
+  }, [editingDesc]);
 
   // Close icon picker on outside click
   useEffect(() => {
@@ -58,17 +77,29 @@ export const LocalSiteNode = memo(function LocalSiteNode({ data, selected }: Nod
     return () => document.removeEventListener('mousedown', handleClick);
   }, [showIconPicker]);
 
-  const handleBlur = useCallback(() => {
-    setEditing(false);
+  const handleNameBlur = useCallback(() => {
+    setEditingName(false);
     updateLocalSite(localSiteId, { name: localName });
   }, [localSiteId, localName, updateLocalSite]);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+  const handleNameKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === 'Escape') {
-      setEditing(false);
+      setEditingName(false);
       updateLocalSite(localSiteId, { name: localName });
     }
   }, [localSiteId, localName, updateLocalSite]);
+
+  const handleDescBlur = useCallback(() => {
+    setEditingDesc(false);
+    updateLocalSite(localSiteId, { description: localDesc });
+  }, [localSiteId, localDesc, updateLocalSite]);
+
+  const handleDescKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === 'Escape') {
+      setEditingDesc(false);
+      updateLocalSite(localSiteId, { description: localDesc });
+    }
+  }, [localSiteId, localDesc, updateLocalSite]);
 
   const handleIconSelect = useCallback((iconKey: LocalSiteIcon) => {
     updateLocalSite(localSiteId, { icon: iconKey });
@@ -101,29 +132,43 @@ export const LocalSiteNode = memo(function LocalSiteNode({ data, selected }: Nod
               style={{ filter: 'brightness(0) invert(1)' }}
             />
           </button>
-          {editing ? (
+          {editingName ? (
             <input
-              ref={inputRef}
+              ref={nameInputRef}
               value={localName}
               onChange={(e) => setLocalName(e.target.value)}
-              onBlur={handleBlur}
-              onKeyDown={handleKeyDown}
+              onBlur={handleNameBlur}
+              onKeyDown={handleNameKeyDown}
               className="flex-1 min-w-0 text-[10px] font-bold text-white bg-transparent border-b border-gray-400 outline-none px-0"
             />
           ) : (
             <span
               className="text-[10px] font-bold truncate cursor-text"
-              onDoubleClick={(e) => { e.stopPropagation(); setEditing(true); }}
+              onDoubleClick={(e) => { e.stopPropagation(); setEditingName(true); }}
             >
               {name}
             </span>
           )}
         </div>
-        {/* White body area */}
+        {/* White body area — editable description */}
         <div className="bg-white px-2 py-1">
-          <p className="text-[9px] text-gray-400 truncate">
-            {ICON_OPTIONS.find((o) => o.key === currentIcon)?.label ?? 'Local Site'}
-          </p>
+          {editingDesc ? (
+            <input
+              ref={descInputRef}
+              value={localDesc}
+              onChange={(e) => setLocalDesc(e.target.value)}
+              onBlur={handleDescBlur}
+              onKeyDown={handleDescKeyDown}
+              className="w-full text-[9px] text-gray-600 bg-transparent border-b border-gray-300 outline-none px-0"
+            />
+          ) : (
+            <p
+              className="text-[9px] text-gray-600 truncate cursor-text"
+              onDoubleClick={(e) => { e.stopPropagation(); setEditingDesc(true); }}
+            >
+              {description || 'Double-click to add description'}
+            </p>
+          )}
         </div>
       </div>
 
@@ -132,7 +177,7 @@ export const LocalSiteNode = memo(function LocalSiteNode({ data, selected }: Nod
         <div
           ref={pickerRef}
           className="absolute top-8 left-0 z-50 bg-white rounded-md shadow-lg border border-gray-200 p-1.5 flex flex-col gap-0.5"
-          style={{ minWidth: 140 }}
+          style={{ minWidth: 160 }}
         >
           {ICON_OPTIONS.map((opt) => (
             <button
