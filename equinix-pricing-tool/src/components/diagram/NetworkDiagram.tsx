@@ -84,13 +84,21 @@ function fitMetroToChildren(
     maxBottom = Math.max(maxBottom, child.position.y + ch);
   }
 
-  // How much to shift children to keep them inside the metro
+  // How much to shift children to keep them inside the metro (expand outward)
   const shiftX = minX < METRO_PAD ? METRO_PAD - minX : 0;
   const shiftY = minY < METRO_HEADER_H + METRO_PAD ? (METRO_HEADER_H + METRO_PAD) - minY : 0;
 
+  // How much to reclaim if children have drifted away from the top/left edge (shrink inward)
+  const reclaimX = (shiftX === 0 && minX > METRO_PAD) ? minX - METRO_PAD : 0;
+  const reclaimY = (shiftY === 0 && minY > METRO_HEADER_H + METRO_PAD) ? minY - (METRO_HEADER_H + METRO_PAD) : 0;
+
+  // Net shift applied to children: positive = push down/right, negative = pull up/left
+  const netShiftX = shiftX - reclaimX;
+  const netShiftY = shiftY - reclaimY;
+
   // Needed metro size after shifting children
-  const neededWidth = maxRight + shiftX + METRO_PAD;
-  const neededHeight = maxBottom + shiftY + METRO_PAD;
+  const neededWidth = maxRight + netShiftX + METRO_PAD;
+  const neededHeight = maxBottom + netShiftY + METRO_PAD;
   const newWidth = Math.max(neededWidth, minWidth);
   const newHeight = Math.max(neededHeight, minHeight);
 
@@ -100,8 +108,8 @@ function fitMetroToChildren(
       return {
         ...node,
         position: {
-          x: metro.position.x - shiftX,
-          y: metro.position.y - shiftY,
+          x: metro.position.x - netShiftX,
+          y: metro.position.y - netShiftY,
         },
         style: { ...node.style, width: newWidth, height: newHeight },
         width: newWidth,
@@ -109,8 +117,8 @@ function fitMetroToChildren(
       };
     }
     // Shift child positions
-    if (node.parentId === metro.id && (shiftX || shiftY)) {
-      const newPos = { x: node.position.x + shiftX, y: node.position.y + shiftY };
+    if (node.parentId === metro.id && (netShiftX || netShiftY)) {
+      const newPos = { x: node.position.x + netShiftX, y: node.position.y + netShiftY };
       return { ...node, position: newPos };
     }
     return node;
