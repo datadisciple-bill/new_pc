@@ -115,7 +115,9 @@ export function calculatePricingSummary(
   const metroSubtotals: MetroSubtotal[] = [];
 
   for (const metro of metros) {
-    const serviceItems = metro.services.map((s) => buildLineItemFromService(metro, s));
+    const serviceItems = metro.services
+      .filter((s) => s.type !== 'NSP')
+      .map((s) => buildLineItemFromService(metro, s));
     const connItems = connections
       .filter((c) => c.aSide.metroCode === metro.metroCode)
       .map((c) => buildLineItemFromConnection(c, metros));

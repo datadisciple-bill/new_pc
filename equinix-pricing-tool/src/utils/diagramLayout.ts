@@ -314,7 +314,7 @@ export function buildDiagramLayout(
     if (conn.redundant) labelLine1 += ' ×2';
 
     let labelLine2 = '';
-    if (showPricing && conn.pricing) {
+    if (showPricing && conn.pricing && conn.pricing.mrc > 0) {
       labelLine2 = formatCurrency(conn.pricing.mrc) + '/mo';
       if (conn.redundant) labelLine2 += ' ea.';
     }

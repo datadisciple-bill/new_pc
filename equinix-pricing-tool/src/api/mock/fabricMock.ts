@@ -77,7 +77,8 @@ const METRO_REGIONS: Record<string, string> = {
  * Adjacent metros within a region get a slight bump; far-flung cross-region gets a bigger one.
  */
 function getMetroPairMultiplier(aSide: string, zSide: string): number {
-  if (!aSide || !zSide || aSide === zSide) return 0; // same metro = free (handled upstream)
+  if (!aSide || !zSide) return 1; // no metro specified — use base price
+  if (aSide === zSide) return 0.5; // same-metro local connection (e.g. Port ↔ NE)
   const aRegion = METRO_REGIONS[aSide];
   const zRegion = METRO_REGIONS[zSide];
   if (!aRegion || !zRegion) return 1;

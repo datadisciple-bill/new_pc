@@ -152,6 +152,10 @@ export function NetworkDiagram() {
       if (saved && (DRAGGABLE_NODE_TYPES.has(node.type ?? '') || node.type === 'serviceNode')) {
         return { ...node, position: saved };
       }
+      // For metro nodes: preserve saved position but use new layout-computed size
+      if (saved && node.type === 'metroNode') {
+        return { ...node, position: saved };
+      }
       return node;
     });
 
@@ -164,8 +168,11 @@ export function NetworkDiagram() {
       result = fitMetroToChildren(metro, result, floor?.w ?? 252, floor?.h ?? 120);
     }
 
-    // Update savedPositions for shifted children
+    // Update savedPositions for metros and shifted children
     for (const node of result) {
+      if (node.type === 'metroNode') {
+        savedPositions.current.set(node.id, node.position);
+      }
       if (node.type === 'serviceNode' && savedPositions.current.has(node.id)) {
         savedPositions.current.set(node.id, node.position);
       }
@@ -192,6 +199,10 @@ export function NetworkDiagram() {
                 const tbId = (node.data as { textBoxId: string }).textBoxId;
                 updateTextBox(tbId, { x: change.position.x, y: change.position.y });
               }
+            }
+
+            if (node.type === 'metroNode') {
+              savedPositions.current.set(change.id, change.position);
             }
 
             if (node.type === 'serviceNode' && node.parentId) {

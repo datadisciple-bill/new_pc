@@ -8,10 +8,11 @@ interface Props {
   onRemove: () => void;
   quoteRequired?: boolean;
   quantity?: number;
+  hidePricing?: boolean;
   children: ReactNode;
 }
 
-export function ServiceCard({ title, pricing, onRemove, quoteRequired, quantity = 1, children }: Props) {
+export function ServiceCard({ title, pricing, onRemove, quoteRequired, quantity = 1, hidePricing, children }: Props) {
   return (
     <div className="border border-gray-200 rounded-lg overflow-hidden">
       {/* Header bar — Equinix black */}
@@ -33,6 +34,7 @@ export function ServiceCard({ title, pricing, onRemove, quoteRequired, quantity 
         {children}
 
         {/* Pricing display */}
+        {!hidePricing && (
         <div className="border-t border-gray-100 pt-2">
           {quoteRequired ? (
             <div className="flex items-center gap-1.5">
@@ -62,6 +64,7 @@ export function ServiceCard({ title, pricing, onRemove, quoteRequired, quantity 
             <span className="text-xs text-gray-400">Calculating...</span>
           )}
         </div>
+        )}
       </div>
     </div>
   );

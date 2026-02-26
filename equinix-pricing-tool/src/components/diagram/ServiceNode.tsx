@@ -105,7 +105,7 @@ export const ServiceNode = memo(function ServiceNode({ data }: NodeProps) {
         {isHaPair && (
           <p className="text-[9px] text-equinix-red font-medium">HA Pair (2x devices)</p>
         )}
-        {showPricing !== false && pricing && (
+        {showPricing !== false && pricing && pricing.mrc > 0 && (
           <p className="text-[9px] text-equinix-green font-medium">
             {isHaPair
               ? `${formatCurrency(pricing.mrc)} x2 = ${formatCurrency(pricing.mrc * 2)}/mo`

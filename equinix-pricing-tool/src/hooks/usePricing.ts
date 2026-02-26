@@ -126,17 +126,21 @@ export function usePricing() {
         const aMetro = aSideMetro ?? conn?.aSide.metroCode ?? 'DC';
         const zMetro = zSideMetro ?? conn?.zSide.metroCode ?? aMetro;
 
-        // Same-metro (local) connections are $0 — no cross-connect charges
+        // Same-metro connections between same endpoint types are $0;
+        // mixed-type (e.g. Port ↔ NE) connections still have a cost.
         if (aMetro === zMetro) {
-          const pricing: PricingResult = {
-            mrc: 0,
-            nrc: 0,
-            currency: 'USD',
-            isEstimate: false,
-            breakdown: [{ description: `Local ${bandwidthMbps}Mbps Connection`, mrc: 0, nrc: 0 }],
-          };
-          updateConnectionPricing(connectionId, pricing);
-          return;
+          const isMixedType = conn && conn.aSide.type !== conn.zSide.type;
+          if (!isMixedType) {
+            const pricing: PricingResult = {
+              mrc: 0,
+              nrc: 0,
+              currency: 'USD',
+              isEstimate: false,
+              breakdown: [{ description: `Local ${bandwidthMbps}Mbps Connection`, mrc: 0, nrc: 0 }],
+            };
+            updateConnectionPricing(connectionId, pricing);
+            return;
+          }
         }
 
         // Check 24h cache first
@@ -185,16 +189,19 @@ export function usePricing() {
         const aMetro = conn?.aSide.metroCode ?? 'DC';
         const zMetro = conn?.zSide.metroCode ?? aMetro;
 
-        // Same-metro (local) connections are $0 at all bandwidths
+        // Same-metro same-type connections are $0 at all bandwidths
         if (aMetro === zMetro) {
-          const entries: BandwidthPriceEntry[] = BANDWIDTH_OPTIONS.map((bw) => ({
-            bandwidthMbps: bw,
-            label: bw >= 1000 ? `${bw / 1000} Gbps` : `${bw} Mbps`,
-            mrc: 0,
-            currency: 'USD',
-          }));
-          updateConnection(connectionId, { priceTable: entries });
-          return;
+          const isMixedType = conn && conn.aSide.type !== conn.zSide.type;
+          if (!isMixedType) {
+            const entries: BandwidthPriceEntry[] = BANDWIDTH_OPTIONS.map((bw) => ({
+              bandwidthMbps: bw,
+              label: bw >= 1000 ? `${bw / 1000} Gbps` : `${bw} Mbps`,
+              mrc: 0,
+              currency: 'USD',
+            }));
+            updateConnection(connectionId, { priceTable: entries });
+            return;
+          }
         }
 
         const entries: BandwidthPriceEntry[] = [];
