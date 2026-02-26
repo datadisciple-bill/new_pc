@@ -46,6 +46,7 @@ interface CacheState {
 interface UIState {
   activeTab: 'metros' | 'services' | 'diagram' | 'pricing';
   selectedMetroCode: string | null;
+  highlightedServiceId: string | null;
   isLoading: boolean;
   error: string | null;
   showPricing: boolean;
@@ -116,6 +117,8 @@ interface ConfigStore {
   ui: UIState;
   setActiveTab: (tab: UIState['activeTab']) => void;
   setSelectedMetro: (metroCode: string | null) => void;
+  highlightService: (metroCode: string, serviceId: string) => void;
+  clearHighlight: () => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   setShowPricing: (show: boolean) => void;
@@ -581,6 +584,7 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
   ui: {
     activeTab: 'metros',
     selectedMetroCode: null,
+    highlightedServiceId: null,
     isLoading: false,
     error: null,
     showPricing: true,
@@ -589,6 +593,18 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
     set((state) => ({ ui: { ...state.ui, activeTab: tab } })),
   setSelectedMetro: (metroCode) =>
     set((state) => ({ ui: { ...state.ui, selectedMetroCode: metroCode } })),
+  highlightService: (metroCode, serviceId) =>
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        selectedMetroCode: metroCode,
+        highlightedServiceId: serviceId,
+        // On mobile, switch to services tab
+        activeTab: state.ui.activeTab === 'diagram' ? 'services' : state.ui.activeTab,
+      },
+    })),
+  clearHighlight: () =>
+    set((state) => ({ ui: { ...state.ui, highlightedServiceId: null } })),
   setLoading: (loading) =>
     set((state) => ({ ui: { ...state.ui, isLoading: loading } })),
   setError: (error) =>

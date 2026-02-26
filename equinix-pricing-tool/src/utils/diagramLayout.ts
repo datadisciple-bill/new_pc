@@ -164,6 +164,7 @@ export function buildDiagramLayout(
         position: { x: relX, y: relY },
         data: {
           serviceId: service.id,
+          metroCode: metro.metroCode,
           serviceType: service.type,
           config: service.config,
           pricing: service.pricing,
@@ -225,6 +226,7 @@ export function buildDiagramLayout(
           type: 'priceTableNode',
           position: { x: ptX, y: ptY },
           data: {
+            connectionId: conn.id,
             connectionName: conn.name || conn.type,
             selectedBandwidthMbps: conn.bandwidthMbps,
             priceTable: conn.priceTable,
@@ -260,6 +262,8 @@ export function buildDiagramLayout(
               type: 'nePriceTableNode',
               position: { x: ptX, y: ptY },
               data: {
+                serviceId: service.id,
+                metroCode: metro.metroCode,
                 serviceName: `${neConfig.deviceTypeName || 'Network Edge'} (${metro.metroCode})`,
                 selectedCores: neConfig.packageCode,
                 priceTable: neConfig.priceTable,
@@ -305,7 +309,7 @@ export function buildDiagramLayout(
       width: 28,
       height: 28,
       draggable: true,
-      zIndex: 15,
+      zIndex: 1000,
     });
   });
 

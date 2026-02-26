@@ -35,7 +35,7 @@ export function FabricPortConfig({ service, onUpdate, onRemove }: Props) {
   };
 
   return (
-    <ServiceCard title="Fabric Port" pricing={service.pricing} onRemove={onRemove} quantity={config.quantity}>
+    <ServiceCard serviceId={service.id} title="Fabric Port" pricing={service.pricing} onRemove={onRemove} quantity={config.quantity}>
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">Speed</label>

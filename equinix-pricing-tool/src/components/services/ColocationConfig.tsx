@@ -12,7 +12,7 @@ export function ColocationConfig({ service, onUpdate, onRemove }: Props) {
   const config = service.config as ColoConfig;
 
   return (
-    <ServiceCard title="Colocation" pricing={service.pricing} onRemove={onRemove}>
+    <ServiceCard serviceId={service.id} title="Colocation" pricing={service.pricing} onRemove={onRemove}>
       <div className="space-y-3">
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">Description</label>

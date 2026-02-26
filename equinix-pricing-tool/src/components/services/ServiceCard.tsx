@@ -1,8 +1,10 @@
-import type { ReactNode } from 'react';
+import { type ReactNode, useRef, useEffect } from 'react';
 import type { PricingResult } from '@/types/config';
 import { formatCurrency } from '@/utils/priceCalculator';
+import { useConfigStore } from '@/store/configStore';
 
 interface Props {
+  serviceId?: string;
   title: string;
   pricing: PricingResult | null;
   onRemove: () => void;
@@ -12,9 +14,29 @@ interface Props {
   children: ReactNode;
 }
 
-export function ServiceCard({ title, pricing, onRemove, quoteRequired, quantity = 1, hidePricing, children }: Props) {
+export function ServiceCard({ serviceId, title, pricing, onRemove, quoteRequired, quantity = 1, hidePricing, children }: Props) {
+  const highlightedServiceId = useConfigStore((s) => s.ui.highlightedServiceId);
+  const clearHighlight = useConfigStore((s) => s.clearHighlight);
+  const isHighlighted = serviceId != null && serviceId === highlightedServiceId;
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isHighlighted && cardRef.current) {
+      cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const timer = setTimeout(() => clearHighlight(), 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [isHighlighted, clearHighlight]);
+
   return (
-    <div className="border border-gray-200 rounded-lg overflow-hidden">
+    <div
+      ref={cardRef}
+      className={`border rounded-lg overflow-hidden transition-all duration-300 ${
+        isHighlighted
+          ? 'border-blue-400 ring-2 ring-blue-300 shadow-lg'
+          : 'border-gray-200'
+      }`}
+    >
       {/* Header bar — Equinix black */}
       <div className="bg-equinix-black text-white px-3 py-2 flex items-center justify-between">
         <span className="text-xs font-bold">{title}</span>

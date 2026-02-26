@@ -125,6 +125,7 @@ export function NetworkDiagram() {
   const annotationMarkers = useConfigStore((s) => s.project.annotationMarkers);
   const showPricing = useConfigStore((s) => s.ui.showPricing);
   const setShowPricing = useConfigStore((s) => s.setShowPricing);
+  const highlightService = useConfigStore((s) => s.highlightService);
   const undo = useConfigStore((s) => s.undo);
   const canUndo = useConfigStore((s) => s.canUndo);
   const addTextBox = useConfigStore((s) => s.addTextBox);
@@ -301,6 +302,15 @@ export function NetworkDiagram() {
     addAnnotationMarker(x - 14, y - 14);
   }, [addAnnotationMarker, getViewportCenter]);
 
+  // Click service node → navigate to its config in the services pane
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const handleNodeClick = useCallback((_event: unknown, node: Node) => {
+    if (node.type === 'serviceNode') {
+      const d = node.data as { serviceId: string; metroCode: string };
+      highlightService(d.metroCode, d.serviceId);
+    }
+  }, [highlightService]);
+
   // Export diagram as PNG — uses fitView for tight crop
   const handleExportPng = useCallback(async () => {
     const viewportEl = reactFlowWrapper.current?.querySelector('.react-flow__viewport') as HTMLElement | null;
@@ -367,6 +377,7 @@ export function NetworkDiagram() {
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         onNodesChange={onNodesChange}
+        onNodeClick={handleNodeClick}
         onInit={onInit}
         fitView
         minZoom={0.1}

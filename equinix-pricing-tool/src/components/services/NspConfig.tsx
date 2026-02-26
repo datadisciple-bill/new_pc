@@ -12,7 +12,7 @@ export function NspConfig({ service, onUpdate, onRemove }: Props) {
   const config = service.config as NspConfigType;
 
   return (
-    <ServiceCard title="Network Service Provider" pricing={service.pricing} onRemove={onRemove} hidePricing>
+    <ServiceCard serviceId={service.id} title="Network Service Provider" pricing={service.pricing} onRemove={onRemove} hidePricing>
       <div>
         <label className="block text-xs font-medium text-gray-500 mb-1">Provider Name</label>
         <input

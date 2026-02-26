@@ -97,7 +97,7 @@ export function NetworkEdgeConfig({ service, metroCode, deviceTypes, onUpdate, o
   };
 
   return (
-    <ServiceCard title="Network Edge" pricing={service.pricing} onRemove={onRemove} quantity={config.redundant ? 2 : 1}>
+    <ServiceCard serviceId={service.id} title="Network Edge" pricing={service.pricing} onRemove={onRemove} quantity={config.redundant ? 2 : 1}>
       <div className="space-y-3">
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">Device Type</label>

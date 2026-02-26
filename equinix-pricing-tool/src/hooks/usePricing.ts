@@ -121,8 +121,8 @@ export function usePricing() {
   const fetchPriceForConnection = useCallback(
     async (connectionId: string, bandwidthMbps: number, aSideMetro?: string, zSideMetro?: string) => {
       try {
-        // Look up metro codes from the connection if not provided
-        const conn = connections.find((c) => c.id === connectionId);
+        // Always read latest state to avoid stale closure after addConnection
+        const conn = useConfigStore.getState().project.connections.find((c) => c.id === connectionId);
 
         // Local site connections have no Equinix pricing
         if (conn && (conn.aSide.type === 'LOCAL_SITE' || conn.zSide.type === 'LOCAL_SITE')) {
@@ -195,13 +195,14 @@ export function usePricing() {
         console.error('Connection pricing fetch failed:', err);
       }
     },
-    [connections, updateConnectionPricing]
+    [updateConnectionPricing]
   );
 
   const fetchPriceTableForConnection = useCallback(
     async (connectionId: string) => {
       try {
-        const conn = connections.find((c) => c.id === connectionId);
+        // Always read latest state to avoid stale closure after addConnection
+        const conn = useConfigStore.getState().project.connections.find((c) => c.id === connectionId);
         const aMetro = conn?.aSide.metroCode ?? 'DC';
         const zMetro = conn?.zSide.metroCode ?? aMetro;
         const isCloudConnection = conn?.zSide.type === 'SERVICE_PROFILE';
@@ -253,7 +254,7 @@ export function usePricing() {
         console.error('Price table fetch failed:', err);
       }
     },
-    [connections, updateConnection]
+    [updateConnection]
   );
 
   const exportCsv = useCallback(() => {

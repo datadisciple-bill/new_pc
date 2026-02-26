@@ -12,7 +12,7 @@ export function CloudRouterConfig({ service, onUpdate, onRemove }: Props) {
   const config = service.config as CRConfig;
 
   return (
-    <ServiceCard title="Fabric Cloud Router" pricing={service.pricing} onRemove={onRemove}>
+    <ServiceCard serviceId={service.id} title="Fabric Cloud Router" pricing={service.pricing} onRemove={onRemove}>
       <div>
         <label className="block text-xs font-medium text-gray-500 mb-1">Package</label>
         <select
