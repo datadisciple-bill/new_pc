@@ -97,7 +97,7 @@ describe('buildDiagramLayout', () => {
     )];
 
     const { edges } = buildDiagramLayout(metros, connections);
-    expect(edges[0].data.labelLine1).toBe('1G');
+    expect(edges[0]?.data?.labelLine1).toBe('1G');
   });
 
   it('shows redundant label on edges', () => {
@@ -111,7 +111,7 @@ describe('buildDiagramLayout', () => {
     };
 
     const { edges } = buildDiagramLayout(metros, [conn]);
-    expect(edges[0].data.labelLine1).toContain('×2');
+    expect(edges[0]?.data?.labelLine1).toContain('×2');
   });
 
   it('creates text box nodes', () => {

@@ -31,7 +31,7 @@ describe('fabric API', () => {
 
   describe('fetchMetros', () => {
     it('returns cached metros when already loaded', async () => {
-      const cachedMetros = [{ code: 'DC', name: 'DC', region: 'AMER', connectedMetros: [] }];
+      const cachedMetros = [{ code: 'DC', name: 'DC', region: 'AMER' as const, connectedMetros: [] }];
       useConfigStore.setState({
         cache: {
           metros: cachedMetros,
@@ -167,8 +167,8 @@ describe('fabric API', () => {
         '/port/bandwidth': [1000, 10000],
       });
 
-      const body = vi.mocked(apiRequest).mock.calls[0][1]?.body as { filter: { and: Array<{ operator: string }> } };
-      const bwFilter = body.filter.and.find((f: { property: string }) => f.property === '/port/bandwidth');
+      const body = vi.mocked(apiRequest).mock.calls[0][1]?.body as { filter: { and: Array<{ operator: string; property: string }> } };
+      const bwFilter = body.filter.and.find((f) => f.property === '/port/bandwidth');
       expect(bwFilter?.operator).toBe('IN');
     });
   });

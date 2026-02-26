@@ -10,7 +10,6 @@ import {
   PORT_PRODUCTS,
   BANDWIDTH_OPTIONS,
   TERM_OPTIONS,
-  TERM_DISCOUNTS,
   getTermDiscountPercent,
   CLOUD_SERVICE_PROFILES,
 } from './serviceDefaults';
