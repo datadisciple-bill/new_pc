@@ -15,6 +15,7 @@ import { fetchDeviceTypes } from '@/api/networkEdge';
 import { fetchServiceProfiles } from '@/api/fabric';
 import { authenticate } from '@/api/auth';
 import { setDefaultPricing, setDefaultLocations, hasDefaultPricing } from '@/data/defaultPricing';
+import { ChangelogModal, CURRENT_VERSION, RELEASE_DATE } from '@/components/shared/ChangelogModal';
 
 // Hash-based routing for unlisted pages
 function useHash(): string {
@@ -48,6 +49,17 @@ function App() {
   const [cacheInfo, setCacheInfo] = useState<CachedOptions | null>(null);
   const [showRefreshDialog, setShowRefreshDialog] = useState(false);
   const [importResult, setImportResult] = useState<ParseResult | null>(null);
+  const [showChangelog, setShowChangelog] = useState(false);
+
+  // Auto-show changelog if current version was released within 24h and not yet dismissed
+  useEffect(() => {
+    const dismissedKey = `changelog-dismissed-v${CURRENT_VERSION}`;
+    if (localStorage.getItem(dismissedKey)) return;
+    const hoursSinceRelease = (Date.now() - RELEASE_DATE.getTime()) / (1000 * 60 * 60);
+    if (hoursSinceRelease <= 24) {
+      setShowChangelog(true);
+    }
+  }, []);
 
   // Load data on startup: defaults.json (API-fetched) > IndexedDB cache > mock data
   useEffect(() => {
@@ -127,7 +139,10 @@ function App() {
       <header className="bg-equinix-black text-white flex items-center justify-between px-4 py-2 flex-shrink-0">
         <div className="flex items-center gap-3">
           <h1 className="text-sm font-bold">Equinix</h1>
-          <span className="text-[10px] text-gray-500">v9</span>
+          <span
+            className="text-[10px] text-gray-500 cursor-pointer hover:text-white transition-colors"
+            onClick={() => setShowChangelog(true)}
+          >v{CURRENT_VERSION}</span>
           <input
             type="text"
             value={projectName}
@@ -180,6 +195,14 @@ function App() {
           }}
           onClose={() => setImportResult(null)}
         />
+      )}
+
+      {/* Changelog Modal */}
+      {showChangelog && (
+        <ChangelogModal onClose={() => {
+          setShowChangelog(false);
+          localStorage.setItem(`changelog-dismissed-v${CURRENT_VERSION}`, '1');
+        }} />
       )}
 
       {/* Desktop layout: 4-panel */}
