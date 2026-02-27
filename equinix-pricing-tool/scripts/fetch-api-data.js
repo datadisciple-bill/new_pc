@@ -159,7 +159,7 @@ async function apiPost(path, body) {
       }
       if (!res.ok) {
         const text = await res.text().catch(() => '');
-        throw new Error(`${res.status} ${res.statusText}: ${text.slice(0, 120)}`);
+        throw new Error(`${res.status} ${res.statusText}: ${text.slice(0, 500)}`);
       }
       return await res.json();
     } catch (err) {
@@ -606,7 +606,8 @@ async function fetchNetworkEdgePricing(deviceTypes, referenceMetro) {
 }
 
 async function fetchEIAPricing(referenceIbx) {
-  const connectionTypes = ['IA_VC', 'IA_C'];
+  // Only IA_C (dedicated port) is supported by v1 pricing API; IA_VC has no pricing examples in spec
+  const connectionTypes = ['IA_C'];
   const bandwidths = [50, 100, 200, 500, 1000, 2000, 5000, 10000];
   const combos = connectionTypes.flatMap((ct) =>
     bandwidths.map((bw) => ({ connectionType: ct, bandwidth: bw }))
@@ -625,7 +626,7 @@ async function fetchEIAPricing(referenceIbx) {
     try {
       // Pick smallest physical port speed that fits the bandwidth
       const portSpeed = bandwidth <= 1000 ? 1000 : bandwidth <= 10000 ? 10000 : 100000;
-      // EIA v1 API requires all values as strings
+      // EIA v1 API requires all values as strings per OpenAPI spec
       const body = {
         filter: {
           and: [
@@ -634,12 +635,12 @@ async function fetchEIAPricing(referenceIbx) {
             { property: '/service/type', operator: '=', values: ['SINGLE_PORT'] },
             { property: '/service/bandwidth', operator: '=', values: [String(bandwidth)] },
             { property: '/service/billing', operator: '=', values: ['FIXED'] },
+            { property: '/service/useCase', operator: '=', values: ['MAIN'] },
             { property: '/service/connection/type', operator: '=', values: [connectionType] },
             { property: '/service/connection/aSide/accessPoint/type', operator: '=', values: ['COLO'] },
             { property: '/service/connection/aSide/accessPoint/location/ibx', operator: '=', values: [referenceIbx] },
             { property: '/service/connection/aSide/accessPoint/port/physicalPort/speed', operator: '=', values: [String(portSpeed)] },
             { property: '/service/connection/aSide/accessPoint/port/physicalPortQuantity', operator: '=', values: ['1'] },
-            { property: '/service/useCase', operator: '=', values: ['MAIN'] },
           ],
         },
       };
@@ -661,6 +662,12 @@ async function fetchEIAPricing(referenceIbx) {
     for (const f of failures) {
       console.log(`    ${CROSS} ${c.dim}${f.key}:${c.reset} ${c.red}${f.reason}${c.reset}`);
     }
+  }
+  // Mirror IA_C prices as IA_VC (v1 API only supports IA_C pricing;
+  // use same prices as pre-sales estimates for Fabric/NE delivery)
+  for (const bw of bandwidths) {
+    const src = pricing[`IA_C_FIXED_${bw}`];
+    if (src) pricing[`IA_VC_FIXED_${bw}`] = { ...src };
   }
   return pricing;
 }

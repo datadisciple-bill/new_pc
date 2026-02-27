@@ -32,6 +32,9 @@ export function isEIAAvailable(
  * Fetch EIA pricing via the v1 prices/search API.
  * connectionType: 'IA_VC' (Fabric/NE delivery) or 'IA_C' (Colocation delivery)
  * serviceType: 'SINGLE_PORT' or 'DUAL_PORT'
+ *
+ * Note: The v1 API only supports IA_C pricing. For IA_VC we query with IA_C
+ * and use the same price as a pre-sales estimate.
  */
 export async function fetchEIAPricing(
   metroCode: string,
@@ -47,7 +50,8 @@ export async function fetchEIAPricing(
   const portSpeed = bandwidthMbps <= 1000 ? 1000 : bandwidthMbps <= 10000 ? 10000 : 100000;
   const portQty = serviceType === 'DUAL_PORT' ? 2 : 1;
 
-  // EIA v1 API requires all values as strings
+  // EIA v1 API only supports IA_C pricing; use IA_C for all queries
+  // All values must be strings per the OpenAPI spec
   const body = {
     filter: {
       and: [
@@ -56,12 +60,12 @@ export async function fetchEIAPricing(
         { property: '/service/type', operator: '=', values: [serviceType] },
         { property: '/service/bandwidth', operator: '=', values: [String(bandwidthMbps)] },
         { property: '/service/billing', operator: '=', values: ['FIXED'] },
-        { property: '/service/connection/type', operator: '=', values: [connectionType] },
+        { property: '/service/useCase', operator: '=', values: ['MAIN'] },
+        { property: '/service/connection/type', operator: '=', values: ['IA_C'] },
         { property: '/service/connection/aSide/accessPoint/type', operator: '=', values: ['COLO'] },
         { property: '/service/connection/aSide/accessPoint/location/ibx', operator: '=', values: [ibx] },
         { property: '/service/connection/aSide/accessPoint/port/physicalPort/speed', operator: '=', values: [String(portSpeed)] },
         { property: '/service/connection/aSide/accessPoint/port/physicalPortQuantity', operator: '=', values: [String(portQty)] },
-        { property: '/service/useCase', operator: '=', values: ['MAIN'] },
       ],
     },
   };
