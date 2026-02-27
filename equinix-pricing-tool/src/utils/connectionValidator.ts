@@ -1,4 +1,4 @@
-import type { EndpointType, ServiceType } from '@/types/config';
+import type { EndpointType } from '@/types/config';
 import type { Node } from '@xyflow/react';
 import type { MetroSelection } from '@/types/config';
 
@@ -79,7 +79,7 @@ export function classifyConnection(
   }
 
   // Physical ↔ Fabric (mixed)
-  const [phys, fab] = isPhysical(a) ? [a, b] : [b, a];
+  const [, fab] = isPhysical(a) ? [a, b] : [b, a];
 
   // Physical ↔ NETWORK_EDGE → invalid
   if (fab === 'NETWORK_EDGE') {
@@ -114,7 +114,7 @@ export function classifyConnection(
 export function getNodeServiceInfo(
   nodeId: string,
   reactFlowNodes: Node[],
-  metros: MetroSelection[],
+  _metros: MetroSelection[],
 ): NodeServiceInfo | null {
   // service-{uuid}
   if (nodeId.startsWith('service-')) {
