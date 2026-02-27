@@ -1,7 +1,6 @@
 import type { ServiceSelection, CrossConnectConfig as XCConfig } from '@/types/config';
 import { ServiceCard } from './ServiceCard';
 import {
-  CROSS_CONNECT_MEDIA_TYPES,
   CROSS_CONNECT_CONNECTOR_TYPES,
   CROSS_CONNECT_PROTOCOLS,
 } from '@/constants/serviceDefaults';
@@ -28,15 +27,9 @@ export function CrossConnectConfig({ service, onUpdate, onRemove }: Props) {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Media Type</label>
-            <select
-              value={config.connectionService}
-              onChange={(e) => onUpdate({ connectionService: e.target.value })}
-              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md bg-white"
-            >
-              {CROSS_CONNECT_MEDIA_TYPES.map((t) => (
-                <option key={t.value} value={t.value}>{t.label}</option>
-              ))}
-            </select>
+            <div className="px-2 py-1.5 text-sm border border-gray-200 rounded-md bg-gray-50 text-gray-700">
+              Single Mode Fiber (SMF)
+            </div>
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Connector</label>
