@@ -95,7 +95,7 @@ describe('networkEdge API', () => {
     it('returns mock pricing in mock mode', async () => {
       vi.mocked(useMockData).mockReturnValue(true);
 
-      const result = await fetchNetworkEdgePricing('CSR1000V', 'STD', 12, 'DC');
+      const result = await fetchNetworkEdgePricing('CSR1000V', '4', 12, 'DC');
       expect(result).toHaveProperty('monthlyRecurring');
       expect(result).toHaveProperty('nonRecurring');
       expect(result).toHaveProperty('currency');
@@ -110,17 +110,17 @@ describe('networkEdge API', () => {
         termLength: 12,
       });
 
-      await fetchNetworkEdgePricing('CSR1000V', 'STD', 12, 'DC');
+      await fetchNetworkEdgePricing('CSR1000V', '4', 12, 'DC');
 
       const callPath = vi.mocked(apiRequest).mock.calls[0][0];
       expect(callPath).toContain('/ne/v1/prices');
       expect(callPath).toContain('vendorPackage=CSR1000V');
-      expect(callPath).toContain('softwarePackage=STD');
+      expect(callPath).toContain('core=4');
       expect(callPath).toContain('termLength=12');
       expect(callPath).toContain('metro=DC');
     });
 
-    it('includes optional core and licenseType params', async () => {
+    it('includes optional softwarePackage and licenseType params', async () => {
       vi.mocked(useMockData).mockReturnValue(false);
       vi.mocked(apiRequest).mockResolvedValueOnce({
         monthlyRecurring: 800,
@@ -129,10 +129,11 @@ describe('networkEdge API', () => {
         termLength: 1,
       });
 
-      await fetchNetworkEdgePricing('PA-VM', 'PKG', 1, 'NY', 4, 'BYOL');
+      await fetchNetworkEdgePricing('PA-VM', '4', 1, 'NY', 'PA_NGFW', 'BYOL');
 
       const callPath = vi.mocked(apiRequest).mock.calls[0][0];
       expect(callPath).toContain('core=4');
+      expect(callPath).toContain('softwarePackage=PA_NGFW');
       expect(callPath).toContain('licenseType=BYOL');
     });
   });
