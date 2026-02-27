@@ -337,7 +337,7 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
               ? {
                   ...m,
                   services: m.services.map((s) =>
-                    s.id === serviceId ? { ...s, config: { ...s.config, ...config } } : s
+                    s.id === serviceId ? { ...s, config: { ...s.config, ...config } as typeof s.config } : s
                   ),
                 }
               : m
