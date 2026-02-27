@@ -16,6 +16,8 @@ import { fetchServiceProfiles } from '@/api/fabric';
 import { authenticate } from '@/api/auth';
 import { setDefaultPricing, setDefaultLocations, hasDefaultPricing } from '@/data/defaultPricing';
 import { ChangelogModal, CURRENT_VERSION, RELEASE_DATE } from '@/components/shared/ChangelogModal';
+import { usePricing } from '@/hooks/usePricing';
+import type { ProjectConfig } from '@/types/config';
 
 // Hash-based routing for unlisted pages
 function useHash(): string {
@@ -44,6 +46,22 @@ function App() {
   const projectName = useConfigStore((s) => s.project.name);
   const setProjectName = useConfigStore((s) => s.setProjectName);
   const loadProject = useConfigStore((s) => s.loadProject);
+  const { fetchPriceForService, fetchPriceForConnection } = usePricing();
+
+  // Re-fetch all pricing after loading an imported project
+  const loadProjectAndRefreshPricing = useCallback((project: ProjectConfig) => {
+    loadProject(project);
+    // Fetch service pricing
+    for (const metro of project.metros) {
+      for (const service of metro.services) {
+        fetchPriceForService(metro.metroCode, service);
+      }
+    }
+    // Fetch connection pricing
+    for (const conn of project.connections) {
+      fetchPriceForConnection(conn.id, conn.bandwidthMbps, conn.aSide.metroCode, conn.zSide.metroCode);
+    }
+  }, [loadProject, fetchPriceForService, fetchPriceForConnection]);
 
   const [dataReady, setDataReady] = useState(false);
   const [cacheInfo, setCacheInfo] = useState<CachedOptions | null>(null);
@@ -187,7 +205,7 @@ function App() {
         <ImportDialog
           result={importResult}
           onConfirm={(project) => {
-            loadProject(project);
+            loadProjectAndRefreshPricing(project);
             setImportResult(null);
             if (project.metros.length > 0) {
               setSelectedMetro(project.metros[0].metroCode);
