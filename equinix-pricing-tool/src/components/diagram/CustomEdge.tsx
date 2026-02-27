@@ -31,6 +31,7 @@ export function CustomEdge({
 }: EdgeProps) {
   const edgeData = (data ?? {}) as CustomEdgeData;
   const removeConnection = useConfigStore((s) => s.removeConnection);
+  const highlightConnection = useConfigStore((s) => s.highlightConnection);
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX, sourceY, sourcePosition,
     targetX, targetY, targetPosition,
@@ -39,6 +40,7 @@ export function CustomEdge({
   // Draggable offset for the label
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const dragging = useRef(false);
+  const didDrag = useRef(false);
   const startMouse = useRef({ x: 0, y: 0 });
   const startOffset = useRef({ x: 0, y: 0 });
 
@@ -61,24 +63,32 @@ export function CustomEdge({
     e.stopPropagation();
     e.preventDefault();
     dragging.current = true;
+    didDrag.current = false;
     startMouse.current = { x: e.clientX, y: e.clientY };
     startOffset.current = { ...offset };
 
     const onMove = (me: MouseEvent) => {
       if (!dragging.current) return;
+      const dx = me.clientX - startMouse.current.x;
+      const dy = me.clientY - startMouse.current.y;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didDrag.current = true;
       setOffset({
-        x: startOffset.current.x + (me.clientX - startMouse.current.x),
-        y: startOffset.current.y + (me.clientY - startMouse.current.y),
+        x: startOffset.current.x + dx,
+        y: startOffset.current.y + dy,
       });
     };
     const onUp = () => {
       dragging.current = false;
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
+      // If the mouse didn't move, treat as a click → highlight the connection
+      if (!didDrag.current && edgeData.connectionId) {
+        highlightConnection(edgeData.connectionId);
+      }
     };
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
-  }, [offset]);
+  }, [offset, edgeData.connectionId, highlightConnection]);
 
   const handleDeleteClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useConfigStore } from '@/store/configStore';
 import { usePricing } from '@/hooks/usePricing';
 import { BANDWIDTH_OPTIONS, CLOUD_SERVICE_PROFILES } from '@/constants/serviceDefaults';
@@ -56,11 +56,14 @@ export function VirtualConnectionConfig() {
   const addConnection = useConfigStore((s) => s.addConnection);
   const removeConnection = useConfigStore((s) => s.removeConnection);
   const updateConnection = useConfigStore((s) => s.updateConnection);
+  const highlightedConnectionId = useConfigStore((s) => s.ui.highlightedConnectionId);
+  const clearHighlight = useConfigStore((s) => s.clearHighlight);
   const { fetchPriceForConnection, fetchPriceTableForConnection } = usePricing();
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<ConnectionForm>({ ...EMPTY_FORM });
+  const highlightedCardRef = useRef<HTMLDivElement>(null);
 
   const allServices = metros.flatMap((m) =>
     m.services.map((s) => ({
@@ -167,6 +170,20 @@ export function VirtualConnectionConfig() {
     setShowForm(true);
   };
 
+  // When a connection is highlighted from the diagram, open it for editing and scroll to it
+  useEffect(() => {
+    if (!highlightedConnectionId) return;
+    const conn = connections.find((c) => c.id === highlightedConnectionId);
+    if (conn) {
+      handleEdit(conn);
+      setTimeout(() => {
+        highlightedCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+    }
+    const timer = setTimeout(() => clearHighlight(), 2500);
+    return () => clearTimeout(timer);
+  }, [highlightedConnectionId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleSaveEdit = () => {
     if (!editingId) return;
     const aSvc = allServices.find((s) => s.id === form.aSideServiceId);
@@ -256,7 +273,14 @@ export function VirtualConnectionConfig() {
       </div>
 
       {showForm && (
-        <div className="mx-4 border border-gray-200 rounded-lg p-3 space-y-3">
+        <div
+          ref={highlightedConnectionId && editingId === highlightedConnectionId ? highlightedCardRef : undefined}
+          className={`mx-4 border rounded-lg p-3 space-y-3 transition-colors ${
+            highlightedConnectionId && editingId === highlightedConnectionId
+              ? 'border-equinix-green bg-green-50/50 ring-2 ring-equinix-green/30'
+              : 'border-gray-200'
+          }`}
+        >
           <p className="text-xs font-bold text-equinix-navy">
             {editingId ? 'Edit Connection' : 'New Connection'}
           </p>
