@@ -1,4 +1,16 @@
 import type { EIALocation } from '@/types/equinix';
+import { lookupEIAPrice } from '@/data/defaultPricing';
+import type { EIAPricingResult } from '../internetAccess';
+
+export function mockEIAPricing(connectionType: string, bandwidthMbps: number): EIAPricingResult {
+  const cached = lookupEIAPrice(connectionType, bandwidthMbps);
+  if (cached) return { mrc: cached.mrc, nrc: cached.nrc, currency: 'USD' };
+
+  // Rough estimate fallback: base $200 + $0.50/Mbps for IA_VC, $0.40/Mbps for IA_C
+  const rate = connectionType === 'IA_C' ? 0.40 : 0.50;
+  const mrc = Math.round(200 + bandwidthMbps * rate);
+  return { mrc, nrc: 0, currency: 'USD' };
+}
 
 export function mockEIALocations(): EIALocation[] {
   return [

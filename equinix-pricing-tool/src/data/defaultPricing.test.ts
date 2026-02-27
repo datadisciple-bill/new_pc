@@ -27,6 +27,7 @@ const samplePricing = {
   networkEdge: {
     'CSR1000V_STD_12': { mrc: 200, nrc: 100 },
   },
+  internetAccess: {},
 };
 
 describe('defaultPricing', () => {

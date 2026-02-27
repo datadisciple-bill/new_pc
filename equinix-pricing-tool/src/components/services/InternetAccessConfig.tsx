@@ -18,7 +18,6 @@ export function InternetAccessConfig({ service, onUpdate, onRemove }: Props) {
       title="Internet Access"
       pricing={service.pricing}
       onRemove={onRemove}
-      quoteRequired
     >
       <div className="grid grid-cols-2 gap-3">
         <div>
@@ -70,6 +69,7 @@ export function InternetAccessConfig({ service, onUpdate, onRemove }: Props) {
           >
             <option value="FABRIC_PORT">Via Fabric Port</option>
             <option value="NETWORK_EDGE">Via Network Edge</option>
+            <option value="COLOCATION">Via Colocation</option>
           </select>
         </div>
       </div>

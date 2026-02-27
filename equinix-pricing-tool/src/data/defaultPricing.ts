@@ -13,6 +13,7 @@ interface DefaultPricingData {
   virtualConnections: Record<string, PriceEntry>;
   cloudRouter: Record<string, PriceEntry>;
   networkEdge: Record<string, PriceEntry>;
+  internetAccess: Record<string, PriceEntry>;
 }
 
 interface EIALocationEntry {
@@ -80,4 +81,9 @@ export function lookupNEPrice(
   termMonths: number
 ): PriceEntry | null {
   return pricing?.networkEdge[`${deviceTypeCode}_${packageCode}_${termMonths}`] ?? null;
+}
+
+/** Lookup EIA price by connection type (IA_VC or IA_C) and bandwidth in Mbps */
+export function lookupEIAPrice(connectionType: string, bandwidthMbps: number): PriceEntry | null {
+  return pricing?.internetAccess[`${connectionType}_FIXED_${bandwidthMbps}`] ?? null;
 }

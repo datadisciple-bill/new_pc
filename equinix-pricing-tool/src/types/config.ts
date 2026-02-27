@@ -89,7 +89,7 @@ export interface InternetAccessConfig {
   bandwidthMbps: number;
   routingProtocol: 'STATIC' | 'DIRECT' | 'BGP';
   connectionType: 'SINGLE' | 'DUAL';
-  deliveryMethod: 'FABRIC_PORT' | 'NETWORK_EDGE';
+  deliveryMethod: 'FABRIC_PORT' | 'NETWORK_EDGE' | 'COLOCATION';
 }
 
 export interface CloudRouterConfig {

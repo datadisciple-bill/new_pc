@@ -2,7 +2,8 @@ import { useCallback, useMemo } from 'react';
 import { useConfigStore } from '@/store/configStore';
 import { searchPrices } from '@/api/fabric';
 import { fetchNetworkEdgePricing } from '@/api/networkEdge';
-import type { ServiceSelection, FabricPortConfig, NetworkEdgeConfig, CloudRouterConfig, ColocationConfig, PricingResult, BandwidthPriceEntry } from '@/types/config';
+import { fetchEIAPricing } from '@/api/internetAccess';
+import type { ServiceSelection, FabricPortConfig, NetworkEdgeConfig, InternetAccessConfig as IAConfig, CloudRouterConfig, ColocationConfig, PricingResult, BandwidthPriceEntry } from '@/types/config';
 import { calculatePricingSummary, formatCurrency } from '@/utils/priceCalculator';
 import { generateCsv, downloadCsv } from '@/utils/csvGenerator';
 import { BANDWIDTH_OPTIONS } from '@/constants/serviceDefaults';
@@ -76,13 +77,18 @@ export function usePricing() {
             break;
           }
           case 'INTERNET_ACCESS': {
-            // No pricing API — mark as estimate with $0
+            const c = service.config as IAConfig;
+            const connectionType = c.deliveryMethod === 'COLOCATION' ? 'IA_C' as const : 'IA_VC' as const;
+            const serviceType = c.connectionType === 'DUAL' ? 'DUAL_PORT' as const : 'SINGLE_PORT' as const;
+            const result = await fetchEIAPricing(metroCode, connectionType, serviceType, c.bandwidthMbps);
+            const bwLabel = c.bandwidthMbps >= 1000 ? `${c.bandwidthMbps / 1000} Gbps` : `${c.bandwidthMbps} Mbps`;
+            const deliveryLabel = c.deliveryMethod === 'COLOCATION' ? 'Colo' : c.deliveryMethod === 'NETWORK_EDGE' ? 'NE' : 'Fabric';
             pricing = {
-              mrc: 0,
-              nrc: 0,
-              currency: 'USD',
-              isEstimate: true,
-              breakdown: [{ description: 'Quote Required — Contact Equinix', mrc: 0, nrc: 0 }],
+              mrc: result.mrc,
+              nrc: result.nrc,
+              currency: result.currency,
+              isEstimate: false,
+              breakdown: [{ description: `EIA ${bwLabel} ${serviceType === 'DUAL_PORT' ? 'Dual' : 'Single'} (${deliveryLabel})`, mrc: result.mrc, nrc: result.nrc }],
             };
             break;
           }

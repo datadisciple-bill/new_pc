@@ -330,9 +330,23 @@ async function fetchRouterPackages() {
 
 async function fetchEIALocations() {
   try {
-    // IA_VC = virtual (Fabric port), IA_C = dedicated physical port
-    const res = await apiGet('/internetAccess/v2/ibxs?service.connection.type=IA_VC&limit=200');
-    return res.data ?? res;
+    // Fetch both IA_VC (virtual/Fabric) and IA_C (colocation/dedicated) locations
+    const [vcRes, coloRes] = await Promise.all([
+      apiGet('/internetAccess/v2/ibxs?service.connection.type=IA_VC&limit=200').catch(() => ({ data: [] })),
+      apiGet('/internetAccess/v2/ibxs?service.connection.type=IA_C&limit=200').catch(() => ({ data: [] })),
+    ]);
+    const vcLocs = vcRes.data ?? vcRes ?? [];
+    const coloLocs = coloRes.data ?? coloRes ?? [];
+    // Merge and deduplicate by IBX
+    const seen = new Set();
+    const merged = [];
+    for (const loc of [...vcLocs, ...coloLocs]) {
+      if (!seen.has(loc.ibx)) {
+        seen.add(loc.ibx);
+        merged.push(loc);
+      }
+    }
+    return merged;
   } catch {
     return [];
   }
@@ -591,6 +605,61 @@ async function fetchNetworkEdgePricing(deviceTypes, referenceMetro) {
   return pricing;
 }
 
+async function fetchEIAPricing(referenceIbx) {
+  const connectionTypes = ['IA_VC', 'IA_C'];
+  const bandwidths = [50, 100, 200, 500, 1000, 2000, 5000, 10000];
+  const combos = connectionTypes.flatMap((ct) =>
+    bandwidths.map((bw) => ({ connectionType: ct, bandwidth: bw }))
+  );
+  const total = combos.length;
+  const pricing = {};
+  let ok = 0;
+  let fail = 0;
+  const failures = [];
+
+  for (let i = 0; i < combos.length; i++) {
+    const { connectionType, bandwidth } = combos[i];
+    const key = `${connectionType}_FIXED_${bandwidth}`;
+    const label = bandwidth >= 1000 ? `${bandwidth / 1000}G` : `${bandwidth}M`;
+    process.stdout.write(`\r${progressBar(i + 1, total)} ${c.dim}${connectionType} ${label}${c.reset}       `);
+    try {
+      const body = {
+        filter: {
+          and: [
+            { property: '/type', operator: '=', values: ['INTERNET_ACCESS_PRODUCT'] },
+            { property: '/account/accountNumber', operator: '=', values: ['1'] },
+            { property: '/service/type', operator: '=', values: ['SINGLE_PORT'] },
+            { property: '/service/bandwidth', operator: '=', values: [bandwidth] },
+            { property: '/service/billing', operator: '=', values: ['FIXED'] },
+            { property: '/service/connection/type', operator: '=', values: [connectionType] },
+            { property: '/service/connection/aSide/accessPoint/type', operator: '=', values: ['COLO'] },
+            { property: '/service/connection/aSide/accessPoint/location/ibx', operator: '=', values: [referenceIbx] },
+            { property: '/service/useCase', operator: '=', values: ['MAIN'] },
+          ],
+        },
+      };
+      const res = await apiPost('/internetAccess/v1/prices/search', body);
+      const charges = res.data?.[0]?.summary?.charges ?? [];
+      const mrc = charges.find((ch) => ch.type === 'MONTHLY_RECURRING')?.price ?? 0;
+      const nrc = charges.find((ch) => ch.type === 'NON_RECURRING')?.price ?? 0;
+      pricing[key] = { mrc, nrc };
+      ok++;
+    } catch (err) {
+      fail++;
+      failures.push({ key, reason: err.message || 'Unknown error' });
+    }
+  }
+  process.stdout.write('\r' + ' '.repeat(70) + '\r');
+  const status = fail ? `${c.green}${ok} ok${c.reset}, ${c.red}${fail} failed${c.reset}` : `${c.green}${ok} prices${c.reset}`;
+  console.log(`  ${CHECK} Internet Access — ${status}`);
+  if (fail) {
+    for (const f of failures) {
+      console.log(`    ${CROSS} ${c.dim}${f.key}:${c.reset} ${c.red}${f.reason}${c.reset}`);
+    }
+  }
+  return pricing;
+}
+
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -629,6 +698,7 @@ async function main() {
   let vcPricing = {};
   let cloudRouterPricing = {};
   let nePricing = {};
+  let eiaPricing = {};
 
   try { fabricPortPricing = await fetchFabricPortPricing(referenceIbx); } catch (err) {
     console.log(`  ${WARN} Fabric Port pricing ${c.yellow}skipped${c.reset} ${c.dim}\u2014 ${err.message}${c.reset}`);
@@ -641,6 +711,9 @@ async function main() {
   }
   try { nePricing = await fetchNetworkEdgePricing(deviceTypes, referenceMetro); } catch (err) {
     console.log(`  ${WARN} Network Edge pricing ${c.yellow}skipped${c.reset} ${c.dim}\u2014 ${err.message}${c.reset}`);
+  }
+  try { eiaPricing = await fetchEIAPricing(referenceIbx); } catch (err) {
+    console.log(`  ${WARN} Internet Access pricing ${c.yellow}skipped${c.reset} ${c.dim}\u2014 ${err.message}${c.reset}`);
   }
   console.log('');
 
@@ -661,6 +734,7 @@ async function main() {
       virtualConnections: vcPricing,
       cloudRouter: cloudRouterPricing,
       networkEdge: nePricing,
+      internetAccess: eiaPricing,
     },
   };
 
@@ -681,14 +755,15 @@ async function main() {
   const totalPrices = Object.keys(fabricPortPricing).length +
     Object.keys(vcPricing).length +
     Object.keys(cloudRouterPricing).length +
-    Object.keys(nePricing).length;
+    Object.keys(nePricing).length +
+    Object.keys(eiaPricing).length;
 
   console.log(`${c.bold}  \u2500\u2500\u2500 Summary \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500${c.reset}`);
   console.log('');
   console.log(`  ${c.dim}Catalog${c.reset}    Metros ${c.bold}${metros.length}${c.reset}  \u2502  Devices ${c.bold}${deviceTypes.length}${c.reset}  \u2502  Profiles ${c.bold}${serviceProfiles.length}${c.reset}`);
   console.log(`             Packages ${c.bold}${routerPackages.length}${c.reset}  \u2502  EIA Locations ${c.bold}${eiaLocations.length}${c.reset}`);
   console.log('');
-  console.log(`  ${c.dim}Pricing${c.reset}    Ports ${c.bold}${Object.keys(fabricPortPricing).length}${c.reset}  \u2502  VCs ${c.bold}${Object.keys(vcPricing).length}${c.reset}  \u2502  FCR ${c.bold}${Object.keys(cloudRouterPricing).length}${c.reset}  \u2502  NE ${c.bold}${Object.keys(nePricing).length}${c.reset}`);
+  console.log(`  ${c.dim}Pricing${c.reset}    Ports ${c.bold}${Object.keys(fabricPortPricing).length}${c.reset}  \u2502  VCs ${c.bold}${Object.keys(vcPricing).length}${c.reset}  \u2502  FCR ${c.bold}${Object.keys(cloudRouterPricing).length}${c.reset}  \u2502  NE ${c.bold}${Object.keys(nePricing).length}${c.reset}  \u2502  EIA ${c.bold}${Object.keys(eiaPricing).length}${c.reset}`);
   console.log('');
   console.log(`  ${c.dim}Total${c.reset}      ${c.bold}${totalPrices}${c.reset} prices  \u2502  ${c.bold}${apiCalls}${c.reset} API calls  \u2502  ${c.bold}${totalElapsed}s${c.reset}`);
   console.log('');

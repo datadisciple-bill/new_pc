@@ -12,7 +12,7 @@ interface PriceEntry {
   nrc: number;
 }
 
-type PricingSection = 'fabricPorts' | 'virtualConnections' | 'cloudRouter' | 'networkEdge';
+type PricingSection = 'fabricPorts' | 'virtualConnections' | 'cloudRouter' | 'networkEdge' | 'internetAccess';
 
 // ── Main Component ───────────────────────────────────────────────────────────
 
@@ -412,6 +412,7 @@ function PricingEditor({
       virtualConnections: { ...current?.virtualConnections } as Record<string, PriceEntry>,
       cloudRouter: { ...current?.cloudRouter } as Record<string, PriceEntry>,
       networkEdge: { ...current?.networkEdge } as Record<string, PriceEntry>,
+      internetAccess: { ...current?.internetAccess } as Record<string, PriceEntry>,
     };
   });
 
@@ -506,6 +507,7 @@ function PricingEditor({
           virtualConnections: data.virtualConnections ?? {},
           cloudRouter: data.cloudRouter ?? {},
           networkEdge: data.networkEdge ?? {},
+          internetAccess: data.internetAccess ?? {},
         });
       } catch {
         alert('Invalid JSON file');
@@ -519,6 +521,7 @@ function PricingEditor({
     { id: 'virtualConnections', label: 'Virtual Connections' },
     { id: 'cloudRouter', label: 'Cloud Router' },
     { id: 'networkEdge', label: 'Network Edge' },
+    { id: 'internetAccess', label: 'Internet Access' },
   ];
 
   return (
