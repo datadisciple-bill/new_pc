@@ -43,17 +43,24 @@ export async function fetchEIAPricing(
 
   const ibx = lookupIbxForMetro(metroCode);
 
+  // Pick smallest physical port speed that fits the bandwidth
+  const portSpeed = bandwidthMbps <= 1000 ? 1000 : bandwidthMbps <= 10000 ? 10000 : 100000;
+  const portQty = serviceType === 'DUAL_PORT' ? 2 : 1;
+
+  // EIA v1 API requires all values as strings
   const body = {
     filter: {
       and: [
         { property: '/type', operator: '=', values: ['INTERNET_ACCESS_PRODUCT'] },
         { property: '/account/accountNumber', operator: '=', values: ['1'] },
         { property: '/service/type', operator: '=', values: [serviceType] },
-        { property: '/service/bandwidth', operator: '=', values: [bandwidthMbps] },
+        { property: '/service/bandwidth', operator: '=', values: [String(bandwidthMbps)] },
         { property: '/service/billing', operator: '=', values: ['FIXED'] },
         { property: '/service/connection/type', operator: '=', values: [connectionType] },
         { property: '/service/connection/aSide/accessPoint/type', operator: '=', values: ['COLO'] },
         { property: '/service/connection/aSide/accessPoint/location/ibx', operator: '=', values: [ibx] },
+        { property: '/service/connection/aSide/accessPoint/port/physicalPort/speed', operator: '=', values: [String(portSpeed)] },
+        { property: '/service/connection/aSide/accessPoint/port/physicalPortQuantity', operator: '=', values: [String(portQty)] },
         { property: '/service/useCase', operator: '=', values: ['MAIN'] },
       ],
     },

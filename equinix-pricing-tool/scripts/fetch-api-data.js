@@ -623,17 +623,22 @@ async function fetchEIAPricing(referenceIbx) {
     const label = bandwidth >= 1000 ? `${bandwidth / 1000}G` : `${bandwidth}M`;
     process.stdout.write(`\r${progressBar(i + 1, total)} ${c.dim}${connectionType} ${label}${c.reset}       `);
     try {
+      // Pick smallest physical port speed that fits the bandwidth
+      const portSpeed = bandwidth <= 1000 ? 1000 : bandwidth <= 10000 ? 10000 : 100000;
+      // EIA v1 API requires all values as strings
       const body = {
         filter: {
           and: [
             { property: '/type', operator: '=', values: ['INTERNET_ACCESS_PRODUCT'] },
             { property: '/account/accountNumber', operator: '=', values: ['1'] },
             { property: '/service/type', operator: '=', values: ['SINGLE_PORT'] },
-            { property: '/service/bandwidth', operator: '=', values: [bandwidth] },
+            { property: '/service/bandwidth', operator: '=', values: [String(bandwidth)] },
             { property: '/service/billing', operator: '=', values: ['FIXED'] },
             { property: '/service/connection/type', operator: '=', values: [connectionType] },
             { property: '/service/connection/aSide/accessPoint/type', operator: '=', values: ['COLO'] },
             { property: '/service/connection/aSide/accessPoint/location/ibx', operator: '=', values: [referenceIbx] },
+            { property: '/service/connection/aSide/accessPoint/port/physicalPort/speed', operator: '=', values: [String(portSpeed)] },
+            { property: '/service/connection/aSide/accessPoint/port/physicalPortQuantity', operator: '=', values: ['1'] },
             { property: '/service/useCase', operator: '=', values: ['MAIN'] },
           ],
         },
