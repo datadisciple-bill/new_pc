@@ -440,6 +440,7 @@ export function buildDiagramLayout(
         strokeDasharray: conn.type === 'IP_VC' ? '8 4' : undefined,
       },
       data: {
+        connectionId: conn.id,
         labelLine1,
         labelLine2,
         showPricing,
