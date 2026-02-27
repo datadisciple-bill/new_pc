@@ -276,6 +276,7 @@ async function fetchDeviceTypes() {
       name: sp.name,
     })),
     coreCounts: dt.coreCounts ?? extractCoreCounts(dt),
+    availableLicenseTypes: extractLicenseTypes(dt),
     // Preserve deviceManagementTypes for core/license extraction during pricing
     deviceManagementTypes: dt.deviceManagementTypes,
   }));
@@ -292,6 +293,17 @@ function extractCoreCounts(dt) {
     }
   }
   return cores.size > 0 ? [...cores].sort((a, b) => a - b) : [];
+}
+
+/** Extract available license types (e.g. "SUB", "BYOL") from deviceManagementTypes */
+function extractLicenseTypes(dt) {
+  const types = new Set();
+  for (const mgmt of Object.values(dt.deviceManagementTypes ?? {})) {
+    for (const key of Object.keys(mgmt?.licenseOptions ?? {})) {
+      types.add(key);
+    }
+  }
+  return types.size > 0 ? [...types] : undefined;
 }
 
 async function fetchServiceProfiles() {

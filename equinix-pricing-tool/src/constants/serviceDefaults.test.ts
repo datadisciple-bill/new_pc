@@ -24,7 +24,7 @@ describe('serviceDefaults', () => {
     });
 
     it('has valid Network Edge defaults', () => {
-      expect(DEFAULT_NETWORK_EDGE.licenseType).toBe('SUBSCRIPTION');
+      expect(DEFAULT_NETWORK_EDGE.licenseType).toBe('BYOL');
       expect(DEFAULT_NETWORK_EDGE.redundant).toBe(false);
       expect(DEFAULT_NETWORK_EDGE.termLength).toBe(1);
     });

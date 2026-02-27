@@ -161,8 +161,12 @@ export function NetworkEdgeConfig({ service, metroCode, deviceTypes, onUpdate, o
                   onChange={(e) => onUpdate({ licenseType: e.target.value })}
                   className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md bg-white"
                 >
-                  <option value="SUBSCRIPTION">Subscription</option>
-                  <option value="BYOL">BYOL</option>
+                  {(!selectedDevice?.availableLicenseTypes || selectedDevice.availableLicenseTypes.includes('BYOL')) && (
+                    <option value="BYOL">BYOL</option>
+                  )}
+                  {(!selectedDevice?.availableLicenseTypes || selectedDevice.availableLicenseTypes.includes('SUB')) && (
+                    <option value="SUBSCRIPTION">Subscription</option>
+                  )}
                 </select>
               </div>
 

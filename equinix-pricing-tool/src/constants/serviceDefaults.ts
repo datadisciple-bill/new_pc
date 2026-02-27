@@ -14,7 +14,7 @@ export const DEFAULT_NETWORK_EDGE: NetworkEdgeConfig = {
   vendorName: '',
   packageCode: '',
   softwareVersion: '',
-  licenseType: 'SUBSCRIPTION',
+  licenseType: 'BYOL',
   redundant: false,
   termLength: 1,
 };

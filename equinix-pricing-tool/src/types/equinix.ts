@@ -31,6 +31,7 @@ export interface DeviceType {
   availableMetros: string[];
   softwarePackages: SoftwarePackage[];
   coreCounts: number[];
+  availableLicenseTypes?: ('BYOL' | 'SUB')[];
 }
 
 export interface SoftwarePackage {
