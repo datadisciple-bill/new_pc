@@ -481,8 +481,9 @@ export function NetworkDiagram() {
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
       for (const node of nodes) {
         // Skip nodes that are children — their absolute position is relative to parent
-        const absX = node.positionAbsolute?.x ?? node.position.x;
-        const absY = node.positionAbsolute?.y ?? node.position.y;
+        const internals = (node as Record<string, unknown>).internals as { positionAbsolute?: { x: number; y: number } } | undefined;
+        const absX = internals?.positionAbsolute?.x ?? node.position.x;
+        const absY = internals?.positionAbsolute?.y ?? node.position.y;
         const nw = node.measured?.width ?? node.width ?? 200;
         const nh = node.measured?.height ?? node.height ?? 80;
         minX = Math.min(minX, absX);
