@@ -30,14 +30,14 @@ function isFabric(svcType: string): boolean {
 
 // --- Classification result ---
 
-export interface ClassifyResult {
+export type ClassifyResult = {
   valid: true;
   kind: 'CROSS_CONNECT' | 'VIRTUAL_CIRCUIT' | 'DIAGRAM_LINK';
   bundled: boolean;
 } | {
   valid: false;
   reason: string;
-}
+};
 
 export interface NodeServiceInfo {
   serviceType: string; // ServiceType | 'LOCAL_SITE' | 'SERVICE_PROFILE'
