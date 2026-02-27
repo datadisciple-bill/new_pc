@@ -50,7 +50,8 @@ export function NetworkEdgeConfig({ service, metroCode, deviceTypes, onUpdate, o
           config.deviceTypeCode,
           `${cores}`,
           config.termLength,
-          metroCode
+          metroCode,
+          config.softwareVersion || undefined
         );
         entries.push({ cores, mrc: result.monthlyRecurring, nrc: result.nonRecurring });
       }

@@ -545,21 +545,6 @@ async function fetchNetworkEdgePricing(deviceTypes, referenceMetro, fallbackMetr
   const termLengths = [1, 12, 24, 36];
   const pricing = {};
 
-  // Extract the smallest core count for a device type.
-  // Core counts live in deviceManagementTypes → SELF-CONFIGURED/EQUINIX-CONFIGURED
-  //   → licenseOptions → SUB/BYOL → cores[] → core
-  function getSmallestCore(dt) {
-    for (const mgmt of Object.values(dt.deviceManagementTypes ?? {})) {
-      for (const lic of Object.values(mgmt?.licenseOptions ?? {})) {
-        const cores = (lic?.cores ?? []).map((c) => c.core).filter(Boolean).sort((a, b) => a - b);
-        if (cores.length) return cores[0];
-      }
-    }
-    // Fall back to coreCounts array if present
-    if (dt.coreCounts?.length) return Math.min(...dt.coreCounts);
-    return 2; // sensible default
-  }
-
   // Extract the first available license type from deviceManagementTypes
   function getDefaultLicenseType(dt) {
     for (const mgmt of Object.values(dt.deviceManagementTypes ?? {})) {
@@ -569,14 +554,15 @@ async function fetchNetworkEdgePricing(deviceTypes, referenceMetro, fallbackMetr
     return undefined;
   }
 
-  // Build flat list of all combinations
+  // Build flat list of all combinations: deviceType × coreCount × term
   const combos = [];
   for (const dt of deviceTypes) {
-    const core = getSmallestCore(dt);
     const licenseType = getDefaultLicenseType(dt);
-    for (const pkg of (dt.softwarePackages ?? [])) {
+    const cores = dt.coreCounts?.length ? dt.coreCounts : [2]; // fallback
+    const firstPkg = (dt.softwarePackages ?? [])[0]?.code; // for API softwarePackage param
+    for (const coreCount of cores) {
       for (const term of termLengths) {
-        combos.push({ dt, pkg, term, core, licenseType });
+        combos.push({ dt, coreCount, term, licenseType, softwarePackage: firstPkg });
       }
     }
   }
@@ -591,19 +577,19 @@ async function fetchNetworkEdgePricing(deviceTypes, referenceMetro, fallbackMetr
   const failedCombos = []; // Track which configs failed
 
   // Try primary metro first, then fallback metro on failure
-  async function fetchOneCombo({ dt, pkg, term, core, licenseType }) {
-    const key = `${dt.deviceTypeCode}_${pkg.code}_${term}`;
-    const comboLabel = `${dt.deviceTypeCode} / ${pkg.code} / ${term}mo`;
+  async function fetchOneCombo({ dt, coreCount, term, licenseType, softwarePackage }) {
+    const key = `${dt.deviceTypeCode}_${coreCount}_${term}`;
+    const comboLabel = `${dt.deviceTypeCode} / ${coreCount} cores / ${term}mo`;
 
     for (const metro of [referenceMetro, fallbackMetro].filter(Boolean)) {
       try {
         const params = {
           vendorPackage: dt.deviceTypeCode,
-          softwarePackage: pkg.code,
           termLength: String(term),
           metro,
-          core: String(core),
+          core: String(coreCount),
         };
+        if (softwarePackage) params.softwarePackage = softwarePackage;
         if (licenseType) params.licenseType = licenseType;
         const qs = new URLSearchParams(params);
         const res = await apiGet(`/ne/v1/prices?${qs}`);

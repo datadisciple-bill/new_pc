@@ -54,13 +54,16 @@ export function usePricing() {
           case 'NETWORK_EDGE': {
             const c = service.config as NetworkEdgeConfig;
             if (!c.deviceTypeCode || !c.packageCode) return;
-            const result = await fetchNetworkEdgePricing(c.deviceTypeCode, c.packageCode, c.termLength, metroCode);
+            const result = await fetchNetworkEdgePricing(
+              c.deviceTypeCode, c.packageCode, c.termLength, metroCode,
+              c.softwareVersion || undefined
+            );
             pricing = {
               mrc: result.monthlyRecurring,
               nrc: result.nonRecurring,
               currency: result.currency,
               isEstimate: false,
-              breakdown: [{ description: `${c.deviceTypeName} (${c.packageCode})`, mrc: result.monthlyRecurring, nrc: result.nonRecurring }],
+              breakdown: [{ description: `${c.deviceTypeName} (${c.packageCode} cores)`, mrc: result.monthlyRecurring, nrc: result.nonRecurring }],
             };
             break;
           }
