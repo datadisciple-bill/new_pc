@@ -476,18 +476,37 @@ export function NetworkDiagram() {
     const prevViewport = instance.getViewport();
 
     try {
-      // Fit all nodes into the visible area with some padding
-      instance.fitView({ padding: 0.05 });
-      await new Promise((r) => setTimeout(r, 200));
+      // Compute tight bounding box of all nodes (absolute coordinates)
+      const PAD = 40; // px padding around content
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const node of nodes) {
+        // Skip nodes that are children — their absolute position is relative to parent
+        const absX = node.positionAbsolute?.x ?? node.position.x;
+        const absY = node.positionAbsolute?.y ?? node.position.y;
+        const nw = node.measured?.width ?? node.width ?? 200;
+        const nh = node.measured?.height ?? node.height ?? 80;
+        minX = Math.min(minX, absX);
+        minY = Math.min(minY, absY);
+        maxX = Math.max(maxX, absX + nw);
+        maxY = Math.max(maxY, absY + nh);
+      }
 
-      // Use the wrapper dimensions as the export canvas size
-      const w = wrapper.clientWidth;
-      const h = wrapper.clientHeight;
+      const contentW = maxX - minX + PAD * 2;
+      const contentH = maxY - minY + PAD * 2;
+
+      // Set viewport to exactly frame the content
+      const zoom = 1;
+      instance.setViewport({
+        x: (-minX + PAD) * zoom,
+        y: (-minY + PAD) * zoom,
+        zoom,
+      });
+      await new Promise((r) => setTimeout(r, 200));
 
       const dataUrl = await toPng(viewportEl, {
         backgroundColor: '#ffffff',
-        width: w,
-        height: h,
+        width: contentW,
+        height: contentH,
         pixelRatio: 2,
         filter: (node) => {
           if (node instanceof HTMLElement) {
