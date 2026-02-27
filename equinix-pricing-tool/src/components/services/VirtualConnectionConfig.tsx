@@ -74,32 +74,24 @@ export function VirtualConnectionConfig() {
     }))
   );
 
+  // Cross Connects are physical links — exclude from Virtual Connections entirely
+  const vcServices = allServices.filter((s) => s.type !== 'CROSS_CONNECT');
+
   // Colocation can only connect to Fabric Port or Internet Access
   const COLOCATION_ALLOWED_TYPES = new Set(['FABRIC_PORT', 'INTERNET_ACCESS']);
-  // Cross Connect: intra-metro only, connects to Colocation, NSP, or other Cross Connects
-  const CROSS_CONNECT_ALLOWED_TYPES = new Set(['COLOCATION', 'NSP', 'CROSS_CONNECT']);
 
   // Z-Side services: exclude A-Side service itself + enforce connection rules
-  const aSideService = allServices.find((s) => s.id === form.aSideServiceId);
-  const zSideServices = allServices.filter((s) => {
+  const aSideService = vcServices.find((s) => s.id === form.aSideServiceId);
+  const zSideServices = vcServices.filter((s) => {
     if (s.id === form.aSideServiceId) return false;
     // Colocation ↔ only Fabric Port and Internet Access
     if (aSideService?.type === 'COLOCATION' && !COLOCATION_ALLOWED_TYPES.has(s.type)) return false;
     if (s.type === 'COLOCATION' && aSideService && !COLOCATION_ALLOWED_TYPES.has(aSideService.type)) return false;
-    // Cross Connect ↔ only Colocation, NSP, or other Cross Connects; same metro only
-    if (aSideService?.type === 'CROSS_CONNECT') {
-      if (!CROSS_CONNECT_ALLOWED_TYPES.has(s.type)) return false;
-      if (s.metroCode !== aSideService.metroCode) return false;
-    }
-    if (s.type === 'CROSS_CONNECT') {
-      if (aSideService && !CROSS_CONNECT_ALLOWED_TYPES.has(aSideService.type)) return false;
-      if (aSideService && s.metroCode !== aSideService.metroCode) return false;
-    }
     return true;
   });
 
-  // When A-side is Colocation or Cross Connect, disable Cloud Provider z-side option
-  const canSelectCloudProvider = aSideService?.type !== 'COLOCATION' && aSideService?.type !== 'CROSS_CONNECT';
+  // When A-side is Colocation, disable Cloud Provider z-side option
+  const canSelectCloudProvider = aSideService?.type !== 'COLOCATION';
 
   const resetForm = () => {
     setForm({ ...EMPTY_FORM });
@@ -330,7 +322,7 @@ export function VirtualConnectionConfig() {
             <select
               value={form.aSideServiceId}
               onChange={(e) => {
-                const svc = allServices.find((s) => s.id === e.target.value);
+                const svc = vcServices.find((s) => s.id === e.target.value);
                 setForm({
                   ...form,
                   aSideServiceId: e.target.value,
@@ -342,7 +334,7 @@ export function VirtualConnectionConfig() {
               <option value="">Select a service...</option>
               {metros.map((m) => (
                 <optgroup key={m.metroCode} label={`${m.metroCode} — ${m.metroName}`}>
-                  {allServices
+                  {vcServices
                     .filter((s) => s.metroCode === m.metroCode)
                     .map((s) => (
                       <option key={s.id} value={s.id}>
