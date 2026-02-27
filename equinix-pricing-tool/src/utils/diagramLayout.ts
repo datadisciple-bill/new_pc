@@ -1,4 +1,4 @@
-import type { MetroSelection, VirtualConnection, NetworkEdgeConfig, ServiceSelection, TextBox, LocalSite, AnnotationMarker } from '@/types/config';
+import type { MetroSelection, VirtualConnection, NetworkEdgeConfig, FabricPortConfig, InternetAccessConfig, ServiceSelection, TextBox, LocalSite, AnnotationMarker } from '@/types/config';
 import type { Node, Edge } from '@xyflow/react';
 import { formatCurrency } from './priceCalculator';
 
@@ -27,6 +27,10 @@ function getServiceNodeHeight(service: { type: string; config: unknown }): numbe
   if (service.type === 'NETWORK_EDGE') {
     const c = service.config as NetworkEdgeConfig;
     return c.redundant ? SERVICE_NODE_HEIGHT_HA : SERVICE_NODE_HEIGHT;
+  }
+  if (service.type === 'FABRIC_PORT') {
+    const c = service.config as FabricPortConfig;
+    return c.type === 'REDUNDANT' ? SERVICE_NODE_HEIGHT_HA : SERVICE_NODE_HEIGHT;
   }
   return SERVICE_NODE_HEIGHT;
 }
@@ -268,6 +272,44 @@ export function buildDiagramLayout(
                 selectedCores: neConfig.packageCode,
                 priceTable: neConfig.priceTable,
                 termLength: neConfig.termLength,
+              },
+              style: { width: tableWidth, height: tableHeight },
+              width: tableWidth,
+              height: tableHeight,
+              draggable: true,
+              zIndex: 10,
+            });
+            ptX += tableWidth + PT_GAP;
+            ptRowMaxH = Math.max(ptRowMaxH, tableHeight);
+          }
+        }
+      });
+    });
+
+    // EIA price table nodes
+    metros.forEach((metro) => {
+      metro.services.forEach((service) => {
+        if (service.type === 'INTERNET_ACCESS') {
+          const eiaConfig = service.config as InternetAccessConfig;
+          if (eiaConfig.showPriceTable && eiaConfig.priceTable && eiaConfig.priceTable.length > 0) {
+            const rowHeight = 14;
+            const tableHeight = 28 + eiaConfig.priceTable.length * rowHeight;
+            const tableWidth = 220;
+            if (ptX > 0 && ptX + tableWidth > ptRowMaxWidth) {
+              ptX = 0;
+              ptY += ptRowMaxH + PT_GAP;
+              ptRowMaxH = 0;
+            }
+            nodes.push({
+              id: `eiapricetable-${service.id}`,
+              type: 'eiaPriceTableNode',
+              position: { x: ptX, y: ptY },
+              data: {
+                serviceId: service.id,
+                metroCode: metro.metroCode,
+                serviceName: `Internet Access (${metro.metroCode})`,
+                selectedBandwidthMbps: eiaConfig.bandwidthMbps,
+                priceTable: eiaConfig.priceTable,
               },
               style: { width: tableWidth, height: tableHeight },
               width: tableWidth,

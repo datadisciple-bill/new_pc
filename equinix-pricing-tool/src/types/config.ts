@@ -90,6 +90,8 @@ export interface InternetAccessConfig {
   routingProtocol: 'STATIC' | 'DIRECT' | 'BGP';
   connectionType: 'SINGLE' | 'DUAL';
   deliveryMethod: 'FABRIC_PORT' | 'NETWORK_EDGE' | 'COLOCATION';
+  showPriceTable?: boolean;
+  priceTable?: BandwidthPriceEntry[] | null;
 }
 
 export interface CloudRouterConfig {
@@ -122,6 +124,7 @@ export interface BandwidthPriceEntry {
   bandwidthMbps: number;
   label: string;
   mrc: number;
+  nrc?: number;
   currency: string;
 }
 

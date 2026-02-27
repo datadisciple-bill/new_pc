@@ -20,6 +20,7 @@ import { ServiceNode } from './ServiceNode';
 import { CloudNode } from './CloudNode';
 import { PriceTableNode } from './PriceTableNode';
 import { NEPriceTableNode } from './NEPriceTableNode';
+import { EIAPriceTableNode } from './EIAPriceTableNode';
 import { TextBoxNode } from './TextBoxNode';
 import { LocalSiteNode } from './LocalSiteNode';
 import { AnnotationMarkerNode } from './AnnotationMarkerNode';
@@ -33,6 +34,7 @@ const nodeTypes: NodeTypes = {
   cloudNode: CloudNode,
   priceTableNode: PriceTableNode,
   nePriceTableNode: NEPriceTableNode,
+  eiaPriceTableNode: EIAPriceTableNode,
   textBoxNode: TextBoxNode,
   localSiteNode: LocalSiteNode,
   annotationMarkerNode: AnnotationMarkerNode,
@@ -45,7 +47,7 @@ const edgeTypes: EdgeTypes = {
 
 // Node types that can be freely repositioned by dragging
 const DRAGGABLE_NODE_TYPES = new Set([
-  'priceTableNode', 'nePriceTableNode', 'cloudNode', 'textBoxNode',
+  'priceTableNode', 'nePriceTableNode', 'eiaPriceTableNode', 'cloudNode', 'textBoxNode',
   'localSiteNode', 'annotationMarkerNode', 'annotationLegendNode',
 ]);
 
@@ -399,7 +401,7 @@ export function NetworkDiagram() {
           nodeColor={(node) => {
             if (node.type === 'metroNode') return '#dbeafe';
             if (node.type === 'cloudNode') return '#FF9900';
-            if (node.type === 'priceTableNode' || node.type === 'nePriceTableNode') return '#d1fae5';
+            if (node.type === 'priceTableNode' || node.type === 'nePriceTableNode' || node.type === 'eiaPriceTableNode') return '#d1fae5';
             if (node.type === 'textBoxNode') return '#fef3c7';
             if (node.type === 'localSiteNode') return '#e5e7eb';
             if (node.type === 'annotationMarkerNode') return '#E91C24';

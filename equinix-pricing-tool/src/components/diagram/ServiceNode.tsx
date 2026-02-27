@@ -45,6 +45,7 @@ export const ServiceNode = memo(function ServiceNode({ data }: NodeProps) {
     portRedundancy = c.type ?? 'PRIMARY';
     detail = c.speed ?? '';
     quantity = c.quantity ?? 1;
+    isHaPair = c.type === 'REDUNDANT';
   } else if (serviceType === 'NETWORK_EDGE') {
     const c = config as { deviceTypeName?: string; redundant?: boolean };
     detail = c.deviceTypeName ?? '';
@@ -102,7 +103,7 @@ export const ServiceNode = memo(function ServiceNode({ data }: NodeProps) {
             </>
           )}
         </p>
-        {isHaPair && (
+        {isHaPair && serviceType === 'NETWORK_EDGE' && (
           <p className="text-[9px] text-equinix-red font-medium">HA Pair (2x devices)</p>
         )}
         {showPricing !== false && pricing && pricing.mrc > 0 && (
