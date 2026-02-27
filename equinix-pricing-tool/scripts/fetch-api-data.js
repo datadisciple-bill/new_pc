@@ -641,24 +641,23 @@ async function fetchNetworkEdgePricing(deviceTypes, referenceMetro, fallbackMetr
   const status = failCount ? `${c.green}${okCount} ok${c.reset}, ${c.red}${failCount} failed${c.reset}` : `${c.green}${okCount} prices${c.reset}`;
   console.log(`  ${CHECK} Network Edge \u2014 ${status}`);
   if (failCount) {
-    // Group failures by error reason, list affected configs
-    const byReason = new Map();
-    for (const f of failedCombos) {
-      const existing = byReason.get(f.error) ?? [];
-      existing.push(f.label);
-      byReason.set(f.error, existing);
-    }
-    for (const [reason, labels] of byReason) {
-      if (labels.length <= 5) {
-        for (const label of labels) {
-          console.log(`    ${CROSS} ${c.dim}${label}:${c.reset} ${c.red}${reason}${c.reset}`);
-        }
-      } else {
-        console.log(`    ${CROSS} ${c.red}${labels.length} configs failed:${c.reset} ${reason}`);
-        for (const label of labels.slice(0, 5)) {
-          console.log(`      ${c.dim}- ${label}${c.reset}`);
-        }
-        console.log(`      ${c.dim}... and ${labels.length - 5} more${c.reset}`);
+    if (failCount <= 50) {
+      // List every failure individually
+      for (const f of failedCombos) {
+        console.log(`    ${CROSS} ${c.dim}${f.label}:${c.reset} ${c.red}${f.error}${c.reset}`);
+      }
+    } else {
+      // Too many to list — group by device type
+      const byDevice = new Map();
+      for (const f of failedCombos) {
+        const deviceCode = f.label.split(' / ')[0];
+        const existing = byDevice.get(deviceCode) ?? [];
+        existing.push(f);
+        byDevice.set(deviceCode, existing);
+      }
+      for (const [deviceCode, entries] of byDevice) {
+        const reason = entries[0].error;
+        console.log(`    ${CROSS} ${c.bold}${deviceCode}${c.reset} ${c.dim}(${entries.length} combos)${c.reset}: ${c.red}${reason}${c.reset}`);
       }
     }
   }
