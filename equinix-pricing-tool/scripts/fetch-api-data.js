@@ -109,10 +109,35 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// Global throttle: schedules requests 200ms apart but allows multiple in-flight
+let nextSlot = 0;
+async function throttle() {
+  const now = Date.now();
+  const slot = Math.max(now, nextSlot);
+  nextSlot = slot + RATE_LIMIT_MS;
+  const wait = slot - now;
+  if (wait > 0) await sleep(wait);
+}
+
+// Reusable concurrent batch runner
+async function runConcurrent(items, fn) {
+  let ok = 0, fail = 0;
+  const failures = [];
+  for (let i = 0; i < items.length; i += CONCURRENCY) {
+    const batch = items.slice(i, i + CONCURRENCY);
+    const results = await Promise.allSettled(batch.map(fn));
+    for (const r of results) {
+      if (r.status === 'fulfilled') ok++;
+      else { fail++; failures.push(r.reason); }
+    }
+  }
+  return { ok, fail, failures };
+}
+
 async function apiGet(path) {
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
-      await sleep(RATE_LIMIT_MS);
+      await throttle();
       apiCalls++;
       const res = await fetch(`${API_BASE}${path}`, {
         headers: {
@@ -128,7 +153,7 @@ async function apiGet(path) {
       }
       if (!res.ok) {
         const body = await res.text().catch(() => '');
-        throw new Error(`${res.status} ${res.statusText}: ${body.slice(0, 120)}`);
+        throw new Error(`${res.status} ${res.statusText}: ${body.slice(0, 500)}`);
       }
       return await res.json();
     } catch (err) {
@@ -141,7 +166,7 @@ async function apiGet(path) {
 async function apiPost(path, body) {
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
-      await sleep(RATE_LIMIT_MS);
+      await throttle();
       apiCalls++;
       const res = await fetch(`${API_BASE}${path}`, {
         method: 'POST',
@@ -159,7 +184,7 @@ async function apiPost(path, body) {
       }
       if (!res.ok) {
         const text = await res.text().catch(() => '');
-        throw new Error(`${res.status} ${res.statusText}: ${text.slice(0, 500)}`);
+        throw new Error(`${res.status} ${res.statusText}: ${text.slice(0, 1000)}`);
       }
       return await res.json();
     } catch (err) {
@@ -368,44 +393,35 @@ async function fetchFabricPortPricing(referenceIbx) {
   );
   const total = combos.length;
   const pricing = {};
-  let ok = 0;
-  let fail = 0;
-  const failures = [];
+  let completed = 0;
 
-  for (let i = 0; i < combos.length; i++) {
-    const { label, mbps, portProduct } = combos[i];
+  const { ok, fail, failures } = await runConcurrent(combos, async ({ label, mbps, portProduct }) => {
     const key = `${label}_${portProduct}`;
-    process.stdout.write(`\r${progressBar(i + 1, total)} ${c.dim}${key}${c.reset}       `);
-    try {
-      const res = await apiPost('/fabric/v4/prices/search', priceFilter({
-        '/type': 'VIRTUAL_PORT_PRODUCT',
-        '/port/location/ibx': referenceIbx,
-        '/port/type': 'XF_PORT',
-        '/port/bandwidth': mbps,
-        '/port/package/code': portProduct,
-        '/port/connectivitySource/type': 'COLO',
-        '/port/settings/buyout': false,
-        '/port/lag/enabled': false,
-      }));
-      const charges = res.data?.[0]?.charges ?? [];
-      const mrc = charges.find((ch) => ch.type === 'MONTHLY_RECURRING')?.price ?? 0;
-      const nrc = charges.find((ch) => ch.type === 'NON_RECURRING')?.price ?? 0;
-      pricing[key] = { mrc, nrc };
-      ok++;
-    } catch (err) {
-      fail++;
-      failures.push({ key, reason: err.message || 'Unknown error' });
-    }
-  }
+    const res = await apiPost('/fabric/v4/prices/search', priceFilter({
+      '/type': 'VIRTUAL_PORT_PRODUCT',
+      '/port/location/ibx': referenceIbx,
+      '/port/type': 'XF_PORT',
+      '/port/bandwidth': mbps,
+      '/port/package/code': portProduct,
+      '/port/connectivitySource/type': 'COLO',
+      '/port/settings/buyout': false,
+      '/port/lag/enabled': false,
+    }));
+    const charges = res.data?.[0]?.charges ?? [];
+    const mrc = charges.find((ch) => ch.type === 'MONTHLY_RECURRING')?.price ?? 0;
+    const nrc = charges.find((ch) => ch.type === 'NON_RECURRING')?.price ?? 0;
+    pricing[key] = { mrc, nrc };
+    completed++;
+    process.stdout.write(`\r${progressBar(completed, total)} ${c.dim}${key}${c.reset}       `);
+  });
   process.stdout.write('\r' + ' '.repeat(70) + '\r');
   const status = fail ? `${c.green}${ok} ok${c.reset}, ${c.red}${fail} failed${c.reset}` : `${c.green}${ok} prices${c.reset}`;
+  console.log(`  ${CHECK} Fabric Ports \u2014 ${status}`);
   if (fail) {
-    console.log(`  ${CHECK} Fabric Ports \u2014 ${status}`);
     for (const f of failures) {
-      console.log(`    ${CROSS} ${c.dim}${f.key}:${c.reset} ${c.red}${f.reason}${c.reset}`);
+      const msg = f.message || 'Unknown error';
+      console.log(`    ${CROSS} ${c.red}${msg}${c.reset}`);
     }
-  } else {
-    console.log(`  ${CHECK} Fabric Ports \u2014 ${status}`);
   }
   return pricing;
 }
@@ -414,41 +430,34 @@ async function fetchVCPricing(referenceMetro) {
   const bandwidths = [50, 100, 200, 500, 1000, 2000, 5000, 10000, 50000];
   const total = bandwidths.length;
   const pricing = {};
-  let ok = 0;
-  let fail = 0;
-  const failures = [];
+  let completed = 0;
 
-  for (let i = 0; i < bandwidths.length; i++) {
-    const bw = bandwidths[i];
+  const { ok, fail, failures } = await runConcurrent(bandwidths, async (bw) => {
     const label = bw >= 1000 ? `${bw / 1000}G` : `${bw}M`;
-    process.stdout.write(`\r${progressBar(i + 1, total)} ${c.dim}${label}${c.reset}       `);
-    try {
-      const res = await apiPost('/fabric/v4/prices/search', priceFilter({
-        '/type': 'VIRTUAL_CONNECTION_PRODUCT',
-        '/connection/type': 'EVPL_VC',
-        '/connection/bandwidth': bw,
-        '/connection/aSide/accessPoint/type': 'COLO',
-        '/connection/aSide/accessPoint/location/metroCode': referenceMetro,
-        '/connection/aSide/accessPoint/port/settings/buyout': false,
-        '/connection/zSide/accessPoint/type': 'COLO',
-        '/connection/zSide/accessPoint/location/metroCode': referenceMetro,
-      }));
-      const charges = res.data?.[0]?.charges ?? [];
-      const mrc = charges.find((ch) => ch.type === 'MONTHLY_RECURRING')?.price ?? 0;
-      const nrc = charges.find((ch) => ch.type === 'NON_RECURRING')?.price ?? 0;
-      pricing[String(bw)] = { mrc, nrc };
-      ok++;
-    } catch (err) {
-      fail++;
-      failures.push({ key: label, reason: err.message || 'Unknown error' });
-    }
-  }
+    const res = await apiPost('/fabric/v4/prices/search', priceFilter({
+      '/type': 'VIRTUAL_CONNECTION_PRODUCT',
+      '/connection/type': 'EVPL_VC',
+      '/connection/bandwidth': bw,
+      '/connection/aSide/accessPoint/type': 'COLO',
+      '/connection/aSide/accessPoint/location/metroCode': referenceMetro,
+      '/connection/aSide/accessPoint/port/settings/buyout': false,
+      '/connection/zSide/accessPoint/type': 'COLO',
+      '/connection/zSide/accessPoint/location/metroCode': referenceMetro,
+    }));
+    const charges = res.data?.[0]?.charges ?? [];
+    const mrc = charges.find((ch) => ch.type === 'MONTHLY_RECURRING')?.price ?? 0;
+    const nrc = charges.find((ch) => ch.type === 'NON_RECURRING')?.price ?? 0;
+    pricing[String(bw)] = { mrc, nrc };
+    completed++;
+    process.stdout.write(`\r${progressBar(completed, total)} ${c.dim}${label}${c.reset}       `);
+  });
   process.stdout.write('\r' + ' '.repeat(70) + '\r');
   const status = fail ? `${c.green}${ok} ok${c.reset}, ${c.red}${fail} failed${c.reset}` : `${c.green}${ok} prices${c.reset}`;
   console.log(`  ${CHECK} Virtual Connections \u2014 ${status}`);
   if (fail) {
     for (const f of failures) {
-      console.log(`    ${CROSS} ${c.dim}${f.key}:${c.reset} ${c.red}${f.reason}${c.reset}`);
+      const msg = f.message || 'Unknown error';
+      console.log(`    ${CROSS} ${c.red}${msg}${c.reset}`);
     }
   }
   return pricing;
@@ -457,35 +466,28 @@ async function fetchVCPricing(referenceMetro) {
 async function fetchCloudRouterPricing(routerPackages, referenceMetro) {
   const total = routerPackages.length;
   const pricing = {};
-  let ok = 0;
-  let fail = 0;
-  const failures = [];
+  let completed = 0;
 
-  for (let i = 0; i < routerPackages.length; i++) {
-    const pkg = routerPackages[i];
-    process.stdout.write(`\r${progressBar(i + 1, total)} ${c.dim}${pkg.code}${c.reset}       `);
-    try {
-      const res = await apiPost('/fabric/v4/prices/search', priceFilter({
-        '/type': 'CLOUD_ROUTER_PRODUCT',
-        '/router/package/code': pkg.code,
-        '/router/location/metroCode': referenceMetro,
-      }));
-      const charges = res.data?.[0]?.charges ?? [];
-      const mrc = charges.find((ch) => ch.type === 'MONTHLY_RECURRING')?.price ?? 0;
-      const nrc = charges.find((ch) => ch.type === 'NON_RECURRING')?.price ?? 0;
-      pricing[pkg.code] = { mrc, nrc };
-      ok++;
-    } catch (err) {
-      fail++;
-      failures.push({ key: pkg.code, reason: err.message || 'Unknown error' });
-    }
-  }
+  const { ok, fail, failures } = await runConcurrent(routerPackages, async (pkg) => {
+    const res = await apiPost('/fabric/v4/prices/search', priceFilter({
+      '/type': 'CLOUD_ROUTER_PRODUCT',
+      '/router/package/code': pkg.code,
+      '/router/location/metroCode': referenceMetro,
+    }));
+    const charges = res.data?.[0]?.charges ?? [];
+    const mrc = charges.find((ch) => ch.type === 'MONTHLY_RECURRING')?.price ?? 0;
+    const nrc = charges.find((ch) => ch.type === 'NON_RECURRING')?.price ?? 0;
+    pricing[pkg.code] = { mrc, nrc };
+    completed++;
+    process.stdout.write(`\r${progressBar(completed, total)} ${c.dim}${pkg.code}${c.reset}       `);
+  });
   process.stdout.write('\r' + ' '.repeat(70) + '\r');
   const status = fail ? `${c.green}${ok} ok${c.reset}, ${c.red}${fail} failed${c.reset}` : `${c.green}${ok} prices${c.reset}`;
   console.log(`  ${CHECK} Cloud Router \u2014 ${status}`);
   if (fail) {
     for (const f of failures) {
-      console.log(`    ${CROSS} ${c.dim}${f.key}:${c.reset} ${c.red}${f.reason}${c.reset}`);
+      const msg = f.message || 'Unknown error';
+      console.log(`    ${CROSS} ${c.red}${msg}${c.reset}`);
     }
   }
   return pricing;
@@ -543,45 +545,27 @@ async function fetchNetworkEdgePricing(deviceTypes, referenceMetro) {
   let completed = 0;
 
   // Process in concurrent batches for speed
-  for (let i = 0; i < combos.length; i += CONCURRENCY) {
-    const batch = combos.slice(i, i + CONCURRENCY);
-    const results = await Promise.allSettled(
-      batch.map(async ({ dt, pkg, term, core, licenseType }) => {
-        const key = `${dt.deviceTypeCode}_${pkg.code}_${term}`;
-        const params = {
-          vendorPackage: dt.deviceTypeCode,
-          softwarePackage: pkg.code,
-          termLength: String(term),
-          metro: referenceMetro,
-          core: String(core),
-        };
-        if (licenseType) params.licenseType = licenseType;
-        const qs = new URLSearchParams(params);
-        const res = await apiGet(`/ne/v1/prices?${qs}`);
-        const charges = res.primary?.charges ?? [];
-        const deviceCharge = charges.find((ch) => ch.description === 'VIRTUAL_DEVICE');
-        const licenseCharge = charges.find((ch) => ch.description === 'DEVICE_LICENSE');
-        const mrc = Number(deviceCharge?.monthlyRecurringCharges ?? 0) +
-                    Number(licenseCharge?.monthlyRecurringCharges ?? 0);
-        return { key, mrc };
-      })
-    );
-
-    for (let j = 0; j < results.length; j++) {
-      completed++;
-      const combo = batch[j];
-      const key = `${combo.dt.deviceTypeCode}_${combo.pkg.code}_${combo.term}`;
-      const result = results[j];
-      if (result.status === 'fulfilled') {
-        pricing[result.value.key] = { mrc: result.value.mrc, nrc: 0 };
-        ok++;
-      } else {
-        fail++;
-        failures.push({ key, reason: result.reason?.message || 'Unknown error' });
-      }
-    }
-    process.stdout.write(`\r${progressBar(completed, total)} ${c.dim}${batch[batch.length - 1].dt.deviceTypeCode}${c.reset}       `);
-  }
+  const { ok, fail, failures } = await runConcurrent(combos, async ({ dt, pkg, term, core, licenseType }) => {
+    const key = `${dt.deviceTypeCode}_${pkg.code}_${term}`;
+    const params = {
+      vendorPackage: dt.deviceTypeCode,
+      softwarePackage: pkg.code,
+      termLength: String(term),
+      metro: referenceMetro,
+      core: String(core),
+    };
+    if (licenseType) params.licenseType = licenseType;
+    const qs = new URLSearchParams(params);
+    const res = await apiGet(`/ne/v1/prices?${qs}`);
+    const charges = res.primary?.charges ?? [];
+    const deviceCharge = charges.find((ch) => ch.description === 'VIRTUAL_DEVICE');
+    const licenseCharge = charges.find((ch) => ch.description === 'DEVICE_LICENSE');
+    const mrc = Number(deviceCharge?.monthlyRecurringCharges ?? 0) +
+                Number(licenseCharge?.monthlyRecurringCharges ?? 0);
+    pricing[key] = { mrc, nrc: 0 };
+    completed++;
+    process.stdout.write(`\r${progressBar(completed, total)} ${c.dim}${dt.deviceTypeCode}${c.reset}       `);
+  });
 
   process.stdout.write('\r' + ' '.repeat(80) + '\r');
   const status = fail ? `${c.green}${ok} ok${c.reset}, ${c.red}${fail} failed${c.reset}` : `${c.green}${ok} prices${c.reset}`;
@@ -590,13 +574,14 @@ async function fetchNetworkEdgePricing(deviceTypes, referenceMetro) {
     // Group NE failures by reason to avoid flooding the console
     const byReason = new Map();
     for (const f of failures) {
-      const existing = byReason.get(f.reason) ?? [];
-      existing.push(f.key);
-      byReason.set(f.reason, existing);
+      const reason = f.message || 'Unknown error';
+      const existing = byReason.get(reason) ?? [];
+      existing.push('combo');
+      byReason.set(reason, existing);
     }
     for (const [reason, keys] of byReason) {
       if (keys.length <= 3) {
-        console.log(`    ${CROSS} ${c.dim}${keys.join(', ')}:${c.reset} ${c.red}${reason}${c.reset}`);
+        console.log(`    ${CROSS} ${c.red}${reason}${c.reset}`);
       } else {
         console.log(`    ${CROSS} ${c.dim}${keys.length} combos:${c.reset} ${c.red}${reason}${c.reset}`);
       }
@@ -614,53 +599,46 @@ async function fetchEIAPricing(referenceIbx) {
   );
   const total = combos.length;
   const pricing = {};
-  let ok = 0;
-  let fail = 0;
-  const failures = [];
+  let completed = 0;
 
-  for (let i = 0; i < combos.length; i++) {
-    const { connectionType, bandwidth } = combos[i];
+  const { ok, fail, failures } = await runConcurrent(combos, async ({ connectionType, bandwidth }) => {
     const key = `${connectionType}_FIXED_${bandwidth}`;
     const label = bandwidth >= 1000 ? `${bandwidth / 1000}G` : `${bandwidth}M`;
-    process.stdout.write(`\r${progressBar(i + 1, total)} ${c.dim}${connectionType} ${label}${c.reset}       `);
-    try {
-      // Pick smallest physical port speed that fits the bandwidth
-      const portSpeed = bandwidth <= 1000 ? 1000 : bandwidth <= 10000 ? 10000 : 100000;
-      // EIA v1 API requires all values as strings per OpenAPI spec
-      const body = {
-        filter: {
-          and: [
-            { property: '/type', operator: '=', values: ['INTERNET_ACCESS_PRODUCT'] },
-            { property: '/account/accountNumber', operator: '=', values: ['1'] },
-            { property: '/service/type', operator: '=', values: ['SINGLE_PORT'] },
-            { property: '/service/bandwidth', operator: '=', values: [String(bandwidth)] },
-            { property: '/service/billing', operator: '=', values: ['FIXED'] },
-            { property: '/service/useCase', operator: '=', values: ['MAIN'] },
-            { property: '/service/connection/type', operator: '=', values: [connectionType] },
-            { property: '/service/connection/aSide/accessPoint/type', operator: '=', values: ['COLO'] },
-            { property: '/service/connection/aSide/accessPoint/location/ibx', operator: '=', values: [referenceIbx] },
-            { property: '/service/connection/aSide/accessPoint/port/physicalPort/speed', operator: '=', values: [String(portSpeed)] },
-            { property: '/service/connection/aSide/accessPoint/port/physicalPortQuantity', operator: '=', values: ['1'] },
-          ],
-        },
-      };
-      const res = await apiPost('/internetAccess/v1/prices/search', body);
-      const charges = res.data?.[0]?.summary?.charges ?? [];
-      const mrc = charges.find((ch) => ch.type === 'MONTHLY_RECURRING')?.price ?? 0;
-      const nrc = charges.find((ch) => ch.type === 'NON_RECURRING')?.price ?? 0;
-      pricing[key] = { mrc, nrc };
-      ok++;
-    } catch (err) {
-      fail++;
-      failures.push({ key, reason: err.message || 'Unknown error' });
-    }
-  }
+    // Pick smallest physical port speed that fits the bandwidth
+    const portSpeed = bandwidth <= 1000 ? 1000 : bandwidth <= 10000 ? 10000 : 100000;
+    // EIA v1 API requires all values as strings per OpenAPI spec
+    const body = {
+      filter: {
+        and: [
+          { property: '/type', operator: '=', values: ['INTERNET_ACCESS_PRODUCT'] },
+          { property: '/account/accountNumber', operator: '=', values: ['1'] },
+          { property: '/service/type', operator: '=', values: ['SINGLE_PORT'] },
+          { property: '/service/bandwidth', operator: '=', values: [String(bandwidth)] },
+          { property: '/service/billing', operator: '=', values: ['FIXED'] },
+          { property: '/service/useCase', operator: '=', values: ['MAIN'] },
+          { property: '/service/connection/type', operator: '=', values: [connectionType] },
+          { property: '/service/connection/aSide/accessPoint/type', operator: '=', values: ['COLO'] },
+          { property: '/service/connection/aSide/accessPoint/location/ibx', operator: '=', values: [referenceIbx] },
+          { property: '/service/connection/aSide/accessPoint/port/physicalPort/speed', operator: '=', values: [String(portSpeed)] },
+          { property: '/service/connection/aSide/accessPoint/port/physicalPortQuantity', operator: '=', values: ['1'] },
+        ],
+      },
+    };
+    const res = await apiPost('/internetAccess/v1/prices/search', body);
+    const charges = res.data?.[0]?.summary?.charges ?? [];
+    const mrc = charges.find((ch) => ch.type === 'MONTHLY_RECURRING')?.price ?? 0;
+    const nrc = charges.find((ch) => ch.type === 'NON_RECURRING')?.price ?? 0;
+    pricing[key] = { mrc, nrc };
+    completed++;
+    process.stdout.write(`\r${progressBar(completed, total)} ${c.dim}${connectionType} ${label}${c.reset}       `);
+  });
   process.stdout.write('\r' + ' '.repeat(70) + '\r');
   const status = fail ? `${c.green}${ok} ok${c.reset}, ${c.red}${fail} failed${c.reset}` : `${c.green}${ok} prices${c.reset}`;
   console.log(`  ${CHECK} Internet Access — ${status}`);
   if (fail) {
     for (const f of failures) {
-      console.log(`    ${CROSS} ${c.dim}${f.key}:${c.reset} ${c.red}${f.reason}${c.reset}`);
+      const msg = f.message || 'Unknown error';
+      console.log(`    ${CROSS} ${c.red}${msg}${c.reset}`);
     }
   }
   // Mirror IA_C prices as IA_VC (v1 API only supports IA_C pricing;
@@ -687,46 +665,47 @@ async function main() {
   await authenticate();
   console.log('');
 
-  // ── Phase 2: Options ───────────────────────────────────────────────────────
-  console.log(`${c.bold}${c.cyan}[2/4]${c.reset}${c.bold} Fetching catalog data${c.reset}`);
-  const metros = await fetchWithStatus('Metros', fetchMetros);
+  // ── Phase 2: Options (parallel) ─────────────────────────────────────────────
+  console.log(`${c.bold}${c.cyan}[2/4]${c.reset}${c.bold} Fetching catalog data${c.reset} ${c.dim}(parallel)${c.reset}`);
+  const catalogResults = await Promise.allSettled([
+    fetchWithStatus('Metros', fetchMetros),
+    fetchWithStatus('Network Edge device types', fetchDeviceTypes),
+    fetchWithStatus('Fabric service profiles', fetchServiceProfiles),
+    fetchWithStatus('Cloud Router packages', fetchRouterPackages),
+    fetchWithStatus('Internet Access locations', fetchEIALocations),
+  ]);
+  const metros = catalogResults[0].status === 'fulfilled' ? catalogResults[0].value : [];
+  const deviceTypes = catalogResults[1].status === 'fulfilled' ? catalogResults[1].value : [];
+  const serviceProfiles = catalogResults[2].status === 'fulfilled' ? catalogResults[2].value : [];
+  const routerPackages = catalogResults[3].status === 'fulfilled' ? catalogResults[3].value : [];
+  const eiaLocations = catalogResults[4].status === 'fulfilled' ? catalogResults[4].value : [];
   if (metros.length === 0) {
     console.log(`\n  ${CROSS} ${c.red}No metros returned — cannot continue without metro data.${c.reset}\n`);
     process.exit(1);
   }
-  const deviceTypes = await fetchWithStatus('Network Edge device types', fetchDeviceTypes);
-  const serviceProfiles = await fetchWithStatus('Fabric service profiles', fetchServiceProfiles);
-  const routerPackages = await fetchWithStatus('Cloud Router packages', fetchRouterPackages);
-  const eiaLocations = await fetchWithStatus('Internet Access locations', fetchEIALocations);
   console.log('');
 
   // ── Phase 3: Pricing ───────────────────────────────────────────────────────
   const referenceMetro = 'DC';
   // Pick first IBX in the reference metro from EIA locations, or fall back to a well-known one
   const referenceIbx = eiaLocations.find((loc) => loc.metroCode === referenceMetro)?.ibx ?? 'DC6';
-  console.log(`${c.bold}${c.cyan}[3/4]${c.reset}${c.bold} Fetching pricing${c.reset} ${c.dim}(reference metro: ${referenceMetro}, IBX: ${referenceIbx})${c.reset}`);
+  console.log(`${c.bold}${c.cyan}[3/4]${c.reset}${c.bold} Fetching pricing${c.reset} ${c.dim}(reference metro: ${referenceMetro}, IBX: ${referenceIbx}) (parallel)${c.reset}`);
 
-  let fabricPortPricing = {};
-  let vcPricing = {};
-  let cloudRouterPricing = {};
-  let nePricing = {};
-  let eiaPricing = {};
+  const pricingResults = await Promise.allSettled([
+    fetchFabricPortPricing(referenceIbx),
+    fetchVCPricing(referenceMetro),
+    fetchCloudRouterPricing(routerPackages, referenceMetro),
+    fetchNetworkEdgePricing(deviceTypes, referenceMetro),
+    fetchEIAPricing(referenceIbx),
+  ]);
 
-  try { fabricPortPricing = await fetchFabricPortPricing(referenceIbx); } catch (err) {
-    console.log(`  ${WARN} Fabric Port pricing ${c.yellow}skipped${c.reset} ${c.dim}\u2014 ${err.message}${c.reset}`);
-  }
-  try { vcPricing = await fetchVCPricing(referenceMetro); } catch (err) {
-    console.log(`  ${WARN} VC pricing ${c.yellow}skipped${c.reset} ${c.dim}\u2014 ${err.message}${c.reset}`);
-  }
-  try { cloudRouterPricing = await fetchCloudRouterPricing(routerPackages, referenceMetro); } catch (err) {
-    console.log(`  ${WARN} Cloud Router pricing ${c.yellow}skipped${c.reset} ${c.dim}\u2014 ${err.message}${c.reset}`);
-  }
-  try { nePricing = await fetchNetworkEdgePricing(deviceTypes, referenceMetro); } catch (err) {
-    console.log(`  ${WARN} Network Edge pricing ${c.yellow}skipped${c.reset} ${c.dim}\u2014 ${err.message}${c.reset}`);
-  }
-  try { eiaPricing = await fetchEIAPricing(referenceIbx); } catch (err) {
-    console.log(`  ${WARN} Internet Access pricing ${c.yellow}skipped${c.reset} ${c.dim}\u2014 ${err.message}${c.reset}`);
-  }
+  const pricingLabels = ['Fabric Port', 'VC', 'Cloud Router', 'Network Edge', 'Internet Access'];
+  const [fabricPortPricing, vcPricing, cloudRouterPricing, nePricing, eiaPricing] =
+    pricingResults.map((r, i) => {
+      if (r.status === 'fulfilled') return r.value;
+      console.log(`  ${WARN} ${pricingLabels[i]} pricing ${c.yellow}skipped${c.reset} ${c.dim}\u2014 ${r.reason?.message}${c.reset}`);
+      return {};
+    });
   console.log('');
 
   // ── Phase 4: Write ─────────────────────────────────────────────────────────
