@@ -3,7 +3,7 @@ import { useConfigStore } from '@/store/configStore';
 import { searchPrices } from '@/api/fabric';
 import { fetchNetworkEdgePricing } from '@/api/networkEdge';
 import { fetchEIAPricing } from '@/api/internetAccess';
-import type { ServiceSelection, FabricPortConfig, NetworkEdgeConfig, InternetAccessConfig as IAConfig, CloudRouterConfig, ColocationConfig, PricingResult, BandwidthPriceEntry } from '@/types/config';
+import type { ServiceSelection, FabricPortConfig, NetworkEdgeConfig, InternetAccessConfig as IAConfig, CloudRouterConfig, ColocationConfig, CrossConnectConfig, PricingResult, BandwidthPriceEntry } from '@/types/config';
 import { calculatePricingSummary, formatCurrency } from '@/utils/priceCalculator';
 import { generateCsv, downloadCsv } from '@/utils/csvGenerator';
 import { BANDWIDTH_OPTIONS } from '@/constants/serviceDefaults';
@@ -111,6 +111,18 @@ export function usePricing() {
               currency: 'USD',
               isEstimate: false,
               breakdown: [],
+            };
+            break;
+          }
+          case 'CROSS_CONNECT': {
+            const c = service.config as CrossConnectConfig;
+            const mediaShort = c.connectionService === 'SINGLE_MODE_FIBER' ? 'SMF' : c.connectionService === 'MULTI_MODE_FIBER' ? 'MMF' : c.connectionService;
+            pricing = {
+              mrc: c.mrcPrice,
+              nrc: 0,
+              currency: 'USD',
+              isEstimate: true,
+              breakdown: [{ description: `${c.quantity}x ${mediaShort} ${c.connectorType}, ${c.protocolType}`, mrc: c.mrcPrice, nrc: 0 }],
             };
             break;
           }

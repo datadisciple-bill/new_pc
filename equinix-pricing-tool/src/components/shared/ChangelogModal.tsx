@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export const CURRENT_VERSION = 9;
+export const CURRENT_VERSION = 10;
 export const RELEASE_DATE = new Date('2026-02-26T00:00:00');
 
 interface ChangelogEntry {
@@ -10,6 +10,17 @@ interface ChangelogEntry {
 }
 
 const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: 10,
+    date: 'Feb 26, 2026',
+    items: [
+      'Drag-to-connect: drag from a handle on one service node to another to create connections automatically',
+      'Auto-detects connection type — Cross Connect for physical-to-physical, Virtual Circuit for fabric-to-fabric',
+      'Bundled Cross Connects ($0) created automatically when connecting Colocation to Fabric Port',
+      'Invalid connections show clear error messages explaining why and suggesting alternatives',
+      'Handle dots glow green on hover for better drag discoverability',
+    ],
+  },
   {
     version: 9,
     date: 'Feb 26, 2026',

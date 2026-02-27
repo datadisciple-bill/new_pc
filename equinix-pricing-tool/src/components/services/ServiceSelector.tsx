@@ -7,11 +7,12 @@ import { InternetAccessConfig } from './InternetAccessConfig';
 import { CloudRouterConfig } from './CloudRouterConfig';
 import { ColocationConfig } from './ColocationConfig';
 import { NspConfig } from './NspConfig';
+import { CrossConnectConfig } from './CrossConnectConfig';
 import { useConfigStore } from '@/store/configStore';
 import type { ServiceType, ServiceSelection } from '@/types/config';
 import { SERVICE_TYPE_LABELS } from '@/constants/brandColors';
 
-const SERVICE_TYPES: ServiceType[] = ['FABRIC_PORT', 'NETWORK_EDGE', 'INTERNET_ACCESS', 'CLOUD_ROUTER', 'COLOCATION', 'NSP'];
+const SERVICE_TYPES: ServiceType[] = ['FABRIC_PORT', 'NETWORK_EDGE', 'INTERNET_ACCESS', 'CLOUD_ROUTER', 'COLOCATION', 'NSP', 'CROSS_CONNECT'];
 
 interface Props {
   metroCode: string;
@@ -127,6 +128,8 @@ export function ServiceSelector({ metroCode }: Props) {
         return <ColocationConfig {...common} />;
       case 'NSP':
         return <NspConfig {...common} />;
+      case 'CROSS_CONNECT':
+        return <CrossConnectConfig {...common} />;
     }
   };
 

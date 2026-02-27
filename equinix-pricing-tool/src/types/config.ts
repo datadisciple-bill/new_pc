@@ -46,12 +46,12 @@ export interface MetroSelection {
   services: ServiceSelection[];
 }
 
-export type ServiceType = 'FABRIC_PORT' | 'NETWORK_EDGE' | 'INTERNET_ACCESS' | 'CLOUD_ROUTER' | 'COLOCATION' | 'NSP';
+export type ServiceType = 'FABRIC_PORT' | 'NETWORK_EDGE' | 'INTERNET_ACCESS' | 'CLOUD_ROUTER' | 'COLOCATION' | 'NSP' | 'CROSS_CONNECT';
 
 export interface ServiceSelection {
   id: string;
   type: ServiceType;
-  config: FabricPortConfig | NetworkEdgeConfig | InternetAccessConfig | CloudRouterConfig | ColocationConfig | NspConfig;
+  config: FabricPortConfig | NetworkEdgeConfig | InternetAccessConfig | CloudRouterConfig | ColocationConfig | NspConfig | CrossConnectConfig;
   pricing: PricingResult | null;
 }
 
@@ -107,6 +107,17 @@ export interface NspConfig {
   providerName: string;
 }
 
+export type CrossConnectMediaType = 'SINGLE_MODE_FIBER' | 'MULTI_MODE_FIBER' | 'UTP' | 'COAX';
+export type CrossConnectConnectorType = 'LC' | 'SC' | 'ST' | 'FC' | 'RJ45';
+
+export interface CrossConnectConfig {
+  connectionService: CrossConnectMediaType;
+  connectorType: CrossConnectConnectorType;
+  protocolType: string;
+  quantity: number;
+  mrcPrice: number;
+}
+
 export interface VirtualConnection {
   id: string;
   name: string;
@@ -128,7 +139,7 @@ export interface BandwidthPriceEntry {
   currency: string;
 }
 
-export type EndpointType = 'PORT' | 'NETWORK_EDGE' | 'CLOUD_ROUTER' | 'SERVICE_PROFILE' | 'COLOCATION' | 'NSP' | 'LOCAL_SITE';
+export type EndpointType = 'PORT' | 'NETWORK_EDGE' | 'CLOUD_ROUTER' | 'SERVICE_PROFILE' | 'COLOCATION' | 'NSP' | 'CROSS_CONNECT' | 'LOCAL_SITE';
 
 export interface ConnectionEndpoint {
   metroCode: string;

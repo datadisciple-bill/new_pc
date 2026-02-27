@@ -1,4 +1,4 @@
-import type { FabricPortConfig, NetworkEdgeConfig, InternetAccessConfig, CloudRouterConfig, ColocationConfig, NspConfig } from '@/types/config';
+import type { FabricPortConfig, NetworkEdgeConfig, InternetAccessConfig, CloudRouterConfig, ColocationConfig, NspConfig, CrossConnectConfig } from '@/types/config';
 
 export const DEFAULT_FABRIC_PORT: FabricPortConfig = {
   speed: '10G',
@@ -38,6 +38,39 @@ export const DEFAULT_COLOCATION: ColocationConfig = {
 export const DEFAULT_NSP: NspConfig = {
   providerName: '',
 };
+
+export const DEFAULT_CROSS_CONNECT: CrossConnectConfig = {
+  connectionService: 'SINGLE_MODE_FIBER',
+  connectorType: 'LC',
+  protocolType: '10 GigE',
+  quantity: 1,
+  mrcPrice: 0,
+};
+
+export const CROSS_CONNECT_MEDIA_TYPES = [
+  { value: 'SINGLE_MODE_FIBER', label: 'Single Mode Fiber (SMF)' },
+  { value: 'MULTI_MODE_FIBER', label: 'Multi Mode Fiber (MMF)' },
+  { value: 'UTP', label: 'UTP (Copper)' },
+  { value: 'COAX', label: 'Coaxial' },
+] as const;
+
+export const CROSS_CONNECT_CONNECTOR_TYPES = [
+  { value: 'LC', label: 'LC' },
+  { value: 'SC', label: 'SC' },
+  { value: 'ST', label: 'ST' },
+  { value: 'FC', label: 'FC' },
+  { value: 'RJ45', label: 'RJ45' },
+] as const;
+
+export const CROSS_CONNECT_PROTOCOLS = [
+  '10 GigE',
+  'GigE',
+  'Ethernet',
+  'Dark Fiber',
+  'Fibre Channel',
+  '100G',
+  '400G',
+] as const;
 
 export const PORT_SPEEDS = ['1G', '10G', '100G', '400G'] as const;
 

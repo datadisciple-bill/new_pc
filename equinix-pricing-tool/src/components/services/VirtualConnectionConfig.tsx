@@ -6,6 +6,7 @@ import { SERVICE_TYPE_LABELS } from '@/constants/brandColors';
 import { ConfirmDeleteButton } from '@/components/shared/ConfirmDeleteButton';
 import { formatCurrency } from '@/utils/priceCalculator';
 import type { VirtualConnection, EndpointType } from '@/types/config';
+import { endpointTypeForService } from '@/utils/connectionValidator';
 
 function serviceLabel(svc: { type: string; metroCode: string; config: Record<string, unknown> }): string {
   const typeLabel = SERVICE_TYPE_LABELS[svc.type] ?? svc.type;
@@ -22,18 +23,12 @@ function serviceLabel(svc: { type: string; metroCode: string; config: Record<str
   } else if (svc.type === 'COLOCATION') {
     const c = svc.config as { description?: string };
     detail = c.description ? ` ${c.description}` : '';
+  } else if (svc.type === 'CROSS_CONNECT') {
+    const c = svc.config as { connectorType?: string; connectionService?: string };
+    const mediaShort = c.connectionService === 'SINGLE_MODE_FIBER' ? 'SMF' : c.connectionService === 'MULTI_MODE_FIBER' ? 'MMF' : c.connectionService ?? '';
+    detail = ` ${mediaShort} ${c.connectorType ?? ''}`;
   }
   return `${typeLabel}${detail} (${svc.metroCode})`;
-}
-
-function endpointTypeForService(svcType: string): EndpointType {
-  switch (svcType) {
-    case 'CLOUD_ROUTER': return 'CLOUD_ROUTER';
-    case 'NETWORK_EDGE': return 'NETWORK_EDGE';
-    case 'COLOCATION': return 'COLOCATION';
-    case 'NSP': return 'NSP';
-    default: return 'PORT';
-  }
 }
 
 interface ConnectionForm {
@@ -78,6 +73,8 @@ export function VirtualConnectionConfig() {
 
   // Colocation can only connect to Fabric Port or Internet Access
   const COLOCATION_ALLOWED_TYPES = new Set(['FABRIC_PORT', 'INTERNET_ACCESS']);
+  // Cross Connect: intra-metro only, connects to Colocation, NSP, or other Cross Connects
+  const CROSS_CONNECT_ALLOWED_TYPES = new Set(['COLOCATION', 'NSP', 'CROSS_CONNECT']);
 
   // Z-Side services: exclude A-Side service itself + enforce connection rules
   const aSideService = allServices.find((s) => s.id === form.aSideServiceId);
@@ -86,11 +83,20 @@ export function VirtualConnectionConfig() {
     // Colocation ↔ only Fabric Port and Internet Access
     if (aSideService?.type === 'COLOCATION' && !COLOCATION_ALLOWED_TYPES.has(s.type)) return false;
     if (s.type === 'COLOCATION' && aSideService && !COLOCATION_ALLOWED_TYPES.has(aSideService.type)) return false;
+    // Cross Connect ↔ only Colocation, NSP, or other Cross Connects; same metro only
+    if (aSideService?.type === 'CROSS_CONNECT') {
+      if (!CROSS_CONNECT_ALLOWED_TYPES.has(s.type)) return false;
+      if (s.metroCode !== aSideService.metroCode) return false;
+    }
+    if (s.type === 'CROSS_CONNECT') {
+      if (aSideService && !CROSS_CONNECT_ALLOWED_TYPES.has(aSideService.type)) return false;
+      if (aSideService && s.metroCode !== aSideService.metroCode) return false;
+    }
     return true;
   });
 
-  // When A-side is Colocation, disable Cloud Provider z-side option
-  const canSelectCloudProvider = aSideService?.type !== 'COLOCATION';
+  // When A-side is Colocation or Cross Connect, disable Cloud Provider z-side option
+  const canSelectCloudProvider = aSideService?.type !== 'COLOCATION' && aSideService?.type !== 'CROSS_CONNECT';
 
   const resetForm = () => {
     setForm({ ...EMPTY_FORM });

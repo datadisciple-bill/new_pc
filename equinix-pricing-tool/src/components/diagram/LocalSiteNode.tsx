@@ -212,8 +212,8 @@ export const LocalSiteNode = memo(function LocalSiteNode({ data, selected }: Nod
       >
         ×
       </ConfirmDeleteButton>
-      <Handle type="target" position={Position.Left} className="!bg-equinix-black !w-2 !h-2" />
-      <Handle type="source" position={Position.Right} className="!bg-equinix-black !w-2 !h-2" />
+      <Handle type="target" position={Position.Left} className="!bg-equinix-black !w-2 !h-2 hover:!w-3 hover:!h-3 hover:!ring-2 hover:!ring-equinix-green transition-all cursor-crosshair" />
+      <Handle type="source" position={Position.Right} className="!bg-equinix-black !w-2 !h-2 hover:!w-3 hover:!h-3 hover:!ring-2 hover:!ring-equinix-green transition-all cursor-crosshair" />
     </div>
   );
 });

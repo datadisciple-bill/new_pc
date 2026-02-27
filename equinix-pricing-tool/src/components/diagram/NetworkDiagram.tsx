@@ -10,11 +10,15 @@ import {
   type NodeChange,
   type Node,
   type ReactFlowInstance,
+  type Connection,
+  type IsValidConnection,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { toPng } from 'html-to-image';
 import { useConfigStore } from '@/store/configStore';
 import { buildDiagramLayout } from '@/utils/diagramLayout';
+import { classifyConnection, buildNodeInfoMap, endpointTypeForService } from '@/utils/connectionValidator';
+import { usePricing } from '@/hooks/usePricing';
 import { MetroNode } from './MetroNode';
 import { ServiceNode } from './ServiceNode';
 import { CloudNode } from './CloudNode';
@@ -136,6 +140,8 @@ export function NetworkDiagram() {
   const showPricing = useConfigStore((s) => s.ui.showPricing);
   const setShowPricing = useConfigStore((s) => s.setShowPricing);
   const highlightService = useConfigStore((s) => s.highlightService);
+  const addConnection = useConfigStore((s) => s.addConnection);
+  const updateConnectionPricing = useConfigStore((s) => s.updateConnectionPricing);
   const undo = useConfigStore((s) => s.undo);
   const canUndo = useConfigStore((s) => s.canUndo);
   const addTextBox = useConfigStore((s) => s.addTextBox);
@@ -272,6 +278,142 @@ export function NetworkDiagram() {
     setTimeout(() => instance.fitView(), 150);
   }, []);
 
+  // --- Drag-to-connect ---
+  const { fetchPriceForConnection } = usePricing();
+
+  // Toast state
+  const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showToast = useCallback((message: string, type: 'error' | 'success') => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast({ message, type });
+    toastTimer.current = setTimeout(() => setToast(null), 4000);
+  }, []);
+
+  // Build fast lookup map
+  const nodeInfoMap = useMemo(
+    () => buildNodeInfoMap(reactFlowNodes, metros),
+    [reactFlowNodes, metros]
+  );
+
+  // Validation callback — called during drag for visual feedback
+  const isValidConnection: IsValidConnection = useCallback(
+    (connection) => {
+      const { source, target } = connection;
+      if (!source || !target || source === target) return false;
+      const srcInfo = nodeInfoMap.get(source);
+      const tgtInfo = nodeInfoMap.get(target);
+      if (!srcInfo || !tgtInfo) return false;
+      const result = classifyConnection(srcInfo, tgtInfo);
+      if (!result.valid) return false;
+      // Check for duplicate
+      const conns = useConfigStore.getState().project.connections;
+      const isDupe = conns.some(
+        (c) =>
+          (c.aSide.serviceId === srcInfo.serviceId && c.zSide.serviceId === tgtInfo.serviceId) ||
+          (c.aSide.serviceId === tgtInfo.serviceId && c.zSide.serviceId === srcInfo.serviceId)
+      );
+      return !isDupe;
+    },
+    [nodeInfoMap]
+  );
+
+  // Connect callback — fires on completed drag
+  const onConnect = useCallback(
+    (connection: Connection) => {
+      const { source, target } = connection;
+      if (!source || !target) return;
+      const srcInfo = nodeInfoMap.get(source);
+      const tgtInfo = nodeInfoMap.get(target);
+      if (!srcInfo || !tgtInfo) return;
+
+      // Check duplicate
+      const conns = useConfigStore.getState().project.connections;
+      const isDupe = conns.some(
+        (c) =>
+          (c.aSide.serviceId === srcInfo.serviceId && c.zSide.serviceId === tgtInfo.serviceId) ||
+          (c.aSide.serviceId === tgtInfo.serviceId && c.zSide.serviceId === srcInfo.serviceId)
+      );
+      if (isDupe) {
+        showToast('A connection already exists between these services', 'error');
+        return;
+      }
+
+      const result = classifyConnection(srcInfo, tgtInfo);
+      if (!result.valid) {
+        showToast(result.reason, 'error');
+        return;
+      }
+
+      const aSideType = srcInfo.serviceType === 'LOCAL_SITE'
+        ? 'LOCAL_SITE' as const
+        : srcInfo.serviceType === 'SERVICE_PROFILE'
+          ? 'SERVICE_PROFILE' as const
+          : endpointTypeForService(srcInfo.serviceType);
+      const zSideType = tgtInfo.serviceType === 'LOCAL_SITE'
+        ? 'LOCAL_SITE' as const
+        : tgtInfo.serviceType === 'SERVICE_PROFILE'
+          ? 'SERVICE_PROFILE' as const
+          : endpointTypeForService(tgtInfo.serviceType);
+
+      if (result.kind === 'DIAGRAM_LINK') {
+        const connId = addConnection({
+          name: 'Site Connection',
+          type: 'EVPL_VC',
+          aSide: { metroCode: srcInfo.metroCode, type: aSideType, serviceId: srcInfo.serviceId },
+          zSide: { metroCode: tgtInfo.metroCode, type: zSideType, serviceId: tgtInfo.serviceId },
+          bandwidthMbps: 1000,
+          redundant: false,
+        });
+        updateConnectionPricing(connId, {
+          mrc: 0, nrc: 0, currency: 'USD', isEstimate: false,
+          breakdown: [{ description: 'Local site connection', mrc: 0, nrc: 0 }],
+        });
+        showToast('Site link created', 'success');
+        return;
+      }
+
+      if (result.kind === 'CROSS_CONNECT') {
+        const desc = result.bundled
+          ? 'Bundled Cross Connect (included with Fabric Port)'
+          : 'Cross Connect';
+        const connId = addConnection({
+          name: desc,
+          type: 'EVPL_VC',
+          aSide: { metroCode: srcInfo.metroCode, type: aSideType, serviceId: srcInfo.serviceId },
+          zSide: { metroCode: tgtInfo.metroCode, type: zSideType, serviceId: tgtInfo.serviceId },
+          bandwidthMbps: 10000,
+          redundant: false,
+        });
+        updateConnectionPricing(connId, {
+          mrc: 0, nrc: 0, currency: 'USD', isEstimate: result.bundled ? false : true,
+          breakdown: [{ description: desc, mrc: 0, nrc: 0 }],
+        });
+        showToast(result.bundled ? 'Bundled Cross Connect created ($0)' : 'Cross Connect created', 'success');
+        return;
+      }
+
+      // Virtual Circuit
+      const isCloud = tgtInfo.serviceType === 'SERVICE_PROFILE';
+      const connId = addConnection({
+        name: isCloud ? `VC to ${tgtInfo.serviceId}` : 'Virtual Circuit',
+        type: 'EVPL_VC',
+        aSide: { metroCode: srcInfo.metroCode, type: aSideType, serviceId: srcInfo.serviceId },
+        zSide: {
+          metroCode: tgtInfo.metroCode || srcInfo.metroCode,
+          type: zSideType,
+          serviceId: tgtInfo.serviceId,
+          ...(isCloud ? { serviceProfileName: tgtInfo.serviceId } : {}),
+        },
+        bandwidthMbps: 1000,
+        redundant: false,
+      });
+      fetchPriceForConnection(connId, 1000, srcInfo.metroCode, tgtInfo.metroCode || srcInfo.metroCode);
+      showToast('Virtual Circuit created', 'success');
+    },
+    [nodeInfoMap, addConnection, updateConnectionPricing, fetchPriceForConnection, showToast]
+  );
+
   // Align to grid — reset all draggable positions to computed layout
   const handleAlignToGrid = useCallback(() => {
     savedPositions.current.clear();
@@ -388,6 +530,9 @@ export function NetworkDiagram() {
         edgeTypes={edgeTypes}
         onNodesChange={onNodesChange}
         onNodeClick={handleNodeClick}
+        onConnect={onConnect}
+        isValidConnection={isValidConnection}
+        connectionLineStyle={{ stroke: '#00A85F', strokeWidth: 2, strokeDasharray: '6 3' }}
         onInit={onInit}
         fitView
         minZoom={0.1}
@@ -491,6 +636,19 @@ export function NetworkDiagram() {
       </div>
 
       <DiagramLegend />
+
+      {/* Drag-to-connect toast */}
+      {toast && (
+        <div
+          className={`absolute bottom-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg shadow-lg text-sm font-medium transition-opacity ${
+            toast.type === 'error'
+              ? 'bg-red-600 text-white'
+              : 'bg-equinix-green text-white'
+          }`}
+        >
+          {toast.message}
+        </div>
+      )}
     </div>
   );
 }

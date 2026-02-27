@@ -31,6 +31,11 @@ function formatServiceDescription(service: ServiceSelection): string {
       const c = service.config as { providerName: string };
       return c.providerName || 'Network Service Provider';
     }
+    case 'CROSS_CONNECT': {
+      const c = service.config as { connectionService: string; connectorType: string; protocolType: string; quantity: number };
+      const mediaShort = c.connectionService === 'SINGLE_MODE_FIBER' ? 'SMF' : c.connectionService === 'MULTI_MODE_FIBER' ? 'MMF' : c.connectionService;
+      return `${c.quantity}x ${mediaShort} ${c.connectorType}, ${c.protocolType}`;
+    }
   }
 }
 
@@ -52,6 +57,9 @@ function getQuantity(service: ServiceSelection): number {
   }
   if (service.type === 'INTERNET_ACCESS' && (service.config as { connectionType: string }).connectionType === 'DUAL') {
     return 2;
+  }
+  if (service.type === 'CROSS_CONNECT') {
+    return (service.config as { quantity: number }).quantity;
   }
   return 1;
 }

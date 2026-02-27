@@ -9,6 +9,7 @@ import internetAccessIcon from '@/assets/icons/internet-access.svg';
 import cloudRouterIcon from '@/assets/icons/cloud-router.svg';
 import colocationIcon from '@/assets/icons/colocation.svg';
 import nspIcon from '@/assets/icons/nsp.svg';
+import crossConnectIcon from '@/assets/icons/cross-connect.svg';
 
 interface ServiceNodeData {
   serviceId: string;
@@ -26,6 +27,7 @@ const SERVICE_ICON_URLS: Record<string, string> = {
   CLOUD_ROUTER: cloudRouterIcon,
   COLOCATION: colocationIcon,
   NSP: nspIcon,
+  CROSS_CONNECT: crossConnectIcon,
 };
 
 export const ServiceNode = memo(function ServiceNode({ data }: NodeProps) {
@@ -63,6 +65,11 @@ export const ServiceNode = memo(function ServiceNode({ data }: NodeProps) {
   } else if (serviceType === 'NSP') {
     const c = config as { providerName?: string };
     detail = c.providerName ?? '';
+  } else if (serviceType === 'CROSS_CONNECT') {
+    const c = config as { connectionService?: string; connectorType?: string; quantity?: number };
+    const mediaShort = c.connectionService === 'SINGLE_MODE_FIBER' ? 'SMF' : c.connectionService === 'MULTI_MODE_FIBER' ? 'MMF' : c.connectionService ?? '';
+    detail = `${mediaShort} ${c.connectorType ?? ''}`;
+    quantity = c.quantity ?? 1;
   }
 
   return (
@@ -116,8 +123,8 @@ export const ServiceNode = memo(function ServiceNode({ data }: NodeProps) {
           </p>
         )}
       </div>
-      <Handle type="target" position={Position.Left} className="!bg-equinix-black !w-2 !h-2" />
-      <Handle type="source" position={Position.Right} className="!bg-equinix-black !w-2 !h-2" />
+      <Handle type="target" position={Position.Left} className="!bg-equinix-black !w-2 !h-2 hover:!w-3 hover:!h-3 hover:!ring-2 hover:!ring-equinix-green transition-all cursor-crosshair" />
+      <Handle type="source" position={Position.Right} className="!bg-equinix-black !w-2 !h-2 hover:!w-3 hover:!h-3 hover:!ring-2 hover:!ring-equinix-green transition-all cursor-crosshair" />
     </div>
   );
 });

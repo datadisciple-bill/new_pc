@@ -42,4 +42,5 @@ export const SERVICE_TYPE_LABELS: Record<string, string> = {
   VIRTUAL_CONNECTION: 'Virtual Connection',
   COLOCATION: 'Colocation',
   NSP: 'Network Service Provider',
+  CROSS_CONNECT: 'Cross Connect',
 } as const;

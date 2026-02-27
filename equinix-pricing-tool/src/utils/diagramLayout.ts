@@ -20,7 +20,7 @@ export interface LayoutResult {
 
 // Left column: Fabric Port, Internet Access, Colocation, NSP. Right column: Network Edge, Cloud Router.
 function isLeftColumn(type: string): boolean {
-  return type === 'FABRIC_PORT' || type === 'INTERNET_ACCESS' || type === 'COLOCATION' || type === 'NSP';
+  return type === 'FABRIC_PORT' || type === 'INTERNET_ACCESS' || type === 'COLOCATION' || type === 'NSP' || type === 'CROSS_CONNECT';
 }
 
 function getServiceNodeHeight(service: { type: string; config: unknown }): number {
