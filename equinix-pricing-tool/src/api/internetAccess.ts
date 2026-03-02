@@ -40,9 +40,10 @@ export async function fetchEIAPricing(
   metroCode: string,
   connectionType: 'IA_VC' | 'IA_C',
   serviceType: 'SINGLE_PORT' | 'DUAL_PORT',
-  bandwidthMbps: number
+  bandwidthMbps: number,
+  forceLive?: boolean
 ): Promise<EIAPricingResult> {
-  if (useMockData()) return mockEIAPricing(connectionType, bandwidthMbps);
+  if (!forceLive && useMockData()) return mockEIAPricing(connectionType, bandwidthMbps);
 
   const ibx = lookupIbxForMetro(metroCode);
 

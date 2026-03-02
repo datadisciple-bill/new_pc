@@ -11,6 +11,7 @@ export function endpointTypeForService(svcType: string): EndpointType {
     case 'COLOCATION': return 'COLOCATION';
     case 'NSP': return 'NSP';
     case 'CROSS_CONNECT': return 'CROSS_CONNECT';
+    case 'MULTIPOINT_NETWORK': return 'NETWORK';
     default: return 'PORT';
   }
 }
@@ -58,6 +59,11 @@ export function classifyConnection(
   // Local site → anything = diagram link ($0)
   if (a === 'LOCAL_SITE' || b === 'LOCAL_SITE') {
     return { valid: true, kind: 'DIAGRAM_LINK', bundled: false };
+  }
+
+  // Any → multipoint network = Virtual Circuit
+  if (a === 'MULTIPOINT_NETWORK' || b === 'MULTIPOINT_NETWORK') {
+    return { valid: true, kind: 'VIRTUAL_CIRCUIT', bundled: false };
   }
 
   // Any → cloud node = Virtual Circuit
@@ -138,6 +144,16 @@ export function getNodeServiceInfo(
     };
   }
 
+  // network-{uuid}
+  if (nodeId.startsWith('network-')) {
+    const networkId = nodeId.replace('network-', '');
+    return {
+      serviceType: 'MULTIPOINT_NETWORK',
+      metroCode: '',
+      serviceId: networkId,
+    };
+  }
+
   // cloud-{name}
   if (nodeId.startsWith('cloud-')) {
     const node = reactFlowNodes.find((n) => n.id === nodeId);
@@ -160,7 +176,7 @@ export function buildNodeInfoMap(
 ): Map<string, NodeServiceInfo> {
   const map = new Map<string, NodeServiceInfo>();
   for (const node of reactFlowNodes) {
-    if (node.type === 'serviceNode' || node.type === 'localSiteNode' || node.type === 'cloudNode') {
+    if (node.type === 'serviceNode' || node.type === 'localSiteNode' || node.type === 'cloudNode' || node.type === 'multipointNetworkNode') {
       const info = getNodeServiceInfo(node.id, reactFlowNodes, metros);
       if (info) map.set(node.id, info);
     }

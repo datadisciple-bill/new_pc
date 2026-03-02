@@ -9,6 +9,8 @@ import type {
   TextBox,
   LocalSite,
   AnnotationMarker,
+  MultipointNetwork,
+  MultipointNetworkType,
   FabricPortConfig,
   NetworkEdgeConfig,
   InternetAccessConfig,
@@ -53,6 +55,7 @@ interface UIState {
   isLoading: boolean;
   error: string | null;
   showPricing: boolean;
+  pricingMode: 'cached' | 'live';
 }
 
 const MAX_HISTORY = 10;
@@ -116,6 +119,11 @@ interface ConfigStore {
   removeAnnotationMarker: (id: string) => void;
   updateAnnotationMarker: (id: string, updates: Partial<AnnotationMarker>) => void;
 
+  // Multipoint network actions
+  addNetwork: (x: number, y: number, type?: MultipointNetworkType) => string;
+  removeNetwork: (id: string) => void;
+  updateNetwork: (id: string, updates: Partial<MultipointNetwork>) => void;
+
   // Load project from imported file
   loadProject: (project: ProjectConfig) => void;
 
@@ -129,6 +137,7 @@ interface ConfigStore {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   setShowPricing: (show: boolean) => void;
+  setPricingMode: (mode: 'cached' | 'live') => void;
 }
 
 /**
@@ -223,6 +232,7 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
     textBoxes: [],
     localSites: [],
     annotationMarkers: [],
+    networks: [],
   },
   projectHistory: [],
   canUndo: false,
@@ -589,6 +599,50 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
       },
     })),
 
+  // Multipoint network actions
+  addNetwork: (x, y, type) => {
+    const id = uuidv4();
+    set((state) => {
+      const newHistory = [...state.projectHistory, state.project].slice(-MAX_HISTORY);
+      return {
+        project: {
+          ...state.project,
+          networks: [
+            ...state.project.networks,
+            { id, name: 'Multipoint Network', type: type ?? 'EVPLAN', scope: 'LOCAL' as const, x, y },
+          ],
+        },
+        projectHistory: newHistory,
+        canUndo: true,
+      };
+    });
+    return id;
+  },
+  removeNetwork: (id) =>
+    set((state) => {
+      const newHistory = [...state.projectHistory, state.project].slice(-MAX_HISTORY);
+      return {
+        project: {
+          ...state.project,
+          networks: state.project.networks.filter((n) => n.id !== id),
+          connections: state.project.connections.filter(
+            (c) => c.aSide.serviceId !== id && c.zSide.serviceId !== id
+          ),
+        },
+        projectHistory: newHistory,
+        canUndo: true,
+      };
+    }),
+  updateNetwork: (id, updates) =>
+    set((state) => ({
+      project: {
+        ...state.project,
+        networks: state.project.networks.map((n) =>
+          n.id === id ? { ...n, ...updates } : n
+        ),
+      },
+    })),
+
   // Load project from imported file
   loadProject: (project) =>
     set({
@@ -606,6 +660,7 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
     isLoading: false,
     error: null,
     showPricing: true,
+    pricingMode: 'cached',
   },
   setActiveTab: (tab) =>
     set((state) => ({ ui: { ...state.ui, activeTab: tab } })),
@@ -637,6 +692,17 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
     set((state) => ({ ui: { ...state.ui, error } })),
   setShowPricing: (show) =>
     set((state) => ({ ui: { ...state.ui, showPricing: show } })),
+  setPricingMode: (mode) =>
+    set((state) => {
+      if (mode === 'cached') {
+        // Clear auth when switching back to cached mode (security hygiene)
+        return {
+          ui: { ...state.ui, pricingMode: mode },
+          auth: { token: null, tokenExpiry: null, isAuthenticated: false, userName: null },
+        };
+      }
+      return { ui: { ...state.ui, pricingMode: mode } };
+    }),
 }));
 
 // Selector helpers

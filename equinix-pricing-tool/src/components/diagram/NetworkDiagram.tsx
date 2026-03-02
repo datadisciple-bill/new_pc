@@ -29,8 +29,12 @@ import { TextBoxNode } from './TextBoxNode';
 import { LocalSiteNode } from './LocalSiteNode';
 import { AnnotationMarkerNode } from './AnnotationMarkerNode';
 import { AnnotationLegendNode } from './AnnotationLegendNode';
+import { MultipointNetworkNode } from './MultipointNetworkNode';
 import { CustomEdge } from './CustomEdge';
 import { DiagramLegend } from './DiagramLegend';
+import { NETWORK_TO_CONNECTION_TYPE } from '@/constants/serviceDefaults';
+import { NETWORK_NODE_COLORS } from '@/constants/brandColors';
+import type { MultipointNetworkType, VirtualConnection } from '@/types/config';
 
 const nodeTypes: NodeTypes = {
   metroNode: MetroNode,
@@ -43,6 +47,7 @@ const nodeTypes: NodeTypes = {
   localSiteNode: LocalSiteNode,
   annotationMarkerNode: AnnotationMarkerNode,
   annotationLegendNode: AnnotationLegendNode,
+  multipointNetworkNode: MultipointNetworkNode,
 };
 
 const edgeTypes: EdgeTypes = {
@@ -52,7 +57,7 @@ const edgeTypes: EdgeTypes = {
 // Node types that can be freely repositioned by dragging
 const DRAGGABLE_NODE_TYPES = new Set([
   'priceTableNode', 'nePriceTableNode', 'eiaPriceTableNode', 'cloudNode', 'textBoxNode',
-  'localSiteNode', 'annotationMarkerNode', 'annotationLegendNode',
+  'localSiteNode', 'annotationMarkerNode', 'annotationLegendNode', 'multipointNetworkNode',
 ]);
 
 const METRO_PAD = 16;
@@ -137,6 +142,7 @@ export function NetworkDiagram() {
   const textBoxes = useConfigStore((s) => s.project.textBoxes);
   const localSites = useConfigStore((s) => s.project.localSites);
   const annotationMarkers = useConfigStore((s) => s.project.annotationMarkers);
+  const networks = useConfigStore((s) => s.project.networks);
   const showPricing = useConfigStore((s) => s.ui.showPricing);
   const setShowPricing = useConfigStore((s) => s.setShowPricing);
   const highlightService = useConfigStore((s) => s.highlightService);
@@ -150,6 +156,8 @@ export function NetworkDiagram() {
   const updateLocalSite = useConfigStore((s) => s.updateLocalSite);
   const addAnnotationMarker = useConfigStore((s) => s.addAnnotationMarker);
   const updateAnnotationMarker = useConfigStore((s) => s.updateAnnotationMarker);
+  const addNetwork = useConfigStore((s) => s.addNetwork);
+  const updateNetwork = useConfigStore((s) => s.updateNetwork);
 
   // Controlled nodes state
   const [reactFlowNodes, setReactFlowNodes] = useState<Node[]>([]);
@@ -159,8 +167,8 @@ export function NetworkDiagram() {
   const rfInstanceRef = useRef<ReactFlowInstance | null>(null);
 
   const { nodes: layoutNodes, edges } = useMemo(
-    () => buildDiagramLayout(metros, connections, showPricing, textBoxes, localSites, annotationMarkers),
-    [metros, connections, showPricing, textBoxes, localSites, annotationMarkers]
+    () => buildDiagramLayout(metros, connections, showPricing, textBoxes, localSites, annotationMarkers, networks),
+    [metros, connections, showPricing, textBoxes, localSites, annotationMarkers, networks]
   );
 
   // Store layout-computed metro sizes as minimum floors
@@ -239,6 +247,10 @@ export function NetworkDiagram() {
                 const mId = (node.data as { markerId: string }).markerId;
                 updateAnnotationMarker(mId, { x: change.position.x, y: change.position.y });
               }
+              if (node.type === 'multipointNetworkNode' && change.dragging === false) {
+                const nId = (node.data as { networkId: string }).networkId;
+                updateNetwork(nId, { x: change.position.x, y: change.position.y });
+              }
             }
 
             if (node.type === 'metroNode') {
@@ -270,7 +282,7 @@ export function NetworkDiagram() {
         return applied;
       });
     },
-    [updateTextBox, updateLocalSite, updateAnnotationMarker]
+    [updateTextBox, updateLocalSite, updateAnnotationMarker, updateNetwork]
   );
 
   const onInit = useCallback((instance: ReactFlowInstance) => {
@@ -393,11 +405,32 @@ export function NetworkDiagram() {
         return;
       }
 
-      // Virtual Circuit
+      // Determine if this is a multipoint network connection
+      const isNetwork = tgtInfo.serviceType === 'MULTIPOINT_NETWORK' || srcInfo.serviceType === 'MULTIPOINT_NETWORK';
       const isCloud = tgtInfo.serviceType === 'SERVICE_PROFILE';
+
+      let vcType: VirtualConnection['type'] = 'EVPL_VC';
+      if (isNetwork) {
+        // Find the network to determine the correct connection type
+        const networkId = tgtInfo.serviceType === 'MULTIPOINT_NETWORK' ? tgtInfo.serviceId : srcInfo.serviceId;
+        const storeNetworks = useConfigStore.getState().project.networks;
+        const network = storeNetworks.find((n) => n.id === networkId);
+        if (network) {
+          vcType = NETWORK_TO_CONNECTION_TYPE[network.type as MultipointNetworkType];
+          // IP-WAN only accepts Cloud Routers
+          if (network.type === 'IPWAN') {
+            const nonNetworkSvc = tgtInfo.serviceType === 'MULTIPOINT_NETWORK' ? srcInfo : tgtInfo;
+            if (nonNetworkSvc.serviceType !== 'CLOUD_ROUTER') {
+              showToast('IP-WAN networks only accept Fabric Cloud Router connections', 'error');
+              return;
+            }
+          }
+        }
+      }
+
       const connId = addConnection({
-        name: isCloud ? `VC to ${tgtInfo.serviceId}` : 'Virtual Circuit',
-        type: 'EVPL_VC',
+        name: isNetwork ? 'Network Connection' : isCloud ? `VC to ${tgtInfo.serviceId}` : 'Virtual Circuit',
+        type: vcType,
         aSide: { metroCode: srcInfo.metroCode, type: aSideType, serviceId: srcInfo.serviceId },
         zSide: {
           metroCode: tgtInfo.metroCode || srcInfo.metroCode,
@@ -409,7 +442,7 @@ export function NetworkDiagram() {
         redundant: false,
       });
       fetchPriceForConnection(connId, 1000, srcInfo.metroCode, tgtInfo.metroCode || srcInfo.metroCode);
-      showToast('Virtual Circuit created', 'success');
+      showToast(isNetwork ? 'Network connection created' : 'Virtual Circuit created', 'success');
     },
     [nodeInfoMap, addConnection, updateConnectionPricing, fetchPriceForConnection, showToast]
   );
@@ -447,6 +480,12 @@ export function NetworkDiagram() {
     const { x, y } = getViewportCenter();
     addLocalSite(x - 80, y - 32);
   }, [addLocalSite, getViewportCenter]);
+
+  // Add multipoint network at center of viewport
+  const handleAddNetwork = useCallback(() => {
+    const { x, y } = getViewportCenter();
+    addNetwork(x - 90, y - 32);
+  }, [addNetwork, getViewportCenter]);
 
   // Add annotation marker at center of viewport
   const handleAddMarker = useCallback(() => {
@@ -570,6 +609,10 @@ export function NetworkDiagram() {
             if (node.type === 'textBoxNode') return '#fef3c7';
             if (node.type === 'localSiteNode') return '#e5e7eb';
             if (node.type === 'annotationMarkerNode') return '#E91C24';
+            if (node.type === 'multipointNetworkNode') {
+              const nt = (node.data as { networkType?: string }).networkType ?? '';
+              return NETWORK_NODE_COLORS[nt] ?? '#0067B8';
+            }
             return '#1f2937';
           }}
           nodeStrokeWidth={2}
@@ -642,6 +685,16 @@ export function NetworkDiagram() {
         >
           <span className="w-3.5 h-3.5 rounded-full bg-red-500 text-white text-[8px] font-bold flex items-center justify-center">#</span>
           Marker
+        </button>
+        <button
+          onClick={handleAddNetwork}
+          title="Add a multipoint network (E-LAN, E-Tree, IP-WAN)"
+          className="px-3 py-1.5 text-[10px] font-medium rounded-md shadow-sm border bg-white border-gray-300 transition-colors hover:bg-gray-50 flex items-center gap-1"
+        >
+          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+          Network
         </button>
         <button
           onClick={handleExportPng}

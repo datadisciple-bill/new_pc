@@ -59,6 +59,7 @@ export async function apiRequest<T>(
 
       if (response.status === 401) {
         useConfigStore.getState().clearAuth();
+        useConfigStore.getState().setPricingMode('cached');
         throw new ApiError(401, 'Authentication expired. Please log in again.');
       }
 

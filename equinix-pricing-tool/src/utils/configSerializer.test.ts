@@ -67,6 +67,9 @@ function makeTestProject(): ProjectConfig {
     textBoxes: [{ id: 'tb-1', text: 'Note', x: 0, y: 0, width: 100, height: 40 }],
     localSites: [],
     annotationMarkers: [],
+    networks: [
+      { id: 'net-1', name: 'DC E-LAN', type: 'EVPLAN', scope: 'LOCAL', x: 300, y: 200 },
+    ],
   };
 }
 
@@ -205,5 +208,27 @@ describe('parseProjectFile', () => {
   it('returns error for non-object file', () => {
     const result = parseProjectFile('"just a string"');
     expect(result.ok).toBe(false);
+  });
+
+  it('defaults networks to empty array for v1 files', () => {
+    const result = parseProjectFile(JSON.stringify({
+      schemaVersion: 1,
+      project: { id: 'x', name: 'Test', metros: [], connections: [] },
+    }));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.project.networks).toEqual([]);
+  });
+
+  it('round-trips networks through serialize/parse', () => {
+    const project = makeTestProject();
+    const json = serializeProject(project);
+    const result = parseProjectFile(json);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.project.networks).toHaveLength(1);
+    expect(result.project.networks[0].name).toBe('DC E-LAN');
+    expect(result.project.networks[0].type).toBe('EVPLAN');
   });
 });

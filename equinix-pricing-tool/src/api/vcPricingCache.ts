@@ -36,6 +36,10 @@ export function getCachedVCPrice(
   return { mrc: entry.mrc, nrc: entry.nrc };
 }
 
+export function clearVCPricingCache(): void {
+  CACHE.clear();
+}
+
 export function setCachedVCPrice(
   aSide: string,
   zSide: string,

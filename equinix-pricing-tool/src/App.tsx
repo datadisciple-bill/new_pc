@@ -3,6 +3,7 @@ import { useConfigStore } from '@/store/configStore';
 import { MetroSelector } from '@/components/metro/MetroSelector';
 import { ServiceSelector } from '@/components/services/ServiceSelector';
 import { VirtualConnectionConfig } from '@/components/services/VirtualConnectionConfig';
+import { MultipointNetworkManager } from '@/components/services/MultipointNetworkManager';
 import { NetworkDiagram } from '@/components/diagram/NetworkDiagram';
 import { PriceSheet } from '@/components/pricing/PriceSheet';
 import { CsvExport } from '@/components/export/CsvExport';
@@ -16,6 +17,7 @@ import { fetchServiceProfiles } from '@/api/fabric';
 import { authenticate } from '@/api/auth';
 import { setDefaultPricing, setDefaultLocations, hasDefaultPricing } from '@/data/defaultPricing';
 import { ChangelogModal, CURRENT_VERSION, RELEASE_DATE } from '@/components/shared/ChangelogModal';
+import { PricingModeToggle } from '@/components/shared/PricingModeToggle';
 import { usePricing } from '@/hooks/usePricing';
 import type { ProjectConfig } from '@/types/config';
 
@@ -169,6 +171,7 @@ function App() {
           />
         </div>
         <div className="flex items-center gap-3">
+          <PricingModeToggle />
           <ConfigExportImport onImport={setImportResult} />
           <CsvExport />
           <button
@@ -258,6 +261,9 @@ function App() {
                 <ServiceSelector metroCode={selectedMetroCode} />
               )}
               <div className="border-t border-gray-200 pt-3">
+                <MultipointNetworkManager />
+              </div>
+              <div className="border-t border-gray-200 pt-3">
                 <VirtualConnectionConfig />
               </div>
             </>
@@ -303,6 +309,9 @@ function App() {
                   {selectedMetroCode && (
                     <ServiceSelector metroCode={selectedMetroCode} />
                   )}
+                  <div className="border-t border-gray-200 pt-3">
+                    <MultipointNetworkManager />
+                  </div>
                   <div className="border-t border-gray-200 pt-3">
                     <VirtualConnectionConfig />
                   </div>

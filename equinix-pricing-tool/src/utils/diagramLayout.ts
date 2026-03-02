@@ -1,4 +1,5 @@
-import type { MetroSelection, VirtualConnection, NetworkEdgeConfig, FabricPortConfig, InternetAccessConfig, ServiceSelection, TextBox, LocalSite, AnnotationMarker } from '@/types/config';
+import type { MetroSelection, VirtualConnection, NetworkEdgeConfig, FabricPortConfig, InternetAccessConfig, ServiceSelection, TextBox, LocalSite, AnnotationMarker, MultipointNetwork } from '@/types/config';
+import { NETWORK_NODE_COLORS, SERVICE_TYPE_LABELS } from '@/constants/brandColors';
 import type { Node, Edge } from '@xyflow/react';
 import { formatCurrency } from './priceCalculator';
 
@@ -73,7 +74,8 @@ export function buildDiagramLayout(
   showPricing = true,
   textBoxes: TextBox[] = [],
   localSites: LocalSite[] = [],
-  annotationMarkers: AnnotationMarker[] = []
+  annotationMarkers: AnnotationMarker[] = [],
+  networks: MultipointNetwork[] = []
 ): LayoutResult {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
@@ -371,18 +373,53 @@ export function buildDiagramLayout(
     });
   }
 
+  // Multipoint network nodes
+  const NETWORK_NODE_WIDTH = 180;
+  const NETWORK_NODE_HEIGHT = 64;
+  networks.forEach((network) => {
+    const color = NETWORK_NODE_COLORS[network.type] ?? '#0067B8';
+    const typeLabel = SERVICE_TYPE_LABELS[network.type] ?? network.type;
+    nodes.push({
+      id: `network-${network.id}`,
+      type: 'multipointNetworkNode',
+      position: { x: network.x, y: network.y },
+      data: {
+        networkId: network.id,
+        name: network.name,
+        networkType: network.type,
+        scope: network.scope,
+        typeLabel,
+        color,
+      },
+      style: { width: NETWORK_NODE_WIDTH, height: NETWORK_NODE_HEIGHT },
+      width: NETWORK_NODE_WIDTH,
+      height: NETWORK_NODE_HEIGHT,
+      draggable: true,
+      zIndex: 3,
+    });
+  });
+
   // Connection edges
   connections.forEach((conn) => {
     const isLocalSiteASide = conn.aSide.type === 'LOCAL_SITE';
     const isLocalSiteZSide = conn.zSide.type === 'LOCAL_SITE';
+    const isNetworkASide = conn.aSide.type === 'NETWORK';
+    const isNetworkZSide = conn.zSide.type === 'NETWORK';
 
-    const sourceId = isLocalSiteASide
-      ? `localsite-${conn.aSide.serviceId}`
-      : `service-${conn.aSide.serviceId}`;
+    let sourceId: string;
+    if (isLocalSiteASide) {
+      sourceId = `localsite-${conn.aSide.serviceId}`;
+    } else if (isNetworkASide) {
+      sourceId = `network-${conn.aSide.serviceId}`;
+    } else {
+      sourceId = `service-${conn.aSide.serviceId}`;
+    }
 
     let targetId: string;
     if (isLocalSiteZSide) {
       targetId = `localsite-${conn.zSide.serviceId}`;
+    } else if (isNetworkZSide) {
+      targetId = `network-${conn.zSide.serviceId}`;
     } else if (conn.zSide.type === 'SERVICE_PROFILE') {
       targetId = `cloud-${conn.zSide.serviceProfileName?.replace(/\s+/g, '-')}`;
     } else {
@@ -413,6 +450,7 @@ export function buildDiagramLayout(
 
     const isSameMetro = conn.aSide.metroCode === conn.zSide.metroCode && !isLocalSiteASide && !isLocalSiteZSide;
     const isLocalSiteConnection = isLocalSiteASide || isLocalSiteZSide;
+    const isNetworkConnection = isNetworkASide || isNetworkZSide;
 
     const bwLabel = conn.bandwidthMbps >= 1000
       ? `${conn.bandwidthMbps / 1000}G`
@@ -420,6 +458,7 @@ export function buildDiagramLayout(
 
     let labelLine1 = bwLabel;
     if (conn.redundant) labelLine1 += ' ×2';
+    if (conn.eTreeRole) labelLine1 += ` [${conn.eTreeRole}]`;
 
     let labelLine2 = '';
     if (showPricing && conn.pricing && conn.pricing.mrc > 0) {
@@ -427,7 +466,16 @@ export function buildDiagramLayout(
       if (conn.redundant) labelLine2 += ' ea.';
     }
 
-    const strokeColor = isLocalSiteConnection ? '#6B7280' : isSameMetro ? '#33A85C' : '#000000';
+    const isMultipointVCType = ['EVPLAN_VC', 'EPLAN_VC', 'EVPTREE_VC', 'EPTREE_VC'].includes(conn.type);
+
+    let strokeDasharray: string | undefined;
+    if (isNetworkConnection || isMultipointVCType) {
+      strokeDasharray = '4 3'; // dotted for network connections
+    } else if (conn.type === 'IP_VC') {
+      strokeDasharray = '8 4'; // dashed for IP VC
+    }
+
+    const strokeColor = isLocalSiteConnection ? '#6B7280' : isNetworkConnection ? '#0067B8' : isSameMetro ? '#33A85C' : '#000000';
 
     edges.push({
       id: `edge-${conn.id}`,
@@ -437,7 +485,7 @@ export function buildDiagramLayout(
       style: {
         stroke: strokeColor,
         strokeWidth: 1.5,
-        strokeDasharray: conn.type === 'IP_VC' ? '8 4' : undefined,
+        strokeDasharray,
       },
       data: {
         connectionId: conn.id,

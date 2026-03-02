@@ -1,4 +1,4 @@
-import type { ServiceSelection, VirtualConnection, MetroSelection } from '@/types/config';
+import type { ServiceSelection, VirtualConnection, MetroSelection, MultipointNetwork } from '@/types/config';
 import type { PriceLineItem, MetroSubtotal, PricingSummary } from '@/types/pricing';
 import { SERVICE_TYPE_LABELS } from '@/constants/brandColors';
 
@@ -90,23 +90,38 @@ export function buildLineItemFromService(
 
 export function buildLineItemFromConnection(
   connection: VirtualConnection,
-  metros: MetroSelection[]
+  metros: MetroSelection[],
+  networks: MultipointNetwork[] = []
 ): PriceLineItem {
   const pricing = connection.pricing;
   const bw = connection.bandwidthMbps >= 1000
     ? `${connection.bandwidthMbps / 1000} Gbps`
     : `${connection.bandwidthMbps} Mbps`;
   const aSideMetro = metros.find((m) => m.metroCode === connection.aSide.metroCode);
-  const zSideName = connection.zSide.serviceProfileName ?? connection.zSide.metroCode;
+  const isNetworkConnection = connection.aSide.type === 'NETWORK' || connection.zSide.type === 'NETWORK';
+
+  let zSideName: string;
+  if (isNetworkConnection) {
+    const networkId = connection.zSide.type === 'NETWORK' ? connection.zSide.serviceId : connection.aSide.serviceId;
+    const network = networks.find((n) => n.id === networkId);
+    zSideName = network?.name ?? 'Multipoint Network';
+  } else {
+    zSideName = connection.zSide.serviceProfileName ?? connection.zSide.metroCode;
+  }
+
   const qty = connection.redundant ? 2 : 1;
   const mrc = pricing?.mrc ?? 0;
+
+  let description = `${bw} to ${zSideName}`;
+  if (connection.eTreeRole) description += ` [${connection.eTreeRole}]`;
+  if (connection.redundant) description += ' (Redundant)';
 
   return {
     metro: connection.aSide.metroCode,
     metroName: aSideMetro?.metroName ?? connection.aSide.metroCode,
-    serviceType: 'Virtual Connection',
+    serviceType: isNetworkConnection ? 'Network Connection' : 'Virtual Connection',
     serviceName: `${connection.type} Connection`,
-    description: `${bw} to ${zSideName}${connection.redundant ? ' (Redundant)' : ''}`,
+    description,
     term: 'Monthly',
     quantity: qty,
     mrc,
@@ -118,7 +133,8 @@ export function buildLineItemFromConnection(
 
 export function calculatePricingSummary(
   metros: MetroSelection[],
-  connections: VirtualConnection[]
+  connections: VirtualConnection[],
+  networks: MultipointNetwork[] = []
 ): PricingSummary {
   const metroSubtotals: MetroSubtotal[] = [];
 
@@ -128,7 +144,7 @@ export function calculatePricingSummary(
       .map((s) => buildLineItemFromService(metro, s));
     const connItems = connections
       .filter((c) => c.aSide.metroCode === metro.metroCode)
-      .map((c) => buildLineItemFromConnection(c, metros));
+      .map((c) => buildLineItemFromConnection(c, metros, networks));
 
     const allItems = [...serviceItems, ...connItems];
     const mrc = allItems.reduce((sum, item) => sum + item.mrc * item.quantity, 0);

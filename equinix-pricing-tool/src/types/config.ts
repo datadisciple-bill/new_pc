@@ -8,6 +8,7 @@ export interface ProjectConfig {
   textBoxes: TextBox[];
   localSites: LocalSite[];
   annotationMarkers: AnnotationMarker[];
+  networks: MultipointNetwork[];
 }
 
 export interface TextBox {
@@ -37,6 +38,20 @@ export interface AnnotationMarker {
   y: number;
   color: string;
   text: string;
+}
+
+export type MultipointNetworkType = 'EVPLAN' | 'EPLAN' | 'IPWAN' | 'EVPTREE' | 'EPTREE';
+export type MultipointNetworkScope = 'LOCAL' | 'REGIONAL' | 'GLOBAL';
+export type ETreeConnectionRole = 'ROOT' | 'LEAF';
+
+export interface MultipointNetwork {
+  id: string;
+  name: string;
+  type: MultipointNetworkType;
+  scope: MultipointNetworkScope;
+  region?: string;
+  x: number;
+  y: number;
 }
 
 export interface MetroSelection {
@@ -123,11 +138,12 @@ export interface CrossConnectConfig {
 export interface VirtualConnection {
   id: string;
   name: string;
-  type: 'EVPL_VC' | 'IP_VC';
+  type: 'EVPL_VC' | 'IP_VC' | 'EVPLAN_VC' | 'EPLAN_VC' | 'EVPTREE_VC' | 'EPTREE_VC';
   aSide: ConnectionEndpoint;
   zSide: ConnectionEndpoint;
   bandwidthMbps: number;
   redundant: boolean;
+  eTreeRole?: ETreeConnectionRole;
   pricing: PricingResult | null;
   showPriceTable: boolean;
   priceTable: BandwidthPriceEntry[] | null;
@@ -141,7 +157,7 @@ export interface BandwidthPriceEntry {
   currency: string;
 }
 
-export type EndpointType = 'PORT' | 'NETWORK_EDGE' | 'CLOUD_ROUTER' | 'SERVICE_PROFILE' | 'COLOCATION' | 'NSP' | 'CROSS_CONNECT' | 'LOCAL_SITE';
+export type EndpointType = 'PORT' | 'NETWORK_EDGE' | 'CLOUD_ROUTER' | 'SERVICE_PROFILE' | 'COLOCATION' | 'NSP' | 'CROSS_CONNECT' | 'LOCAL_SITE' | 'NETWORK';
 
 export interface ConnectionEndpoint {
   metroCode: string;

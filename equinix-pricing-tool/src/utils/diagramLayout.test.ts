@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildDiagramLayout } from './diagramLayout';
-import type { MetroSelection, VirtualConnection, TextBox, LocalSite, AnnotationMarker } from '@/types/config';
+import type { MetroSelection, VirtualConnection, TextBox, LocalSite, AnnotationMarker, MultipointNetwork } from '@/types/config';
 
 const makeMetro = (code: string, services: MetroSelection['services'] = []): MetroSelection => ({
   metroCode: code,
@@ -210,5 +210,73 @@ describe('buildDiagramLayout', () => {
 
     const { edges } = buildDiagramLayout(metros, [conn], true, [], localSites);
     expect(edges[0].style?.stroke).toBe('#6B7280');
+  });
+
+  it('creates multipoint network nodes', () => {
+    const networks: MultipointNetwork[] = [
+      { id: 'net1', name: 'DC E-LAN', type: 'EVPLAN', scope: 'LOCAL', x: 300, y: 200 },
+    ];
+
+    const { nodes } = buildDiagramLayout([], [], true, [], [], [], networks);
+    const netNode = nodes.find((n) => n.id === 'network-net1');
+    expect(netNode).toBeDefined();
+    expect(netNode?.type).toBe('multipointNetworkNode');
+    expect(netNode?.data.name).toBe('DC E-LAN');
+    expect(netNode?.position).toEqual({ x: 300, y: 200 });
+  });
+
+  it('creates edges from service to network', () => {
+    const metros = [makeMetro('DC', [makeService('s1', 'FABRIC_PORT')])];
+    const networks: MultipointNetwork[] = [
+      { id: 'net1', name: 'E-LAN', type: 'EVPLAN', scope: 'LOCAL', x: 400, y: 100 },
+    ];
+    const conn: VirtualConnection = {
+      ...makeConnection('c1',
+        { metroCode: 'DC', type: 'PORT', serviceId: 's1' },
+        { metroCode: '', type: 'NETWORK', serviceId: 'net1' },
+      ),
+      type: 'EVPLAN_VC',
+    };
+
+    const { edges } = buildDiagramLayout(metros, [conn], true, [], [], [], networks);
+    expect(edges).toHaveLength(1);
+    expect(edges[0].source).toBe('service-s1');
+    expect(edges[0].target).toBe('network-net1');
+    expect(edges[0].style?.stroke).toBe('#0067B8');
+  });
+
+  it('adds E-Tree role to edge label', () => {
+    const metros = [makeMetro('DC', [makeService('s1', 'FABRIC_PORT')])];
+    const networks: MultipointNetwork[] = [
+      { id: 'net1', name: 'E-Tree', type: 'EVPTREE', scope: 'LOCAL', x: 400, y: 100 },
+    ];
+    const conn: VirtualConnection = {
+      ...makeConnection('c1',
+        { metroCode: 'DC', type: 'PORT', serviceId: 's1' },
+        { metroCode: '', type: 'NETWORK', serviceId: 'net1' },
+      ),
+      type: 'EVPTREE_VC',
+      eTreeRole: 'ROOT',
+    };
+
+    const { edges } = buildDiagramLayout(metros, [conn], true, [], [], [], networks);
+    expect(edges[0]?.data?.labelLine1).toContain('[ROOT]');
+  });
+
+  it('uses dotted stroke for network connections', () => {
+    const metros = [makeMetro('DC', [makeService('s1', 'FABRIC_PORT')])];
+    const networks: MultipointNetwork[] = [
+      { id: 'net1', name: 'E-LAN', type: 'EVPLAN', scope: 'LOCAL', x: 400, y: 100 },
+    ];
+    const conn: VirtualConnection = {
+      ...makeConnection('c1',
+        { metroCode: 'DC', type: 'PORT', serviceId: 's1' },
+        { metroCode: '', type: 'NETWORK', serviceId: 'net1' },
+      ),
+      type: 'EVPLAN_VC',
+    };
+
+    const { edges } = buildDiagramLayout(metros, [conn], true, [], [], [], networks);
+    expect(edges[0].style?.strokeDasharray).toBe('4 3');
   });
 });

@@ -9,9 +9,10 @@ let refreshTimer: ReturnType<typeof setTimeout> | null = null;
 
 export async function authenticate(
   clientId: string,
-  clientSecret: string
+  clientSecret: string,
+  forceLive?: boolean
 ): Promise<void> {
-  if (useMockData()) {
+  if (!forceLive && useMockData()) {
     const mockResponse = mockAuth(clientId, clientSecret);
     const expiry = Date.now() + mockResponse.token_timeout * 1000;
     useConfigStore.getState().setAuth(mockResponse.access_token, expiry, mockResponse.user_name);

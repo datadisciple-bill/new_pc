@@ -13,14 +13,17 @@ import { getCachedVCPrice, setCachedVCPrice } from '@/api/vcPricingCache';
 export function usePricing() {
   const metros = useConfigStore((s) => s.project.metros);
   const connections = useConfigStore((s) => s.project.connections);
+  const networks = useConfigStore((s) => s.project.networks);
   const projectName = useConfigStore((s) => s.project.name);
   const updateServicePricing = useConfigStore((s) => s.updateServicePricing);
   const updateConnectionPricing = useConfigStore((s) => s.updateConnectionPricing);
   const updateConnection = useConfigStore((s) => s.updateConnection);
+  const pricingMode = useConfigStore((s) => s.ui.pricingMode);
+  const isLive = pricingMode === 'live';
 
   const summary = useMemo(
-    () => calculatePricingSummary(metros, connections),
-    [metros, connections]
+    () => calculatePricingSummary(metros, connections, networks),
+    [metros, connections, networks]
   );
 
   const fetchPriceForService = useCallback(
@@ -83,7 +86,7 @@ export function usePricing() {
             const c = service.config as IAConfig;
             const connectionType = c.deliveryMethod === 'COLOCATION' ? 'IA_C' as const : 'IA_VC' as const;
             const serviceType = c.connectionType === 'DUAL' ? 'DUAL_PORT' as const : 'SINGLE_PORT' as const;
-            const result = await fetchEIAPricing(metroCode, connectionType, serviceType, c.bandwidthMbps);
+            const result = await fetchEIAPricing(metroCode, connectionType, serviceType, c.bandwidthMbps, isLive);
             const bwLabel = c.bandwidthMbps >= 1000 ? `${c.bandwidthMbps / 1000} Gbps` : `${c.bandwidthMbps} Mbps`;
             const deliveryLabel = c.deliveryMethod === 'COLOCATION' ? 'Colo' : c.deliveryMethod === 'NETWORK_EDGE' ? 'NE' : 'Fabric';
             pricing = {
@@ -136,7 +139,7 @@ export function usePricing() {
         console.error('Pricing fetch failed:', err);
       }
     },
-    [updateServicePricing]
+    [updateServicePricing, isLive]
   );
 
   const fetchPriceForConnection = useCallback(
@@ -144,6 +147,9 @@ export function usePricing() {
       try {
         // Always read latest state to avoid stale closure after addConnection
         const conn = useConfigStore.getState().project.connections.find((c) => c.id === connectionId);
+
+        // Network connections: treat z-side as same metro as a-side for pricing
+        const isNetworkConnection = conn && (conn.aSide.type === 'NETWORK' || conn.zSide.type === 'NETWORK');
 
         // Local site connections have no Equinix pricing
         if (conn && (conn.aSide.type === 'LOCAL_SITE' || conn.zSide.type === 'LOCAL_SITE')) {
@@ -155,7 +161,7 @@ export function usePricing() {
         }
 
         const aMetro = aSideMetro ?? conn?.aSide.metroCode ?? 'DC';
-        const zMetro = zSideMetro ?? conn?.zSide.metroCode ?? aMetro;
+        const zMetro = isNetworkConnection ? aMetro : (zSideMetro ?? conn?.zSide.metroCode ?? aMetro);
         const isCloudConnection = conn?.zSide.type === 'SERVICE_PROFILE';
 
         // Same-metro connections between same endpoint types are $0;
@@ -179,8 +185,8 @@ export function usePricing() {
         const zSideType = isCloudConnection ? 'SP' : 'COLO';
         const cacheKey = isCloudConnection ? `${aMetro}-SP` : zMetro;
 
-        // Check 24h cache first
-        const cached = getCachedVCPrice(aMetro, cacheKey, bandwidthMbps);
+        // Check 24h cache first (skip cache in live mode — always hit API)
+        const cached = isLive ? null : getCachedVCPrice(aMetro, cacheKey, bandwidthMbps);
         let mrc: number;
         let nrc: number;
 
@@ -188,19 +194,20 @@ export function usePricing() {
           mrc = cached.mrc;
           nrc = cached.nrc;
         } else {
+          const connectionType = conn?.type ?? 'EVPL_VC';
           const result = await searchPrices('VIRTUAL_CONNECTION_PRODUCT', {
-            '/connection/type': 'EVPL_VC',
+            '/connection/type': connectionType,
             '/connection/bandwidth': bandwidthMbps,
             '/connection/aSide/accessPoint/type': 'COLO',
             '/connection/aSide/accessPoint/location/metroCode': aMetro,
             '/connection/aSide/accessPoint/port/settings/buyout': false,
             '/connection/zSide/accessPoint/type': zSideType,
             '/connection/zSide/accessPoint/location/metroCode': zMetro,
-          });
+          }, isLive ? true : undefined);
           const charge = result.data[0]?.charges ?? [];
           mrc = charge.find((ch) => ch.type === 'MONTHLY_RECURRING')?.price ?? 0;
           nrc = charge.find((ch) => ch.type === 'NON_RECURRING')?.price ?? 0;
-          setCachedVCPrice(aMetro, cacheKey, bandwidthMbps, mrc, nrc);
+          if (!isLive) setCachedVCPrice(aMetro, cacheKey, bandwidthMbps, mrc, nrc);
         }
 
         const cloudLabel = isCloudConnection ? conn?.zSide.serviceProfileName ?? 'Cloud' : `${zMetro}`;
@@ -216,7 +223,7 @@ export function usePricing() {
         console.error('Connection pricing fetch failed:', err);
       }
     },
-    [updateConnectionPricing]
+    [updateConnectionPricing, isLive]
   );
 
   const fetchPriceTableForConnection = useCallback(
@@ -246,26 +253,27 @@ export function usePricing() {
         const zSideType = isCloudConnection ? 'SP' : 'COLO';
         const cacheKey = isCloudConnection ? `${aMetro}-SP` : zMetro;
 
+        const connectionType = conn?.type ?? 'EVPL_VC';
         const entries: BandwidthPriceEntry[] = [];
         for (const bw of BANDWIDTH_OPTIONS) {
-          const cached = getCachedVCPrice(aMetro, cacheKey, bw);
+          const cached = isLive ? null : getCachedVCPrice(aMetro, cacheKey, bw);
           let mrc: number;
           if (cached) {
             mrc = cached.mrc;
           } else {
             const result = await searchPrices('VIRTUAL_CONNECTION_PRODUCT', {
-              '/connection/type': 'EVPL_VC',
+              '/connection/type': connectionType,
               '/connection/bandwidth': bw,
               '/connection/aSide/accessPoint/type': 'COLO',
               '/connection/aSide/accessPoint/location/metroCode': aMetro,
               '/connection/aSide/accessPoint/port/settings/buyout': false,
               '/connection/zSide/accessPoint/type': zSideType,
               '/connection/zSide/accessPoint/location/metroCode': zMetro,
-            });
+            }, isLive ? true : undefined);
             const charge = result.data[0]?.charges ?? [];
             mrc = charge.find((ch) => ch.type === 'MONTHLY_RECURRING')?.price ?? 0;
             const nrc = charge.find((ch) => ch.type === 'NON_RECURRING')?.price ?? 0;
-            setCachedVCPrice(aMetro, cacheKey, bw, mrc, nrc);
+            if (!isLive) setCachedVCPrice(aMetro, cacheKey, bw, mrc, nrc);
           }
           const label = bw >= 1000 ? `${bw / 1000} Gbps` : `${bw} Mbps`;
           entries.push({ bandwidthMbps: bw, label, mrc, currency: 'USD' });
@@ -275,7 +283,7 @@ export function usePricing() {
         console.error('Price table fetch failed:', err);
       }
     },
-    [updateConnection]
+    [updateConnection, isLive]
   );
 
   const exportCsv = useCallback(() => {

@@ -1,6 +1,6 @@
 import type { ProjectConfig } from '@/types/config';
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 interface ProjectEnvelope {
   schemaVersion: number;
@@ -121,6 +121,9 @@ export function parseProjectFile(text: string): ParseResult {
   }
   if (!Array.isArray(validated.annotationMarkers)) {
     validated.annotationMarkers = [];
+  }
+  if (!Array.isArray(validated.networks)) {
+    validated.networks = [];
   }
   if (typeof validated.name !== 'string') {
     validated.name = 'Imported Project';

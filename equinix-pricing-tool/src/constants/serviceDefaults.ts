@@ -1,4 +1,4 @@
-import type { FabricPortConfig, NetworkEdgeConfig, InternetAccessConfig, CloudRouterConfig, ColocationConfig, NspConfig, CrossConnectConfig } from '@/types/config';
+import type { FabricPortConfig, NetworkEdgeConfig, InternetAccessConfig, CloudRouterConfig, ColocationConfig, NspConfig, CrossConnectConfig, MultipointNetworkType, VirtualConnection } from '@/types/config';
 
 export const DEFAULT_FABRIC_PORT: FabricPortConfig = {
   speed: '10G',
@@ -101,6 +101,34 @@ export const TERM_DISCOUNTS: Record<number, number> = {
 export function getTermDiscountPercent(termLength: number): number {
   return TERM_DISCOUNTS[termLength] ?? 0;
 }
+
+export const NETWORK_TYPES = [
+  { value: 'EVPLAN' as const, label: 'E-LAN (EVP-LAN)', description: 'Layer 2 any-to-any multipoint, DOT1Q ports' },
+  { value: 'EPLAN' as const, label: 'E-LAN (EP-LAN)', description: 'Layer 2 any-to-any multipoint, EPL ports' },
+  { value: 'IPWAN' as const, label: 'IP-WAN', description: 'Layer 3 multipoint, Fabric Cloud Routers only' },
+  { value: 'EVPTREE' as const, label: 'E-Tree (EVP-Tree)', description: 'Layer 2 hub-spoke, DOT1Q ports. Root talks to all; leaf only to roots' },
+  { value: 'EPTREE' as const, label: 'E-Tree (EP-Tree)', description: 'Layer 2 hub-spoke, EPL ports. Root talks to all; leaf only to roots' },
+] as const;
+
+export const NETWORK_SCOPES = [
+  { value: 'LOCAL' as const, label: 'Local (single metro)', maxBandwidth: 50000 },
+  { value: 'REGIONAL' as const, label: 'Regional (AMER/EMEA/APAC)', maxBandwidth: 25000 },
+  { value: 'GLOBAL' as const, label: 'Global (worldwide)', maxBandwidth: 25000 },
+] as const;
+
+export const NETWORK_TO_CONNECTION_TYPE: Record<MultipointNetworkType, VirtualConnection['type']> = {
+  EVPLAN: 'EVPLAN_VC',
+  EPLAN: 'EPLAN_VC',
+  IPWAN: 'IP_VC',
+  EVPTREE: 'EVPTREE_VC',
+  EPTREE: 'EPTREE_VC',
+};
+
+export const NETWORK_BANDWIDTH_LIMITS: Record<string, number> = {
+  LOCAL: 50000,
+  REGIONAL: 25000,
+  GLOBAL: 25000,
+};
 
 export const CLOUD_SERVICE_PROFILES = [
   { name: 'AWS Direct Connect', provider: 'AWS' },

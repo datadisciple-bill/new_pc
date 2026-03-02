@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { useConfigStore } from '@/store/configStore';
 import { usePricing } from '@/hooks/usePricing';
-import { BANDWIDTH_OPTIONS, CLOUD_SERVICE_PROFILES } from '@/constants/serviceDefaults';
+import { BANDWIDTH_OPTIONS, CLOUD_SERVICE_PROFILES, NETWORK_TO_CONNECTION_TYPE } from '@/constants/serviceDefaults';
 import { SERVICE_TYPE_LABELS } from '@/constants/brandColors';
 import { ConfirmDeleteButton } from '@/components/shared/ConfirmDeleteButton';
 import { formatCurrency } from '@/utils/priceCalculator';
-import type { VirtualConnection, EndpointType } from '@/types/config';
+import type { VirtualConnection, EndpointType, ETreeConnectionRole } from '@/types/config';
+import { NETWORK_NODE_COLORS } from '@/constants/brandColors';
 import { endpointTypeForService } from '@/utils/connectionValidator';
 
 function serviceLabel(svc: { type: string; metroCode: string; config: Record<string, unknown> }): string {
@@ -36,18 +37,20 @@ interface ConnectionForm {
   type: VirtualConnection['type'];
   aSideMetro: string;
   aSideServiceId: string;
-  zSideType: 'SERVICE' | 'SERVICE_PROFILE';
+  zSideType: 'SERVICE' | 'SERVICE_PROFILE' | 'MULTIPOINT_NETWORK';
   zSideServiceId: string;
   zSideProfile: string;
+  zSideNetworkId: string;
   bandwidth: number;
   redundant: boolean;
   showPriceTable: boolean;
+  eTreeRole: ETreeConnectionRole | '';
 }
 
 const EMPTY_FORM: ConnectionForm = {
   name: '', type: 'EVPL_VC', aSideMetro: '', aSideServiceId: '',
-  zSideType: 'SERVICE', zSideServiceId: '', zSideProfile: '',
-  bandwidth: 1000, redundant: false, showPriceTable: false,
+  zSideType: 'SERVICE', zSideServiceId: '', zSideProfile: '', zSideNetworkId: '',
+  bandwidth: 1000, redundant: false, showPriceTable: false, eTreeRole: '',
 };
 
 export function VirtualConnectionConfig() {
@@ -59,6 +62,8 @@ export function VirtualConnectionConfig() {
   const highlightedConnectionId = useConfigStore((s) => s.ui.highlightedConnectionId);
   const clearHighlight = useConfigStore((s) => s.clearHighlight);
   const { fetchPriceForConnection, fetchPriceTableForConnection } = usePricing();
+
+  const projectNetworks = useConfigStore((s) => s.project.networks);
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -106,7 +111,11 @@ export function VirtualConnectionConfig() {
     let zServiceId: string;
     let zProfileName: string | undefined;
 
-    if (form.zSideType === 'SERVICE_PROFILE') {
+    if (form.zSideType === 'MULTIPOINT_NETWORK') {
+      zMetro = aSvc?.metroCode ?? form.aSideMetro;
+      zType = 'NETWORK';
+      zServiceId = form.zSideNetworkId;
+    } else if (form.zSideType === 'SERVICE_PROFILE') {
       zMetro = aSvc?.metroCode ?? form.aSideMetro;
       zType = 'SERVICE_PROFILE';
       zServiceId = form.zSideProfile;
@@ -135,6 +144,7 @@ export function VirtualConnectionConfig() {
       bandwidthMbps: form.bandwidth,
       redundant: form.redundant,
       showPriceTable: form.showPriceTable,
+      ...(form.eTreeRole ? { eTreeRole: form.eTreeRole as ETreeConnectionRole } : {}),
     });
     const aMetro = aSvc?.metroCode ?? form.aSideMetro;
     fetchPriceForConnection(connId, form.bandwidth, aMetro, zMetro);
@@ -146,18 +156,21 @@ export function VirtualConnectionConfig() {
 
   const handleEdit = (conn: VirtualConnection) => {
     const isProfile = conn.zSide.type === 'SERVICE_PROFILE';
+    const isNetwork = conn.zSide.type === 'NETWORK';
     setEditingId(conn.id);
     setForm({
       name: conn.name,
       type: conn.type,
       aSideMetro: conn.aSide.metroCode,
       aSideServiceId: conn.aSide.serviceId,
-      zSideType: isProfile ? 'SERVICE_PROFILE' : 'SERVICE',
-      zSideServiceId: isProfile ? '' : conn.zSide.serviceId,
+      zSideType: isNetwork ? 'MULTIPOINT_NETWORK' : isProfile ? 'SERVICE_PROFILE' : 'SERVICE',
+      zSideServiceId: (isProfile || isNetwork) ? '' : conn.zSide.serviceId,
       zSideProfile: isProfile ? (conn.zSide.serviceProfileName ?? '') : '',
+      zSideNetworkId: isNetwork ? conn.zSide.serviceId : '',
       bandwidth: conn.bandwidthMbps,
       redundant: conn.redundant,
       showPriceTable: conn.showPriceTable,
+      eTreeRole: conn.eTreeRole ?? '',
     });
     setShowForm(true);
   };
@@ -184,7 +197,11 @@ export function VirtualConnectionConfig() {
     let zServiceId: string;
     let zProfileName: string | undefined;
 
-    if (form.zSideType === 'SERVICE_PROFILE') {
+    if (form.zSideType === 'MULTIPOINT_NETWORK') {
+      zMetro = aSvc?.metroCode ?? form.aSideMetro;
+      zType = 'NETWORK';
+      zServiceId = form.zSideNetworkId;
+    } else if (form.zSideType === 'SERVICE_PROFILE') {
       zMetro = aSvc?.metroCode ?? form.aSideMetro;
       zType = 'SERVICE_PROFILE';
       zServiceId = form.zSideProfile;
@@ -213,6 +230,7 @@ export function VirtualConnectionConfig() {
       bandwidthMbps: form.bandwidth,
       redundant: form.redundant,
       showPriceTable: form.showPriceTable,
+      eTreeRole: form.eTreeRole ? form.eTreeRole as ETreeConnectionRole : undefined,
     });
     const aMetroEdit = aSvc?.metroCode ?? form.aSideMetro;
     fetchPriceForConnection(editingId, form.bandwidth, aMetroEdit, zMetro);
@@ -297,6 +315,10 @@ export function VirtualConnectionConfig() {
               >
                 <option value="EVPL_VC">EVPL (Layer 2)</option>
                 <option value="IP_VC">IP (Layer 3 / FCR)</option>
+                <option value="EVPLAN_VC">EVP-LAN (E-LAN)</option>
+                <option value="EPLAN_VC">EP-LAN (E-LAN)</option>
+                <option value="EVPTREE_VC">EVP-Tree (E-Tree)</option>
+                <option value="EPTREE_VC">EP-Tree (E-Tree)</option>
               </select>
             </div>
 
@@ -353,17 +375,52 @@ export function VirtualConnectionConfig() {
               <div>
                 <select
                   value={form.zSideType}
-                  onChange={(e) => setForm({ ...form, zSideType: e.target.value as 'SERVICE' | 'SERVICE_PROFILE', zSideServiceId: '', zSideProfile: '' })}
+                  onChange={(e) => {
+                    const val = e.target.value as ConnectionForm['zSideType'];
+                    const updates: Partial<ConnectionForm> = { zSideType: val, zSideServiceId: '', zSideProfile: '', zSideNetworkId: '' };
+                    if (val === 'MULTIPOINT_NETWORK' && projectNetworks.length > 0) {
+                      const net = projectNetworks[0];
+                      updates.zSideNetworkId = net.id;
+                      updates.type = NETWORK_TO_CONNECTION_TYPE[net.type];
+                    }
+                    setForm({ ...form, ...updates });
+                  }}
                   className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md bg-white"
                 >
                   <option value="SERVICE">Equinix Service</option>
                   {canSelectCloudProvider && (
                     <option value="SERVICE_PROFILE">Cloud Provider</option>
                   )}
+                  {projectNetworks.length > 0 && (
+                    <option value="MULTIPOINT_NETWORK">Multipoint Network</option>
+                  )}
                 </select>
               </div>
               <div>
-                {form.zSideType === 'SERVICE_PROFILE' ? (
+                {form.zSideType === 'MULTIPOINT_NETWORK' ? (
+                  <select
+                    value={form.zSideNetworkId}
+                    onChange={(e) => {
+                      const net = projectNetworks.find((n) => n.id === e.target.value);
+                      setForm({
+                        ...form,
+                        zSideNetworkId: e.target.value,
+                        type: net ? NETWORK_TO_CONNECTION_TYPE[net.type] : form.type,
+                      });
+                    }}
+                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md bg-white"
+                  >
+                    <option value="">Select network...</option>
+                    {projectNetworks.map((n) => {
+                      const color = NETWORK_NODE_COLORS[n.type] ?? '#0067B8';
+                      return (
+                        <option key={n.id} value={n.id} style={{ color }}>
+                          {n.name} ({n.type})
+                        </option>
+                      );
+                    })}
+                  </select>
+                ) : form.zSideType === 'SERVICE_PROFILE' ? (
                   <select
                     value={form.zSideProfile}
                     onChange={(e) => setForm({ ...form, zSideProfile: e.target.value })}
@@ -398,6 +455,22 @@ export function VirtualConnectionConfig() {
             </div>
           </div>
 
+          {/* E-Tree role selector (only for E-Tree connection types) */}
+          {(form.type === 'EVPTREE_VC' || form.type === 'EPTREE_VC') && (
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">E-Tree Role</label>
+              <select
+                value={form.eTreeRole}
+                onChange={(e) => setForm({ ...form, eTreeRole: e.target.value as ETreeConnectionRole | '' })}
+                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md bg-white"
+              >
+                <option value="">Select role...</option>
+                <option value="ROOT">Root (talks to all)</option>
+                <option value="LEAF">Leaf (talks to roots only)</option>
+              </select>
+            </div>
+          )}
+
           <div className="flex flex-col gap-2">
             <label className="flex items-center gap-2 text-sm cursor-pointer">
               <input
@@ -422,7 +495,7 @@ export function VirtualConnectionConfig() {
           <div className="flex gap-2">
             <button
               onClick={editingId ? handleSaveEdit : handleAdd}
-              disabled={!form.aSideServiceId || (form.zSideType === 'SERVICE' ? !form.zSideServiceId : !form.zSideProfile)}
+              disabled={!form.aSideServiceId || (form.zSideType === 'SERVICE' ? !form.zSideServiceId : form.zSideType === 'MULTIPOINT_NETWORK' ? !form.zSideNetworkId : !form.zSideProfile)}
               className="px-4 py-1.5 text-xs font-medium bg-equinix-green text-white rounded-md hover:bg-green-600 disabled:opacity-50"
             >
               {editingId ? 'Save Changes' : 'Add Connection'}

@@ -70,9 +70,10 @@ function buildPriceFilter(
 
 export async function searchPrices(
   filterType: string,
-  properties: Record<string, FilterValue | FilterValue[]>
+  properties: Record<string, FilterValue | FilterValue[]>,
+  forceLive?: boolean
 ): Promise<PriceSearchResponse> {
-  if (useMockData()) return mockPriceSearch(filterType, properties);
+  if (!forceLive && useMockData()) return mockPriceSearch(filterType, properties);
 
   const body = buildPriceFilter(filterType, properties);
   return apiRequest<PriceSearchResponse>('/fabric/v4/prices/search', {

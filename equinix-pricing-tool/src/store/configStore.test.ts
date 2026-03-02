@@ -14,7 +14,7 @@ describe('configStore', () => {
     // Reset store between tests
     useConfigStore.setState({
       auth: { token: null, tokenExpiry: null, isAuthenticated: false, userName: null },
-      project: { id: 'test', name: 'Test', metros: [], connections: [], textBoxes: [], localSites: [], annotationMarkers: [] },
+      project: { id: 'test', name: 'Test', metros: [], connections: [], textBoxes: [], localSites: [], annotationMarkers: [], networks: [] },
       projectHistory: [],
       canUndo: false,
     });
@@ -277,6 +277,61 @@ describe('configStore', () => {
       const marker = useConfigStore.getState().project.annotationMarkers[0];
       expect(marker.text).toBe('Note');
       expect(marker.color).toBe('#00FF00');
+    });
+  });
+
+  describe('networks', () => {
+    it('adds a network with defaults', () => {
+      const id = useConfigStore.getState().addNetwork(100, 200);
+      const networks = useConfigStore.getState().project.networks;
+      expect(networks).toHaveLength(1);
+      expect(networks[0].id).toBe(id);
+      expect(networks[0].name).toBe('Multipoint Network');
+      expect(networks[0].type).toBe('EVPLAN');
+      expect(networks[0].scope).toBe('LOCAL');
+      expect(networks[0].x).toBe(100);
+      expect(networks[0].y).toBe(200);
+    });
+
+    it('adds a network with specified type', () => {
+      const id = useConfigStore.getState().addNetwork(0, 0, 'IPWAN');
+      const network = useConfigStore.getState().project.networks.find((n) => n.id === id);
+      expect(network?.type).toBe('IPWAN');
+    });
+
+    it('removes a network and cascades to connections', () => {
+      const netId = useConfigStore.getState().addNetwork(0, 0);
+      useConfigStore.getState().addConnection({
+        name: 'Net Connection',
+        type: 'EVPLAN_VC',
+        aSide: { metroCode: 'DC', type: 'PORT', serviceId: 'svc1' },
+        zSide: { metroCode: '', type: 'NETWORK', serviceId: netId },
+        bandwidthMbps: 1000,
+        redundant: false,
+      });
+      expect(useConfigStore.getState().project.connections).toHaveLength(1);
+
+      useConfigStore.getState().removeNetwork(netId);
+      expect(useConfigStore.getState().project.networks).toHaveLength(0);
+      expect(useConfigStore.getState().project.connections).toHaveLength(0);
+    });
+
+    it('updates a network', () => {
+      const id = useConfigStore.getState().addNetwork(0, 0);
+      useConfigStore.getState().updateNetwork(id, { name: 'My E-LAN', scope: 'REGIONAL', region: 'AMER' });
+      const network = useConfigStore.getState().project.networks[0];
+      expect(network.name).toBe('My E-LAN');
+      expect(network.scope).toBe('REGIONAL');
+      expect(network.region).toBe('AMER');
+    });
+
+    it('supports undo for addNetwork', () => {
+      useConfigStore.getState().addNetwork(0, 0);
+      expect(useConfigStore.getState().project.networks).toHaveLength(1);
+      expect(useConfigStore.getState().canUndo).toBe(true);
+
+      useConfigStore.getState().undo();
+      expect(useConfigStore.getState().project.networks).toHaveLength(0);
     });
   });
 

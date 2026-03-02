@@ -43,4 +43,18 @@ export const SERVICE_TYPE_LABELS: Record<string, string> = {
   COLOCATION: 'Colocation',
   NSP: 'Network Service Provider',
   CROSS_CONNECT: 'Cross Connect',
+  EVPLAN: 'E-LAN (EVP-LAN)',
+  EPLAN: 'E-LAN (EP-LAN)',
+  IPWAN: 'IP-WAN',
+  EVPTREE: 'E-Tree (EVP-Tree)',
+  EPTREE: 'E-Tree (EP-Tree)',
+  MULTIPOINT_NETWORK: 'Multipoint Network',
+} as const;
+
+export const NETWORK_NODE_COLORS: Record<string, string> = {
+  EVPLAN: '#0067B8',
+  EPLAN: '#0067B8',
+  IPWAN: '#00A85F',
+  EVPTREE: '#7B2D8E',
+  EPTREE: '#7B2D8E',
 } as const;

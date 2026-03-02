@@ -41,6 +41,14 @@ export function DiagramLegend() {
         <span className="text-gray-600">Local / Remote Site</span>
       </div>
       <div className="flex items-center gap-2">
+        <div className="w-8 h-0 border-t-2 border-dotted" style={{ borderColor: '#0067B8' }} />
+        <span className="text-gray-600">Network Connection</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="w-4 h-3 rounded-sm" style={{ backgroundColor: '#0067B8' }} />
+        <span className="text-gray-600">Multipoint Network</span>
+      </div>
+      <div className="flex items-center gap-2">
         <span className="text-[8px] font-bold bg-equinix-red text-white rounded px-1">HA</span>
         <span className="text-gray-600">High Availability Pair</span>
       </div>
