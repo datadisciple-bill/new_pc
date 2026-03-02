@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
-export const CURRENT_VERSION = 10;
-export const RELEASE_DATE = new Date('2026-02-26T00:00:00');
+export const CURRENT_VERSION = 11;
+export const RELEASE_DATE = new Date('2026-03-02T00:00:00');
 
 interface ChangelogEntry {
   version: number;
@@ -10,6 +10,18 @@ interface ChangelogEntry {
 }
 
 const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: 11,
+    date: 'Mar 2, 2026',
+    items: [
+      'Cached/Live pricing toggle — switch to live mode to fetch real-time VC and EIA prices from the Equinix API',
+      'Multipoint network support (EVPLAN/EPLAN) with dedicated diagram nodes and management UI',
+      'Network Edge devices now display RAM/memory on the diagram node (thanks Al Zsidi)',
+      'Fixed EIA labeling on diagram nodes (thanks Al Zsidi)',
+      'Fixed edge labels rendering on top of nodes instead of behind them (thanks Al Zsidi)',
+      'Fixed routing display for connections on the diagram (thanks Al Zsidi)',
+    ],
+  },
   {
     version: 10,
     date: 'Feb 26, 2026',
