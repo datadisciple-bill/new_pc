@@ -37,7 +37,7 @@ export const PARTNER_COLORS: Record<string, string> = {
 export const SERVICE_TYPE_LABELS: Record<string, string> = {
   FABRIC_PORT: 'Fabric Port',
   NETWORK_EDGE: 'Network Edge',
-  INTERNET_ACCESS: 'Internet Access',
+  INTERNET_ACCESS: 'Equinix Internet Access',
   CLOUD_ROUTER: 'Fabric Cloud Router',
   VIRTUAL_CONNECTION: 'Virtual Connection',
   COLOCATION: 'Colocation',

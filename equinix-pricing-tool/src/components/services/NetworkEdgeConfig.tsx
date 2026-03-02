@@ -149,9 +149,12 @@ export function NetworkEdgeConfig({ service, metroCode, deviceTypes, onUpdate, o
                   onChange={(e) => onUpdate({ packageCode: e.target.value })}
                   className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md bg-white"
                 >
-                  {selectedDevice.coreCounts.map((c) => (
-                    <option key={c} value={`${c}`}>{c} vCPU</option>
-                  ))}
+                  {selectedDevice.coreCounts.map((c) => {
+                    const mem = selectedDevice.coreMemoryMap?.[c];
+                    return (
+                      <option key={c} value={`${c}`}>{c} vCPU{mem ? ` / ${mem}` : ''}</option>
+                    );
+                  })}
                 </select>
               </div>
 

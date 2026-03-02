@@ -28,6 +28,7 @@ export function mockDeviceTypes(): DeviceType[] {
       availableMetros: ALL_METROS,
       softwarePackages: [{ code: 'CSR_SEC', name: 'Security Package' }, { code: 'CSR_APPX', name: 'Application Experience' }],
       coreCounts: [2, 4, 8, 16],
+      coreMemoryMap: { 2: '4 GB', 4: '8 GB', 8: '16 GB', 16: '32 GB' },
     },
     {
       deviceTypeCode: 'C8000V',
@@ -37,6 +38,7 @@ export function mockDeviceTypes(): DeviceType[] {
       availableMetros: ALL_METROS,
       softwarePackages: [{ code: 'C8_DNA', name: 'DNA Essentials' }, { code: 'C8_DNA_ADV', name: 'DNA Advantage' }],
       coreCounts: [2, 4, 8],
+      coreMemoryMap: { 2: '4 GB', 4: '8 GB', 8: '16 GB' },
     },
     {
       deviceTypeCode: 'PA-VM',
@@ -46,6 +48,7 @@ export function mockDeviceTypes(): DeviceType[] {
       availableMetros: ALL_METROS,
       softwarePackages: [{ code: 'PA_NGFW', name: 'NGFW Bundle' }, { code: 'PA_THREAT', name: 'Threat Prevention' }],
       coreCounts: [2, 4, 8],
+      coreMemoryMap: { 2: '6 GB', 4: '8 GB', 8: '16 GB' },
     },
     {
       deviceTypeCode: 'FG-VM',
@@ -55,6 +58,7 @@ export function mockDeviceTypes(): DeviceType[] {
       availableMetros: ALL_METROS,
       softwarePackages: [{ code: 'FG_UTM', name: 'UTM Bundle' }, { code: 'FG_ENT', name: 'Enterprise Bundle' }],
       coreCounts: [2, 4, 8, 16],
+      coreMemoryMap: { 2: '4 GB', 4: '8 GB', 8: '16 GB', 16: '32 GB' },
     },
     {
       deviceTypeCode: 'VSRX',
@@ -64,6 +68,7 @@ export function mockDeviceTypes(): DeviceType[] {
       availableMetros: MAJOR_METROS,
       softwarePackages: [{ code: 'VSRX_STD', name: 'Standard' }, { code: 'VSRX_ADV', name: 'Advanced' }],
       coreCounts: [2, 4, 8],
+      coreMemoryMap: { 2: '4 GB', 4: '8 GB', 8: '16 GB' },
     },
     {
       deviceTypeCode: 'AVIATRIX',
@@ -73,6 +78,7 @@ export function mockDeviceTypes(): DeviceType[] {
       availableMetros: MAJOR_METROS,
       softwarePackages: [{ code: 'AVX_ADV', name: 'Advanced Networking' }],
       coreCounts: [2, 4],
+      coreMemoryMap: { 2: '4 GB', 4: '8 GB' },
     },
     {
       deviceTypeCode: 'VERSA-SDWAN',
@@ -82,6 +88,7 @@ export function mockDeviceTypes(): DeviceType[] {
       availableMetros: MAJOR_METROS,
       softwarePackages: [{ code: 'VERSA_TITAN', name: 'Titan' }],
       coreCounts: [2, 4, 8],
+      coreMemoryMap: { 2: '4 GB', 4: '8 GB', 8: '16 GB' },
     },
     {
       deviceTypeCode: 'VSRX3',
@@ -91,6 +98,7 @@ export function mockDeviceTypes(): DeviceType[] {
       availableMetros: MAJOR_METROS,
       softwarePackages: [{ code: 'VSRX3_STD', name: 'Standard' }],
       coreCounts: [2, 4, 8, 16],
+      coreMemoryMap: { 2: '4 GB', 4: '8 GB', 8: '16 GB', 16: '32 GB' },
     },
   ];
 }

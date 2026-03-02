@@ -53,9 +53,12 @@ export const ServiceNode = memo(function ServiceNode({ data }: NodeProps) {
     detail = c.deviceTypeName ?? '';
     isHaPair = c.redundant === true;
   } else if (serviceType === 'INTERNET_ACCESS') {
-    const c = config as { bandwidthMbps?: number };
+    const c = config as { bandwidthMbps?: number; routingProtocol?: string };
     const bw = c.bandwidthMbps ?? 0;
-    detail = bw >= 1000 ? `${bw / 1000} Gbps` : `${bw} Mbps`;
+    const bwLabel = bw >= 1000 ? `${bw / 1000} Gbps` : `${bw} Mbps`;
+    const routingMap: Record<string, string> = { STATIC: 'Static', DIRECT: 'Direct', BGP: 'BGP' };
+    const routing = routingMap[c.routingProtocol ?? ''] ?? '';
+    detail = routing ? `${bwLabel} | ${routing}` : bwLabel;
   } else if (serviceType === 'CLOUD_ROUTER') {
     const c = config as { package?: string };
     detail = c.package ?? '';

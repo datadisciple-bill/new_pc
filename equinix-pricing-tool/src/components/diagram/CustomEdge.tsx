@@ -156,6 +156,7 @@ export function CustomEdge({
             style={{
               position: 'absolute',
               transform: `translate(-50%, -50%) translate(${labelX + offset.x}px, ${labelY + offset.y}px)`,
+              zIndex: 10,
               pointerEvents: 'all',
               cursor: hasLabel ? 'grab' : 'default',
               userSelect: 'none',

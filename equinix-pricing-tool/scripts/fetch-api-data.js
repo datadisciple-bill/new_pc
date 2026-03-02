@@ -301,6 +301,7 @@ async function fetchDeviceTypes() {
       name: sp.name,
     })),
     coreCounts: dt.coreCounts ?? extractCoreCounts(dt),
+    coreMemoryMap: extractCoreMemoryMap(dt),
     availableLicenseTypes: extractLicenseTypes(dt),
     // Preserve deviceManagementTypes for core/license extraction during pricing
     deviceManagementTypes: dt.deviceManagementTypes,
@@ -318,6 +319,21 @@ function extractCoreCounts(dt) {
     }
   }
   return cores.size > 0 ? [...cores].sort((a, b) => a - b) : [];
+}
+
+/** Extract core → memory mapping from deviceManagementTypes → licenseOptions → cores[] */
+function extractCoreMemoryMap(dt) {
+  const map = {};
+  for (const mgmt of Object.values(dt.deviceManagementTypes ?? {})) {
+    for (const lic of Object.values(mgmt?.licenseOptions ?? {})) {
+      for (const c of lic?.cores ?? []) {
+        if (c.core && c.memory && c.unit) {
+          map[c.core] = `${c.memory} ${c.unit}`;
+        }
+      }
+    }
+  }
+  return Object.keys(map).length > 0 ? map : undefined;
 }
 
 /** Extract available license types (e.g. "SUB", "BYOL") from deviceManagementTypes */
