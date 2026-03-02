@@ -146,6 +146,7 @@ export function NetworkDiagram() {
   const showPricing = useConfigStore((s) => s.ui.showPricing);
   const setShowPricing = useConfigStore((s) => s.setShowPricing);
   const highlightService = useConfigStore((s) => s.highlightService);
+  const highlightNetwork = useConfigStore((s) => s.highlightNetwork);
   const addConnection = useConfigStore((s) => s.addConnection);
   const updateConnectionPricing = useConfigStore((s) => s.updateConnectionPricing);
   const undo = useConfigStore((s) => s.undo);
@@ -499,8 +500,11 @@ export function NetworkDiagram() {
     if (node.type === 'serviceNode') {
       const d = node.data as { serviceId: string; metroCode: string };
       highlightService(d.metroCode, d.serviceId);
+    } else if (node.type === 'multipointNetworkNode') {
+      const d = node.data as { networkId: string };
+      highlightNetwork(d.networkId);
     }
-  }, [highlightService]);
+  }, [highlightService, highlightNetwork]);
 
   // Export diagram as PNG — uses fitView for tight crop
   const handleExportPng = useCallback(async () => {

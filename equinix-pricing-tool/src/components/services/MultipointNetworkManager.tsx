@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useConfigStore } from '@/store/configStore';
 import { NETWORK_TYPES, NETWORK_SCOPES } from '@/constants/serviceDefaults';
 import { SERVICE_TYPE_LABELS, NETWORK_NODE_COLORS } from '@/constants/brandColors';
@@ -30,10 +30,28 @@ export function MultipointNetworkManager() {
   const addNetwork = useConfigStore((s) => s.addNetwork);
   const removeNetwork = useConfigStore((s) => s.removeNetwork);
   const updateNetwork = useConfigStore((s) => s.updateNetwork);
+  const highlightedNetworkId = useConfigStore((s) => s.ui.highlightedNetworkId);
+  const clearHighlight = useConfigStore((s) => s.clearHighlight);
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<NetworkForm>({ ...EMPTY_FORM });
+  const networkRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  // When a network is highlighted from the diagram, scroll to it and open edit form
+  useEffect(() => {
+    if (!highlightedNetworkId) return;
+    const network = networks.find((n) => n.id === highlightedNetworkId);
+    if (network) {
+      handleEdit(network);
+      const el = networkRefs.current.get(highlightedNetworkId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+    const timer = setTimeout(() => clearHighlight(), 2500);
+    return () => clearTimeout(timer);
+  }, [highlightedNetworkId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const resetForm = () => {
     setForm({ ...EMPTY_FORM });
@@ -180,7 +198,11 @@ export function MultipointNetworkManager() {
           const typeLabel = SERVICE_TYPE_LABELS[network.type] ?? network.type;
           const scopeLabel = NETWORK_SCOPES.find((s) => s.value === network.scope)?.label ?? network.scope;
           return (
-            <div key={network.id} className="border border-gray-200 rounded-lg p-3">
+            <div
+              key={network.id}
+              ref={(el) => { if (el) networkRefs.current.set(network.id, el); else networkRefs.current.delete(network.id); }}
+              className={`border rounded-lg p-3 transition-colors ${highlightedNetworkId === network.id ? 'border-blue-400 ring-2 ring-blue-200' : 'border-gray-200'}`}
+            >
               <div className="flex items-center justify-between">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">

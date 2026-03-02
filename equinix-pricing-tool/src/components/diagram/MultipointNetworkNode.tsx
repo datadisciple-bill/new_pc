@@ -8,13 +8,14 @@ interface MultipointNetworkNodeData {
   name: string;
   networkType: string;
   scope: string;
+  region?: string;
   typeLabel: string;
   color: string;
   [key: string]: unknown;
 }
 
 export const MultipointNetworkNode = memo(function MultipointNetworkNode({ data, selected }: NodeProps) {
-  const { networkId, name, typeLabel, scope, color } = data as MultipointNetworkNodeData;
+  const { networkId, name, typeLabel, scope, region, color } = data as MultipointNetworkNodeData;
   const updateNetwork = useConfigStore((s) => s.updateNetwork);
   const removeNetwork = useConfigStore((s) => s.removeNetwork);
 
@@ -42,7 +43,10 @@ export const MultipointNetworkNode = memo(function MultipointNetworkNode({ data,
     }
   }, [networkId, localName, updateNetwork]);
 
-  const scopeLabel = scope === 'LOCAL' ? 'Local' : scope === 'REGIONAL' ? 'Regional' : 'Global';
+  const REGION_NAMES: Record<string, string> = { AMER: 'Americas', EMEA: 'EMEA', APAC: 'Asia Pacific' };
+  const scopeLabel = scope === 'REGIONAL' && region
+    ? REGION_NAMES[region] ?? region
+    : scope === 'LOCAL' ? 'Local' : scope === 'GLOBAL' ? 'Global' : 'Regional';
 
   return (
     <div
@@ -84,7 +88,7 @@ export const MultipointNetworkNode = memo(function MultipointNetworkNode({ data,
         {/* White detail area */}
         <div className="bg-white px-2 py-1.5">
           <p className="text-[9px] text-gray-600 truncate">{typeLabel}</p>
-          <p className="text-[8px] text-gray-400">{scopeLabel} scope</p>
+          <p className="text-[8px] text-gray-400">{scopeLabel}</p>
         </div>
       </div>
 
@@ -98,8 +102,10 @@ export const MultipointNetworkNode = memo(function MultipointNetworkNode({ data,
       >
         x
       </ConfirmDeleteButton>
-      <Handle type="target" position={Position.Left} className="!w-2 !h-2 hover:!w-3 hover:!h-3 hover:!ring-2 hover:!ring-equinix-green transition-all cursor-crosshair" style={{ backgroundColor: color }} />
-      <Handle type="source" position={Position.Right} className="!w-2 !h-2 hover:!w-3 hover:!h-3 hover:!ring-2 hover:!ring-equinix-green transition-all cursor-crosshair" style={{ backgroundColor: color }} />
+      <Handle type="target" position={Position.Left} id="left" className="!w-2 !h-2 hover:!w-3 hover:!h-3 hover:!ring-2 hover:!ring-equinix-green transition-all cursor-crosshair" style={{ backgroundColor: color }} />
+      <Handle type="source" position={Position.Right} id="right" className="!w-2 !h-2 hover:!w-3 hover:!h-3 hover:!ring-2 hover:!ring-equinix-green transition-all cursor-crosshair" style={{ backgroundColor: color }} />
+      <Handle type="target" position={Position.Top} id="top" className="!w-2 !h-2 hover:!w-3 hover:!h-3 hover:!ring-2 hover:!ring-equinix-green transition-all cursor-crosshair" style={{ backgroundColor: color }} />
+      <Handle type="source" position={Position.Bottom} id="bottom" className="!w-2 !h-2 hover:!w-3 hover:!h-3 hover:!ring-2 hover:!ring-equinix-green transition-all cursor-crosshair" style={{ backgroundColor: color }} />
     </div>
   );
 });

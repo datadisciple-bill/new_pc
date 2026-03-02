@@ -388,6 +388,7 @@ export function buildDiagramLayout(
         name: network.name,
         networkType: network.type,
         scope: network.scope,
+        region: network.region,
         typeLabel,
         color,
       },

@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { authenticate } from '@/api/auth';
+import { ApiError } from '@/api/client';
 import { clearVCPricingCache } from '@/api/vcPricingCache';
 
 interface LivePricingCredentialDialogProps {
@@ -21,7 +22,23 @@ export function LivePricingCredentialDialog({ onAuthenticated, onCancel }: LiveP
       clearVCPricingCache();
       onAuthenticated();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Authentication failed');
+      let msg = 'Authentication failed';
+      if (err instanceof ApiError) {
+        if (err.status === 401 || err.status === 400) {
+          msg = 'Invalid Client ID or Client Secret. Please check your credentials and try again.';
+        } else {
+          msg = `API error (${err.status}): ${err.message}`;
+        }
+      } else if (err instanceof TypeError && (err.message === 'Failed to fetch' || err.message.includes('NetworkError'))) {
+        msg = 'Unable to reach the Equinix API. The API does not allow direct browser requests (CORS). To use live pricing, run the app behind a proxy or use the "Refresh Data" option to fetch data with credentials instead.';
+      } else if (err instanceof Error) {
+        if (err.message === 'Failed to fetch' || err.message === 'Request failed after retries') {
+          msg = 'Unable to reach the Equinix API. The API does not allow direct browser requests (CORS). To use live pricing, run the app behind a proxy or use the "Refresh Data" option to fetch data with credentials instead.';
+        } else {
+          msg = err.message;
+        }
+      }
+      setError(msg);
       setStatus('error');
     }
   }, [clientId, clientSecret, onAuthenticated]);
@@ -77,11 +94,11 @@ export function LivePricingCredentialDialog({ onAuthenticated, onCancel }: LiveP
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Client Secret</label>
             <input
-              type="password"
+              type="text"
               value={clientSecret}
               onChange={(e) => setClientSecret(e.target.value)}
               autoComplete="off"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-equinix-green"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm font-mono focus:outline-none focus:ring-2 focus:ring-equinix-green"
               placeholder="Enter Client Secret"
             />
           </div>
@@ -104,7 +121,8 @@ export function LivePricingCredentialDialog({ onAuthenticated, onCancel }: LiveP
             </button>
           </div>
           <p className="text-xs text-gray-400 text-center">
-            Credentials are stored in memory only and cleared when you switch back to cached mode.
+            Credentials stay in your browser's memory only — never sent to any server besides Equinix.
+            They are cleared when you switch back to cached mode or close the tab.
           </p>
         </div>
       </div>

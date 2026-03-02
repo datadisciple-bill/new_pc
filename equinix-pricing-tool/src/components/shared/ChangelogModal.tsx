@@ -15,11 +15,16 @@ const CHANGELOG: ChangelogEntry[] = [
     date: 'Mar 2, 2026',
     items: [
       'Cached/Live pricing toggle — switch to live mode to fetch real-time VC and EIA prices from the Equinix API',
-      'Multipoint network support (EVPLAN/EPLAN) with dedicated diagram nodes and management UI',
+      'Multipoint network support (EVP-LAN/EP-LAN) with dedicated diagram nodes, top/bottom/left/right connection handles, and management UI',
+      'Clicking a multipoint network on the diagram now highlights and scrolls to it in the editing pane',
+      'Multipoint network diagram nodes show region name (e.g. "Americas") instead of generic "Regional scope"',
       'Network Edge devices now display RAM/memory on the diagram node (thanks Al Zsidi)',
+      'Fixed NE memory not updating when selecting cores from the price table',
       'Fixed EIA labeling on diagram nodes (thanks Al Zsidi)',
       'Fixed edge labels rendering on top of nodes instead of behind them (thanks Al Zsidi)',
       'Fixed routing display for connections on the diagram (thanks Al Zsidi)',
+      'Live pricing dialog shows clear CORS error message instead of generic "Failed to fetch"',
+      'Credential fields are now visible while typing',
     ],
   },
   {

@@ -52,6 +52,7 @@ interface UIState {
   selectedMetroCode: string | null;
   highlightedServiceId: string | null;
   highlightedConnectionId: string | null;
+  highlightedNetworkId: string | null;
   isLoading: boolean;
   error: string | null;
   showPricing: boolean;
@@ -133,6 +134,7 @@ interface ConfigStore {
   setSelectedMetro: (metroCode: string | null) => void;
   highlightService: (metroCode: string, serviceId: string) => void;
   highlightConnection: (connectionId: string) => void;
+  highlightNetwork: (networkId: string) => void;
   clearHighlight: () => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
@@ -657,6 +659,7 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
     selectedMetroCode: null,
     highlightedServiceId: null,
     highlightedConnectionId: null,
+    highlightedNetworkId: null,
     isLoading: false,
     error: null,
     showPricing: true,
@@ -684,8 +687,16 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
         activeTab: state.ui.activeTab === 'diagram' ? 'services' : state.ui.activeTab,
       },
     })),
+  highlightNetwork: (networkId) =>
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        highlightedNetworkId: networkId,
+        activeTab: state.ui.activeTab === 'diagram' ? 'services' : state.ui.activeTab,
+      },
+    })),
   clearHighlight: () =>
-    set((state) => ({ ui: { ...state.ui, highlightedServiceId: null, highlightedConnectionId: null } })),
+    set((state) => ({ ui: { ...state.ui, highlightedServiceId: null, highlightedConnectionId: null, highlightedNetworkId: null } })),
   setLoading: (loading) =>
     set((state) => ({ ui: { ...state.ui, isLoading: loading } })),
   setError: (error) =>

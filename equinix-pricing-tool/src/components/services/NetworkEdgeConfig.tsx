@@ -93,7 +93,10 @@ export function NetworkEdgeConfig({ service, metroCode, deviceTypes, onUpdate, o
   };
 
   const handleSelectCore = (cores: number) => {
-    onUpdate({ packageCode: `${cores}` });
+    onUpdate({
+      packageCode: `${cores}`,
+      coreMemory: selectedDevice?.coreMemoryMap?.[cores] ?? '',
+    });
     onPricingFetched?.();
   };
 
