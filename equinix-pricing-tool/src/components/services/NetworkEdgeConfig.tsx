@@ -111,11 +111,15 @@ export function NetworkEdgeConfig({ service, metroCode, deviceTypes, onUpdate, o
             value={config.deviceTypeCode}
             onChange={(e) => {
               const dt = sortedDeviceTypes.find((d) => d.deviceTypeCode === e.target.value);
+              const firstCore = dt?.coreCounts[0];
               onUpdate({
                 deviceTypeCode: e.target.value,
                 deviceTypeName: dt?.name ?? '',
                 vendorName: dt?.vendor ?? '',
-                packageCode: dt ? `${dt.coreCounts[0]}` : '',
+                packageCode: dt ? `${firstCore}` : '',
+                coreMemory: firstCore ? dt?.coreMemoryMap?.[firstCore] ?? '' : '',
+                softwareVersion: '',
+                softwareName: '',
               });
               setPriceTable([]);
             }}
@@ -146,7 +150,10 @@ export function NetworkEdgeConfig({ service, metroCode, deviceTypes, onUpdate, o
                 <label className="block text-xs font-medium text-gray-500 mb-1">Package (Cores)</label>
                 <select
                   value={config.packageCode}
-                  onChange={(e) => onUpdate({ packageCode: e.target.value })}
+                  onChange={(e) => {
+                    const cores = parseInt(e.target.value);
+                    onUpdate({ packageCode: e.target.value, coreMemory: selectedDevice.coreMemoryMap?.[cores] ?? '' });
+                  }}
                   className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md bg-white"
                 >
                   {selectedDevice.coreCounts.map((c) => {
@@ -205,7 +212,10 @@ export function NetworkEdgeConfig({ service, metroCode, deviceTypes, onUpdate, o
                 <label className="block text-xs font-medium text-gray-500 mb-1">Software</label>
                 <select
                   value={config.softwareVersion}
-                  onChange={(e) => onUpdate({ softwareVersion: e.target.value })}
+                  onChange={(e) => {
+                    const sp = selectedDevice.softwarePackages.find((p) => p.code === e.target.value);
+                    onUpdate({ softwareVersion: e.target.value, softwareName: sp?.name ?? '' });
+                  }}
                   className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md bg-white"
                 >
                   <option value="">Default</option>

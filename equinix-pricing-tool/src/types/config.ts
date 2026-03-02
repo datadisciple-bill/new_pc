@@ -77,7 +77,9 @@ export interface NetworkEdgeConfig {
   deviceTypeName: string;
   vendorName: string;
   packageCode: string;
+  coreMemory?: string;
   softwareVersion: string;
+  softwareName?: string;
   licenseType: 'BYOL' | 'SUBSCRIPTION';
   redundant: boolean;
   termLength: 1 | 12 | 24 | 36;

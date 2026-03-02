@@ -36,6 +36,7 @@ export const ServiceNode = memo(function ServiceNode({ data }: NodeProps) {
   const iconUrl = SERVICE_ICON_URLS[serviceType as string];
 
   let detail = '';
+  let detailExtra: React.ReactNode = null;
   let isHaPair = false;
 
   let portRedundancy: string | null = null;
@@ -49,9 +50,23 @@ export const ServiceNode = memo(function ServiceNode({ data }: NodeProps) {
     quantity = c.quantity ?? 1;
     isHaPair = c.type === 'REDUNDANT';
   } else if (serviceType === 'NETWORK_EDGE') {
-    const c = config as { deviceTypeName?: string; redundant?: boolean };
+    const c = config as { deviceTypeName?: string; redundant?: boolean; packageCode?: string; coreMemory?: string; softwareName?: string };
     detail = c.deviceTypeName ?? '';
     isHaPair = c.redundant === true;
+    const cores = c.packageCode ? `${c.packageCode} vCPU` : '';
+    const mem = c.coreMemory ?? '';
+    const sw = c.softwareName ?? '';
+    if (cores || mem || sw) {
+      detailExtra = (
+        <p className="text-[9px] leading-tight">
+          {cores && <span className="font-semibold" style={{ color: '#0067B8' }}>{cores}</span>}
+          {cores && mem && <span className="text-gray-400"> / </span>}
+          {mem && <span className="font-semibold" style={{ color: '#7B2D8E' }}>{mem}</span>}
+          {sw && (cores || mem) && <span className="text-gray-400"> &middot; </span>}
+          {sw && <span className="text-gray-500">{sw}</span>}
+        </p>
+      );
+    }
   } else if (serviceType === 'INTERNET_ACCESS') {
     const c = config as { bandwidthMbps?: number; routingProtocol?: string };
     const bw = c.bandwidthMbps ?? 0;
@@ -113,6 +128,7 @@ export const ServiceNode = memo(function ServiceNode({ data }: NodeProps) {
             </>
           )}
         </p>
+        {detailExtra}
         {isHaPair && serviceType === 'NETWORK_EDGE' && (
           <p className="text-[9px] text-equinix-red font-medium">HA Pair (2x devices)</p>
         )}
