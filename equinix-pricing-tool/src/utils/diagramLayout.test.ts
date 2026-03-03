@@ -14,7 +14,7 @@ const makeService = (id: string, type: MetroSelection['services'][0]['type'], co
   type,
   config: {
     ...(type === 'FABRIC_PORT' ? { speed: '10G', portProduct: 'STANDARD', type: 'PRIMARY', encapsulation: 'DOT1Q', quantity: 1 } : {}),
-    ...(type === 'NETWORK_EDGE' ? { deviceTypeCode: 'CSR', deviceTypeName: 'Cisco', vendorName: 'Cisco', packageCode: 'STD', softwareVersion: '', licenseType: 'SUBSCRIPTION', redundant: false, termLength: 1 } : {}),
+    ...(type === 'NETWORK_EDGE' ? { deviceTypeCode: 'CSR', deviceTypeName: 'Cisco', vendorName: 'Cisco', packageCode: 'STD', coreMemory: '4 GB', softwareVersion: '', licenseType: 'SUBSCRIPTION', redundant: false, termLength: 1 } : {}),
     ...(type === 'CLOUD_ROUTER' ? { package: 'STANDARD' } : {}),
     ...(type === 'INTERNET_ACCESS' ? { bandwidthMbps: 100, routingProtocol: 'BGP', connectionType: 'SINGLE', deliveryMethod: 'FABRIC_PORT' } : {}),
     ...(type === 'COLOCATION' ? { description: 'Cage', mrcPrice: 0 } : {}),

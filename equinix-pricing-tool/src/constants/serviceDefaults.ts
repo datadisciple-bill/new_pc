@@ -13,6 +13,7 @@ export const DEFAULT_NETWORK_EDGE: NetworkEdgeConfig = {
   deviceTypeName: '',
   vendorName: '',
   packageCode: '',
+  coreMemory: '',
   softwareVersion: '',
   licenseType: 'BYOL',
   redundant: false,

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
-export const CURRENT_VERSION = 11;
-export const RELEASE_DATE = new Date('2026-03-02T00:00:00');
+export const CURRENT_VERSION = 11.1;
+export const RELEASE_DATE = new Date('2026-03-03T00:00:00');
 
 interface ChangelogEntry {
   version: number;
@@ -10,6 +10,17 @@ interface ChangelogEntry {
 }
 
 const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: 11.1,
+    date: 'Mar 3, 2026',
+    items: [
+      'Fixed NE diagram nodes not showing memory/RAM when a device is selected',
+      'NE diagram nodes now auto-size taller to fit cores, memory, and software detail',
+      'Bandwidth labels no longer disappear when dragging metro containers',
+      'Bundled Cross Connects inherit redundancy from Redundant Fabric Ports',
+      'Multipoint network connection handles now work correctly from all four sides',
+    ],
+  },
   {
     version: 11,
     date: 'Mar 2, 2026',

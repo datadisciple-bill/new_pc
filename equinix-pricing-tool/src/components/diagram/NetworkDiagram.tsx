@@ -5,10 +5,13 @@ import {
   Controls,
   MiniMap,
   applyNodeChanges,
+  applyEdgeChanges,
   type NodeTypes,
   type EdgeTypes,
   type NodeChange,
+  type EdgeChange,
   type Node,
+  type Edge,
   type ReactFlowInstance,
   type Connection,
   type IsValidConnection,
@@ -160,17 +163,23 @@ export function NetworkDiagram() {
   const addNetwork = useConfigStore((s) => s.addNetwork);
   const updateNetwork = useConfigStore((s) => s.updateNetwork);
 
-  // Controlled nodes state
+  // Controlled nodes + edges state
   const [reactFlowNodes, setReactFlowNodes] = useState<Node[]>([]);
+  const [reactFlowEdges, setReactFlowEdges] = useState<Edge[]>([]);
   // Persist positions for draggable nodes across layout recomputes
   const savedPositions = useRef<Map<string, { x: number; y: number }>>(new Map());
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const rfInstanceRef = useRef<ReactFlowInstance | null>(null);
 
-  const { nodes: layoutNodes, edges } = useMemo(
+  const { nodes: layoutNodes, edges: layoutEdges } = useMemo(
     () => buildDiagramLayout(metros, connections, showPricing, textBoxes, localSites, annotationMarkers, networks),
     [metros, connections, showPricing, textBoxes, localSites, annotationMarkers, networks]
   );
+
+  // Sync layout edges into controlled state
+  useEffect(() => {
+    setReactFlowEdges(layoutEdges);
+  }, [layoutEdges]);
 
   // Store layout-computed metro sizes as minimum floors
   const layoutMetroSizes = useRef<Map<string, { w: number; h: number }>>(new Map());
@@ -286,6 +295,13 @@ export function NetworkDiagram() {
     [updateTextBox, updateLocalSite, updateAnnotationMarker, updateNetwork]
   );
 
+  const onEdgesChange = useCallback(
+    (changes: EdgeChange[]) => {
+      setReactFlowEdges((eds) => applyEdgeChanges(changes, eds) as Edge[]);
+    },
+    []
+  );
+
   const onInit = useCallback((instance: ReactFlowInstance) => {
     rfInstanceRef.current = instance;
     setTimeout(() => instance.fitView(), 150);
@@ -387,8 +403,20 @@ export function NetworkDiagram() {
       }
 
       if (result.kind === 'CROSS_CONNECT') {
+        // If bundled (Colo ↔ Fabric Port), inherit redundancy from the Fabric Port
+        let isRedundant = false;
+        if (result.bundled) {
+          const portInfo = srcInfo.serviceType === 'FABRIC_PORT' ? srcInfo : tgtInfo.serviceType === 'FABRIC_PORT' ? tgtInfo : null;
+          if (portInfo) {
+            const storeMetro = useConfigStore.getState().project.metros.find((m) => m.metroCode === portInfo.metroCode);
+            const svc = storeMetro?.services.find((s) => s.id === portInfo.serviceId);
+            if (svc?.config && 'type' in svc.config && svc.config.type === 'REDUNDANT') {
+              isRedundant = true;
+            }
+          }
+        }
         const desc = result.bundled
-          ? 'Bundled Cross Connect (included with Fabric Port)'
+          ? `Bundled Cross Connect (included with ${isRedundant ? 'Redundant ' : ''}Fabric Port)`
           : 'Cross Connect';
         const connId = addConnection({
           name: desc,
@@ -396,7 +424,7 @@ export function NetworkDiagram() {
           aSide: { metroCode: srcInfo.metroCode, type: aSideType, serviceId: srcInfo.serviceId },
           zSide: { metroCode: tgtInfo.metroCode, type: zSideType, serviceId: tgtInfo.serviceId },
           bandwidthMbps: 10000,
-          redundant: false,
+          redundant: isRedundant,
         });
         updateConnectionPricing(connId, {
           mrc: 0, nrc: 0, currency: 'USD', isEstimate: result.bundled ? false : true,
@@ -588,10 +616,11 @@ export function NetworkDiagram() {
     <div className="h-full w-full relative" ref={reactFlowWrapper}>
       <ReactFlow
         nodes={reactFlowNodes}
-        edges={edges}
+        edges={reactFlowEdges}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
         onNodeClick={handleNodeClick}
         onConnect={onConnect}
         isValidConnection={isValidConnection}

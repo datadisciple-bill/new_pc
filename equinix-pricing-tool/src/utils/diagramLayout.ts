@@ -27,7 +27,10 @@ function isLeftColumn(type: string): boolean {
 function getServiceNodeHeight(service: { type: string; config: unknown }): number {
   if (service.type === 'NETWORK_EDGE') {
     const c = service.config as NetworkEdgeConfig;
-    return c.redundant ? SERVICE_NODE_HEIGHT_HA : SERVICE_NODE_HEIGHT;
+    // Extra height when a device is selected — accounts for the cores/memory/software detail line
+    const hasDetail = !!c.packageCode;
+    const base = hasDetail ? SERVICE_NODE_HEIGHT + 10 : SERVICE_NODE_HEIGHT;
+    return c.redundant ? base + 16 : base;
   }
   if (service.type === 'FABRIC_PORT') {
     const c = service.config as FabricPortConfig;
