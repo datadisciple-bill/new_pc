@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export const CURRENT_VERSION = 11.1;
+export const CURRENT_VERSION = 11.2;
 export const RELEASE_DATE = new Date('2026-03-03T00:00:00');
 
 interface ChangelogEntry {
@@ -10,6 +10,16 @@ interface ChangelogEntry {
 }
 
 const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: 11.2,
+    date: 'Mar 3, 2026',
+    items: [
+      'Per-metro-pair VC pricing — DC↔LD now costs differently from DA↔LD (819 cached price points across 91 metro pairs)',
+      'VC and Cross Connect fees to Equinix Internet Access are now bundled ($0) — included in the EIA service price',
+      'Connecting EIA to an HA Network Edge device automatically defaults to a redundant (dual) connection',
+      'Fetch script can now pull real per-pair VC pricing from the Equinix API for 13 key metros',
+    ],
+  },
   {
     version: 11.1,
     date: 'Mar 3, 2026',

@@ -666,6 +666,72 @@ async function fetchNetworkEdgePricing(deviceTypes, referenceMetro, fallbackMetr
   return pricing;
 }
 
+async function fetchVCPairPricing() {
+  const KEY_METROS = ['DC', 'NY', 'SV', 'CH', 'DA', 'LD', 'AM', 'FR', 'PA', 'SG', 'HK', 'MB', 'SP'];
+  const bandwidths = [50, 100, 200, 500, 1000, 2000, 5000, 10000, 50000];
+  const pricing = {};
+
+  // Build all pair × bandwidth combinations
+  // 13 same-metro + C(13,2)=78 cross-metro = 91 pairs × 9 bw = 819 fetches
+  const pairs = [];
+  for (let i = 0; i < KEY_METROS.length; i++) {
+    for (let j = i; j < KEY_METROS.length; j++) {
+      pairs.push([KEY_METROS[i], KEY_METROS[j]]);
+    }
+  }
+
+  const combos = pairs.flatMap(([a, z]) =>
+    bandwidths.map((bw) => ({ aSide: a, zSide: z, bw }))
+  );
+  const total = combos.length;
+  let completed = 0;
+  const failedCombos = [];
+
+  await runConcurrent(combos, async ({ aSide, zSide, bw }) => {
+    const pairKey = [aSide, zSide].sort().join('|');
+    const label = bw >= 1000 ? `${bw / 1000}G` : `${bw}M`;
+    try {
+      const res = await apiPost('/fabric/v4/prices/search', priceFilter({
+        '/type': 'VIRTUAL_CONNECTION_PRODUCT',
+        '/connection/type': 'EVPL_VC',
+        '/connection/bandwidth': bw,
+        '/connection/aSide/accessPoint/type': 'COLO',
+        '/connection/aSide/accessPoint/location/metroCode': aSide,
+        '/connection/aSide/accessPoint/port/settings/buyout': false,
+        '/connection/zSide/accessPoint/type': 'COLO',
+        '/connection/zSide/accessPoint/location/metroCode': zSide,
+      }));
+      const charges = res.data?.[0]?.charges ?? [];
+      const mrc = charges.find((ch) => ch.type === 'MONTHLY_RECURRING')?.price ?? 0;
+      const nrc = charges.find((ch) => ch.type === 'NON_RECURRING')?.price ?? 0;
+      if (!pricing[pairKey]) pricing[pairKey] = {};
+      pricing[pairKey][String(bw)] = { mrc, nrc };
+      completed++;
+      process.stdout.write(`\r${progressBar(completed, total)} ${c.dim}${pairKey} ${label}${c.reset}       `);
+    } catch (err) {
+      failedCombos.push({ label: `${pairKey} ${label}`, error: err.message || 'Unknown error' });
+      completed++;
+      process.stdout.write(`\r${progressBar(completed, total)} ${c.dim}${pairKey} ${label}${c.reset}       `);
+    }
+  });
+  process.stdout.write('\r' + ' '.repeat(80) + '\r');
+  const pairCount = Object.keys(pricing).length;
+  const priceCount = Object.values(pricing).reduce((sum, bws) => sum + Object.keys(bws).length, 0);
+  const failCount = failedCombos.length;
+  const status = failCount
+    ? `${c.green}${pairCount} pairs (${priceCount} prices)${c.reset}, ${c.red}${failCount} failed${c.reset}`
+    : `${c.green}${pairCount} pairs (${priceCount} prices)${c.reset}`;
+  console.log(`  ${CHECK} VC Pairs — ${status}`);
+  if (failCount && failCount <= 20) {
+    for (const f of failedCombos) {
+      console.log(`    ${CROSS} ${c.dim}${f.label}:${c.reset} ${c.red}${f.error}${c.reset}`);
+    }
+  } else if (failCount > 20) {
+    console.log(`    ${c.dim}(${failCount} failures omitted)${c.reset}`);
+  }
+  return pricing;
+}
+
 async function fetchEIAPricing(referenceIbx, fallbackIbx) {
   // Only IA_C (dedicated port) is supported by v1 pricing API; IA_VC has no pricing examples in spec
   const connectionTypes = ['IA_C'];
@@ -792,10 +858,11 @@ async function main() {
     fetchCloudRouterPricing(routerPackages, referenceMetro, fallbackMetro),
     fetchNetworkEdgePricing(deviceTypes, referenceMetro, fallbackMetro),
     fetchEIAPricing(referenceIbx, fallbackIbx),
+    fetchVCPairPricing(),
   ]);
 
-  const pricingLabels = ['Fabric Port', 'VC', 'Cloud Router', 'Network Edge', 'Internet Access'];
-  const [fabricPortPricing, vcPricing, cloudRouterPricing, nePricing, eiaPricing] =
+  const pricingLabels = ['Fabric Port', 'VC', 'Cloud Router', 'Network Edge', 'Internet Access', 'VC Pairs'];
+  const [fabricPortPricing, vcPricing, cloudRouterPricing, nePricing, eiaPricing, vcPairPricing] =
     pricingResults.map((r, i) => {
       if (r.status === 'fulfilled') return r.value;
       console.log(`  ${WARN} ${pricingLabels[i]} pricing ${c.yellow}skipped${c.reset} ${c.dim}\u2014 ${r.reason?.message}${c.reset}`);
@@ -818,6 +885,7 @@ async function main() {
     pricing: {
       fabricPorts: fabricPortPricing,
       virtualConnections: vcPricing,
+      virtualConnectionPairs: vcPairPricing,
       cloudRouter: cloudRouterPricing,
       networkEdge: nePricing,
       internetAccess: eiaPricing,
@@ -838,8 +906,10 @@ async function main() {
 
   // ── Summary ────────────────────────────────────────────────────────────────
   const totalElapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+  const vcPairPriceCount = Object.values(vcPairPricing).reduce((sum, bws) => sum + Object.keys(bws).length, 0);
   const totalPrices = Object.keys(fabricPortPricing).length +
     Object.keys(vcPricing).length +
+    vcPairPriceCount +
     Object.keys(cloudRouterPricing).length +
     Object.keys(nePricing).length +
     Object.keys(eiaPricing).length;
@@ -849,7 +919,7 @@ async function main() {
   console.log(`  ${c.dim}Catalog${c.reset}    Metros ${c.bold}${metros.length}${c.reset}  \u2502  Devices ${c.bold}${deviceTypes.length}${c.reset}  \u2502  Profiles ${c.bold}${serviceProfiles.length}${c.reset}`);
   console.log(`             Packages ${c.bold}${routerPackages.length}${c.reset}  \u2502  EIA Locations ${c.bold}${eiaLocations.length}${c.reset}`);
   console.log('');
-  console.log(`  ${c.dim}Pricing${c.reset}    Ports ${c.bold}${Object.keys(fabricPortPricing).length}${c.reset}  \u2502  VCs ${c.bold}${Object.keys(vcPricing).length}${c.reset}  \u2502  FCR ${c.bold}${Object.keys(cloudRouterPricing).length}${c.reset}  \u2502  NE ${c.bold}${Object.keys(nePricing).length}${c.reset}  \u2502  EIA ${c.bold}${Object.keys(eiaPricing).length}${c.reset}`);
+  console.log(`  ${c.dim}Pricing${c.reset}    Ports ${c.bold}${Object.keys(fabricPortPricing).length}${c.reset}  \u2502  VCs ${c.bold}${Object.keys(vcPricing).length}${c.reset}  \u2502  VC Pairs ${c.bold}${Object.keys(vcPairPricing).length}${c.reset} (${c.bold}${vcPairPriceCount}${c.reset} prices)  \u2502  FCR ${c.bold}${Object.keys(cloudRouterPricing).length}${c.reset}  \u2502  NE ${c.bold}${Object.keys(nePricing).length}${c.reset}  \u2502  EIA ${c.bold}${Object.keys(eiaPricing).length}${c.reset}`);
   console.log('');
   console.log(`  ${c.dim}Total${c.reset}      ${c.bold}${totalPrices}${c.reset} prices  \u2502  ${c.bold}${apiCalls}${c.reset} API calls  \u2502  ${c.bold}${totalElapsed}s${c.reset}`);
   console.log('');

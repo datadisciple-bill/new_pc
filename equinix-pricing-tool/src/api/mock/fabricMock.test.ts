@@ -66,6 +66,72 @@ describe('fabricMock', () => {
       const result = mockPriceSearch('UNKNOWN', {});
       expect(result.data).toHaveLength(1);
     });
+
+    it('DC-LD costs more than DC-NY at 1G (transatlantic > short-haul)', () => {
+      const dcLd = mockPriceSearch('VIRTUAL_CONNECTION_PRODUCT', {
+        '/connection/bandwidth': 1000,
+        '/connection/aSide/accessPoint/location/metroCode': 'DC',
+        '/connection/zSide/accessPoint/location/metroCode': 'LD',
+        '/connection/zSide/accessPoint/type': 'COLO',
+      });
+      const dcNy = mockPriceSearch('VIRTUAL_CONNECTION_PRODUCT', {
+        '/connection/bandwidth': 1000,
+        '/connection/aSide/accessPoint/location/metroCode': 'DC',
+        '/connection/zSide/accessPoint/location/metroCode': 'NY',
+        '/connection/zSide/accessPoint/type': 'COLO',
+      });
+      const dcLdMrc = dcLd.data[0].charges.find((c) => c.type === 'MONTHLY_RECURRING')!.price;
+      const dcNyMrc = dcNy.data[0].charges.find((c) => c.type === 'MONTHLY_RECURRING')!.price;
+      expect(dcLdMrc).toBeGreaterThan(dcNyMrc);
+    });
+
+    it('DC-LD differs from DA-LD (per-pair differentiation)', () => {
+      const dcLd = mockPriceSearch('VIRTUAL_CONNECTION_PRODUCT', {
+        '/connection/bandwidth': 1000,
+        '/connection/aSide/accessPoint/location/metroCode': 'DC',
+        '/connection/zSide/accessPoint/location/metroCode': 'LD',
+        '/connection/zSide/accessPoint/type': 'COLO',
+      });
+      const daLd = mockPriceSearch('VIRTUAL_CONNECTION_PRODUCT', {
+        '/connection/bandwidth': 1000,
+        '/connection/aSide/accessPoint/location/metroCode': 'DA',
+        '/connection/zSide/accessPoint/location/metroCode': 'LD',
+        '/connection/zSide/accessPoint/type': 'COLO',
+      });
+      const dcLdMrc = dcLd.data[0].charges.find((c) => c.type === 'MONTHLY_RECURRING')!.price;
+      const daLdMrc = daLd.data[0].charges.find((c) => c.type === 'MONTHLY_RECURRING')!.price;
+      expect(dcLdMrc).not.toBe(daLdMrc);
+    });
+
+    it('same-metro price < cross-metro price', () => {
+      const dcDc = mockPriceSearch('VIRTUAL_CONNECTION_PRODUCT', {
+        '/connection/bandwidth': 1000,
+        '/connection/aSide/accessPoint/location/metroCode': 'DC',
+        '/connection/zSide/accessPoint/location/metroCode': 'DC',
+        '/connection/zSide/accessPoint/type': 'COLO',
+      });
+      const dcLd = mockPriceSearch('VIRTUAL_CONNECTION_PRODUCT', {
+        '/connection/bandwidth': 1000,
+        '/connection/aSide/accessPoint/location/metroCode': 'DC',
+        '/connection/zSide/accessPoint/location/metroCode': 'LD',
+        '/connection/zSide/accessPoint/type': 'COLO',
+      });
+      const dcDcMrc = dcDc.data[0].charges.find((c) => c.type === 'MONTHLY_RECURRING')!.price;
+      const dcLdMrc = dcLd.data[0].charges.find((c) => c.type === 'MONTHLY_RECURRING')!.price;
+      expect(dcDcMrc).toBeLessThan(dcLdMrc);
+    });
+
+    it('uncached pair (AT-SE) falls back to region multiplier', () => {
+      const atSe = mockPriceSearch('VIRTUAL_CONNECTION_PRODUCT', {
+        '/connection/bandwidth': 1000,
+        '/connection/aSide/accessPoint/location/metroCode': 'AT',
+        '/connection/zSide/accessPoint/location/metroCode': 'SE',
+        '/connection/zSide/accessPoint/type': 'COLO',
+      });
+      const mrc = atSe.data[0].charges.find((c) => c.type === 'MONTHLY_RECURRING')!.price;
+      // AT and SE are both AMER — intra-region multiplier is 1.0, so base price = 1500
+      expect(mrc).toBe(1500);
+    });
   });
 
   describe('mockServiceProfiles', () => {

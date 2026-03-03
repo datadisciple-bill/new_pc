@@ -1,5 +1,5 @@
 import type { Metro, PriceSearchResponse, ServiceProfile, RouterPackage } from '@/types/equinix';
-import { lookupPortPrice, lookupVCPrice, lookupCloudRouterPrice } from '@/data/defaultPricing';
+import { lookupPortPrice, lookupVCPrice, lookupVCPairPrice, lookupCloudRouterPrice } from '@/data/defaultPricing';
 
 export function mockMetros(): Metro[] {
   return [
@@ -148,8 +148,18 @@ export function mockPriceSearch(
       const zSide = String(properties['/connection/zSide/accessPoint/location/metroCode'] ?? '');
       const zSideType = String(properties['/connection/zSide/accessPoint/type'] ?? 'COLO');
       key = `VC_${bw}`;
+
+      // 1. Try per-pair real data first (13 key metros, 819 cached prices)
+      if (zSideType !== 'SP') {
+        const pairPrice = lookupVCPairPrice(aSide, zSide, bw);
+        if (pairPrice) {
+          price = pairPrice;
+          break;
+        }
+      }
+
+      // 2. Fallback: base price × region multiplier
       const basePrice = lookupVCPrice(bw) ?? PRICING[key] ?? price;
-      // Cloud (SP) connections use full base price — no same-metro discount
       const multiplier = zSideType === 'SP' ? 1 : getMetroPairMultiplier(aSide, zSide);
       price = { mrc: Math.round(basePrice.mrc * multiplier), nrc: basePrice.nrc };
       break;

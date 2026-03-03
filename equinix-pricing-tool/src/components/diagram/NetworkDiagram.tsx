@@ -457,6 +457,18 @@ export function NetworkDiagram() {
         }
       }
 
+      // EIA ↔ HA Network Edge: default to redundant (dual) connection
+      let vcRedundant = false;
+      const eiaEnd = [srcInfo, tgtInfo].find((s) => s.serviceType === 'INTERNET_ACCESS');
+      const neEnd = [srcInfo, tgtInfo].find((s) => s.serviceType === 'NETWORK_EDGE');
+      if (eiaEnd && neEnd) {
+        const neMetro = useConfigStore.getState().project.metros.find((m) => m.metroCode === neEnd.metroCode);
+        const neSvc = neMetro?.services.find((s) => s.id === neEnd.serviceId);
+        if (neSvc?.config && 'redundant' in neSvc.config && neSvc.config.redundant) {
+          vcRedundant = true;
+        }
+      }
+
       const connId = addConnection({
         name: isNetwork ? 'Network Connection' : isCloud ? `VC to ${tgtInfo.serviceId}` : 'Virtual Circuit',
         type: vcType,
@@ -468,7 +480,7 @@ export function NetworkDiagram() {
           ...(isCloud ? { serviceProfileName: tgtInfo.serviceId } : {}),
         },
         bandwidthMbps: 1000,
-        redundant: false,
+        redundant: vcRedundant,
       });
       fetchPriceForConnection(connId, 1000, srcInfo.metroCode, tgtInfo.metroCode || srcInfo.metroCode);
       showToast(isNetwork ? 'Network connection created' : 'Virtual Circuit created', 'success');

@@ -3,6 +3,8 @@
  * Mock functions check these lookups before falling back to hardcoded values.
  */
 
+import { getHardcodedVCPairPricing } from './vcPairDefaults';
+
 interface PriceEntry {
   mrc: number;
   nrc: number;
@@ -11,6 +13,7 @@ interface PriceEntry {
 interface DefaultPricingData {
   fabricPorts: Record<string, PriceEntry>;
   virtualConnections: Record<string, PriceEntry>;
+  virtualConnectionPairs?: Record<string, Record<string, PriceEntry>>;
   cloudRouter: Record<string, PriceEntry>;
   networkEdge: Record<string, PriceEntry>;
   internetAccess: Record<string, PriceEntry>;
@@ -67,6 +70,24 @@ export function lookupPortPrice(bandwidth: string, portProduct: string): PriceEn
 /** Lookup Virtual Connection price by bandwidth in Mbps */
 export function lookupVCPrice(bandwidthMbps: number): PriceEntry | null {
   return pricing?.virtualConnections[String(bandwidthMbps)] ?? null;
+}
+
+/** Lookup VC price for a specific metro pair and bandwidth. Returns null for uncached pairs. */
+export function lookupVCPairPrice(
+  aSide: string,
+  zSide: string,
+  bandwidthMbps: number
+): PriceEntry | null {
+  const key = [aSide, zSide].sort().join('|');
+  const bwKey = String(bandwidthMbps);
+
+  // Check defaults.json data first
+  const fromDefaults = pricing?.virtualConnectionPairs?.[key]?.[bwKey];
+  if (fromDefaults) return fromDefaults;
+
+  // Fall back to hardcoded data
+  const hardcoded = getHardcodedVCPairPricing();
+  return hardcoded[key]?.[bwKey] ?? null;
 }
 
 /** Lookup Cloud Router price by package code (e.g. "STANDARD") */

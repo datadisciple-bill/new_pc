@@ -3,12 +3,19 @@ import { useConfigStore } from '@/store/configStore';
 import { searchPrices } from '@/api/fabric';
 import { fetchNetworkEdgePricing } from '@/api/networkEdge';
 import { fetchEIAPricing } from '@/api/internetAccess';
-import type { ServiceSelection, FabricPortConfig, NetworkEdgeConfig, InternetAccessConfig as IAConfig, CloudRouterConfig, ColocationConfig, CrossConnectConfig, PricingResult, BandwidthPriceEntry } from '@/types/config';
+import type { ServiceSelection, FabricPortConfig, NetworkEdgeConfig, InternetAccessConfig as IAConfig, CloudRouterConfig, ColocationConfig, CrossConnectConfig, PricingResult, BandwidthPriceEntry, MetroSelection } from '@/types/config';
 import { calculatePricingSummary, formatCurrency } from '@/utils/priceCalculator';
 import { generateCsv, downloadCsv } from '@/utils/csvGenerator';
 import { BANDWIDTH_OPTIONS } from '@/constants/serviceDefaults';
 import { lookupIbxForMetro } from '@/data/defaultPricing';
 import { getCachedVCPrice, setCachedVCPrice } from '@/api/vcPricingCache';
+
+/** Check if a connection endpoint refers to an EIA service (VC + XC are bundled into EIA pricing). */
+function isEIAEndpoint(serviceId: string, metroCode: string, metros: MetroSelection[]): boolean {
+  const metro = metros.find((m) => m.metroCode === metroCode);
+  if (!metro) return false;
+  return metro.services.some((s) => s.id === serviceId && s.type === 'INTERNET_ACCESS');
+}
 
 export function usePricing() {
   const metros = useConfigStore((s) => s.project.metros);
@@ -160,6 +167,19 @@ export function usePricing() {
           return;
         }
 
+        // EIA connections: VC and Cross Connect are bundled into EIA service pricing
+        const allMetros = useConfigStore.getState().project.metros;
+        if (conn && (
+          isEIAEndpoint(conn.aSide.serviceId, conn.aSide.metroCode, allMetros) ||
+          isEIAEndpoint(conn.zSide.serviceId, conn.zSide.metroCode, allMetros)
+        )) {
+          updateConnectionPricing(connectionId, {
+            mrc: 0, nrc: 0, currency: 'USD', isEstimate: false,
+            breakdown: [{ description: 'Bundled with Equinix Internet Access', mrc: 0, nrc: 0 }],
+          });
+          return;
+        }
+
         const aMetro = aSideMetro ?? conn?.aSide.metroCode ?? 'DC';
         const zMetro = isNetworkConnection ? aMetro : (zSideMetro ?? conn?.zSide.metroCode ?? aMetro);
         const isCloudConnection = conn?.zSide.type === 'SERVICE_PROFILE';
@@ -234,6 +254,22 @@ export function usePricing() {
         const aMetro = conn?.aSide.metroCode ?? 'DC';
         const zMetro = conn?.zSide.metroCode ?? aMetro;
         const isCloudConnection = conn?.zSide.type === 'SERVICE_PROFILE';
+
+        // EIA connections: VC and Cross Connect are bundled — $0 at all bandwidths
+        const ptMetros = useConfigStore.getState().project.metros;
+        if (conn && (
+          isEIAEndpoint(conn.aSide.serviceId, conn.aSide.metroCode, ptMetros) ||
+          isEIAEndpoint(conn.zSide.serviceId, conn.zSide.metroCode, ptMetros)
+        )) {
+          const entries: BandwidthPriceEntry[] = BANDWIDTH_OPTIONS.map((bw) => ({
+            bandwidthMbps: bw,
+            label: bw >= 1000 ? `${bw / 1000} Gbps` : `${bw} Mbps`,
+            mrc: 0,
+            currency: 'USD',
+          }));
+          updateConnection(connectionId, { priceTable: entries });
+          return;
+        }
 
         // Same-metro same-type connections are $0 at all bandwidths (not cloud)
         if (aMetro === zMetro && !isCloudConnection) {
