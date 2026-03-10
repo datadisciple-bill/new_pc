@@ -34,7 +34,7 @@ export function PricingModeToggle() {
             <span className="relative inline-flex rounded-full h-2 w-2 bg-green-400" />
           </span>
         )}
-        {isLive ? 'Live' : 'Cached'}
+        {isLive ? 'Live Pricing' : 'Cached Pricing'}
       </button>
 
       {showCredentialDialog && (

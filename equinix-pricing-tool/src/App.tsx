@@ -21,6 +21,7 @@ import { WalkthroughDialog, hasSeenWalkthrough } from '@/components/shared/Walkt
 import { PricingModeToggle } from '@/components/shared/PricingModeToggle';
 import { usePricing } from '@/hooks/usePricing';
 import type { ProjectConfig } from '@/types/config';
+import equinixLogo from '@/assets/icons/equinix-logo.svg';
 
 // Hash-based routing for unlisted pages
 function useHash(): string {
@@ -160,7 +161,8 @@ function App() {
       {/* Top header bar */}
       <header className="bg-equinix-black text-white flex items-center justify-between px-4 py-2 flex-shrink-0">
         <div className="flex items-center gap-3">
-          <h1 className="text-sm font-bold">Equinix</h1>
+          <img src={equinixLogo} alt="Equinix" className="h-5 w-auto" />
+          <h1 className="text-sm font-bold">Equinix GTST Diagram Tool</h1>
           <span
             className="text-[10px] text-gray-500 cursor-pointer hover:text-white transition-colors"
             onClick={() => setShowChangelog(true)}
