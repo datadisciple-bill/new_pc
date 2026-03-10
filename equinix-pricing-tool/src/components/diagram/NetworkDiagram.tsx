@@ -674,6 +674,7 @@ export function NetworkDiagram() {
       <div className="absolute top-2 left-2 z-10 flex items-center gap-2 diagram-toolbar flex-wrap">
         <button
           onClick={() => setShowPricing(!showPricing)}
+          title={showPricing ? 'Hide pricing on diagram' : 'Show pricing on diagram'}
           className={`px-3 py-1.5 text-[10px] font-medium rounded-md shadow-sm border transition-colors ${
             showPricing
               ? 'bg-equinix-green text-white border-equinix-green'

@@ -69,12 +69,14 @@ export function ConfirmDeleteButton({
         <span className="text-[10px] font-medium opacity-80 whitespace-nowrap">{confirmLabel}</span>
         <button
           onClick={handleCancel}
+          title="Cancel deletion"
           className="text-[10px] px-1.5 py-0.5 rounded bg-white/20 hover:bg-white/30 font-medium whitespace-nowrap"
         >
           No
         </button>
         <button
           onClick={handleConfirm}
+          title="Confirm deletion"
           className="text-[10px] px-1.5 py-0.5 rounded bg-red-500 hover:bg-red-600 text-white font-medium whitespace-nowrap"
         >
           Yes

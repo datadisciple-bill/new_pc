@@ -61,12 +61,14 @@ export function MetroCard({ metro, selected, onToggle, compact, hasServices = fa
             <div className="flex items-center gap-1 flex-shrink-0">
               <button
                 onClick={handleCancel}
+                title="Cancel removal"
                 className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 hover:bg-gray-200 font-medium"
               >
                 No
               </button>
               <button
                 onClick={handleConfirm}
+                title="Confirm removal"
                 className="text-[10px] px-1.5 py-0.5 rounded bg-red-500 hover:bg-red-600 text-white font-medium"
               >
                 Yes
@@ -76,6 +78,7 @@ export function MetroCard({ metro, selected, onToggle, compact, hasServices = fa
         ) : (
           <button
             onClick={handleClick}
+            title={selected ? `Remove ${metro.code}` : `Select ${metro.code} (${metro.name})`}
             className="w-full text-left flex items-center justify-between gap-2"
           >
             <div className="flex items-center gap-2 min-w-0">
@@ -116,12 +119,14 @@ export function MetroCard({ metro, selected, onToggle, compact, hasServices = fa
           <div className="flex items-center gap-1.5 flex-shrink-0">
             <button
               onClick={handleCancel}
+              title="Cancel removal"
               className="text-xs px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 font-medium"
             >
               No
             </button>
             <button
               onClick={handleConfirm}
+              title="Confirm removal"
               className="text-xs px-2 py-1 rounded bg-red-500 hover:bg-red-600 text-white font-medium"
             >
               Yes
@@ -129,7 +134,7 @@ export function MetroCard({ metro, selected, onToggle, compact, hasServices = fa
           </div>
         </div>
       ) : (
-        <button onClick={handleClick} className="w-full text-left">
+        <button onClick={handleClick} title={selected ? `Remove ${metro.code}` : `Select ${metro.code} (${metro.name})`} className="w-full text-left">
           <div className="flex items-start justify-between">
             <div>
               <div className="flex items-center gap-2">

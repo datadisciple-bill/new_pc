@@ -65,6 +65,7 @@ export function MetroSelector({ compact = false }: MetroSelectorProps) {
           <button
             key={region}
             onClick={() => setActiveRegion(region)}
+            title={`Filter metros by ${region === 'ALL' ? 'all regions' : REGION_LABELS[region] ?? region}`}
             className={`font-medium rounded-full whitespace-nowrap transition-colors ${
               compact ? 'px-2 py-1 text-[10px]' : 'px-3 py-1.5 text-xs'
             } ${

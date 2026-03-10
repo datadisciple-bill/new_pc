@@ -100,6 +100,7 @@ export function MultipointNetworkManager() {
         <h3 className="font-bold text-sm text-equinix-navy">Multipoint Networks</h3>
         <button
           onClick={() => { resetForm(); setShowForm(!showForm); }}
+          title="Add a multipoint network (E-LAN, E-Tree, IP-WAN)"
           className="px-2.5 py-1 text-xs font-medium bg-equinix-black text-white rounded-md hover:bg-gray-800"
         >
           + Add Network
@@ -174,12 +175,14 @@ export function MultipointNetworkManager() {
             <button
               onClick={editingId ? handleSaveEdit : handleAdd}
               disabled={!form.name || (form.scope === 'REGIONAL' && !form.region)}
+              title={editingId ? 'Save network changes' : 'Create new multipoint network'}
               className="px-4 py-1.5 text-xs font-medium bg-equinix-green text-white rounded-md hover:bg-green-600 disabled:opacity-50"
             >
               {editingId ? 'Save Changes' : 'Add Network'}
             </button>
             <button
               onClick={resetForm}
+              title="Cancel and close form"
               className="px-4 py-1.5 text-xs font-medium bg-gray-100 text-gray-600 rounded-md hover:bg-gray-200"
             >
               Cancel

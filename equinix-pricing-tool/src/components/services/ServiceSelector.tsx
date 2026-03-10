@@ -145,6 +145,7 @@ export function ServiceSelector({ metroCode }: Props) {
           <div className="relative flex-shrink-0 ml-2">
             <button
               onClick={() => setShowCopyMenu(!showCopyMenu)}
+              title="Copy all services to another metro"
               className="px-2.5 py-1 text-xs font-medium bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors flex items-center gap-1"
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -184,6 +185,7 @@ export function ServiceSelector({ metroCode }: Props) {
                 ?.services.find((s) => s.id === id);
               if (newService) fetchPriceForService(metroCode, newService);
             }}
+            title={`Add ${SERVICE_TYPE_LABELS[type]} service to this metro`}
             className="px-2.5 py-1 text-xs font-medium bg-equinix-black text-white rounded-md hover:bg-gray-800 transition-colors"
           >
             + {SERVICE_TYPE_LABELS[type]}

@@ -17,6 +17,7 @@ import { fetchServiceProfiles } from '@/api/fabric';
 import { authenticate } from '@/api/auth';
 import { setDefaultPricing, setDefaultLocations, hasDefaultPricing } from '@/data/defaultPricing';
 import { ChangelogModal, CURRENT_VERSION, RELEASE_DATE } from '@/components/shared/ChangelogModal';
+import { WalkthroughDialog, hasSeenWalkthrough } from '@/components/shared/WalkthroughDialog';
 import { PricingModeToggle } from '@/components/shared/PricingModeToggle';
 import { usePricing } from '@/hooks/usePricing';
 import type { ProjectConfig } from '@/types/config';
@@ -70,6 +71,7 @@ function App() {
   const [showRefreshDialog, setShowRefreshDialog] = useState(false);
   const [importResult, setImportResult] = useState<ParseResult | null>(null);
   const [showChangelog, setShowChangelog] = useState(false);
+  const [showWalkthrough, setShowWalkthrough] = useState(() => !hasSeenWalkthrough());
 
   // Auto-show changelog if current version was released within 24h and not yet dismissed
   useEffect(() => {
@@ -162,11 +164,13 @@ function App() {
           <span
             className="text-[10px] text-gray-500 cursor-pointer hover:text-white transition-colors"
             onClick={() => setShowChangelog(true)}
+            title="View changelog"
           >v{CURRENT_VERSION}</span>
           <input
             type="text"
             value={projectName}
             onChange={(e) => setProjectName(e.target.value)}
+            title="Project name"
             className="bg-transparent border-b border-gray-600 text-sm text-white px-1 py-0.5 focus:outline-none focus:border-equinix-green w-40 sm:w-60"
           />
         </div>
@@ -218,6 +222,11 @@ function App() {
         />
       )}
 
+      {/* First-time Walkthrough */}
+      {showWalkthrough && (
+        <WalkthroughDialog onClose={() => setShowWalkthrough(false)} />
+      )}
+
       {/* Changelog Modal */}
       {showChangelog && (
         <ChangelogModal onClose={() => {
@@ -247,6 +256,7 @@ function App() {
                   <button
                     key={m.metroCode}
                     onClick={() => setSelectedMetro(m.metroCode)}
+                    title={`Configure services for ${m.metroName ?? m.metroCode}`}
                     className={`px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap transition-colors ${
                       selectedMetroCode === m.metroCode
                         ? 'bg-equinix-black text-white'
@@ -296,6 +306,7 @@ function App() {
                       <button
                         key={m.metroCode}
                         onClick={() => setSelectedMetro(m.metroCode)}
+                        title={`Configure services for ${m.metroName ?? m.metroCode}`}
                         className={`px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap transition-colors ${
                           selectedMetroCode === m.metroCode
                             ? 'bg-equinix-black text-white'
@@ -335,6 +346,7 @@ function App() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
+              title={`Switch to ${tab.label} tab`}
               className={`flex-1 flex flex-col items-center py-2 text-[10px] font-medium transition-colors ${
                 activeTab === tab.id
                   ? 'text-equinix-green'
@@ -411,7 +423,7 @@ function RefreshDataDialog({
                 : 'Using default data (no API data cached)'}
             </p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-white">
+          <button onClick={onClose} title="Close" className="text-gray-400 hover:text-white">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -451,12 +463,14 @@ function RefreshDataDialog({
             <button
               onClick={handleRefresh}
               disabled={status === 'loading' || !clientId || !clientSecret}
+              title="Fetch latest data from Equinix API"
               className="flex-1 bg-equinix-black text-white py-2.5 rounded-md font-medium text-sm hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {status === 'loading' ? 'Fetching...' : 'Refresh Data'}
             </button>
             <button
               onClick={onClose}
+              title="Cancel and close"
               className="px-4 py-2.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200"
             >
               Cancel
@@ -487,7 +501,7 @@ function ImportDialog({
         <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
           <div className="bg-red-600 text-white px-6 py-4 rounded-t-lg flex items-center justify-between">
             <h2 className="text-sm font-bold">Import Error</h2>
-            <button onClick={onClose} className="text-white/70 hover:text-white">
+            <button onClick={onClose} title="Close" className="text-white/70 hover:text-white">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -497,6 +511,7 @@ function ImportDialog({
             <p className="text-sm text-gray-700">{result.error}</p>
             <button
               onClick={onClose}
+              title="Close error dialog"
               className="w-full py-2.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200"
             >
               Close
@@ -515,7 +530,7 @@ function ImportDialog({
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
         <div className="bg-equinix-black text-white px-6 py-4 rounded-t-lg flex items-center justify-between">
           <h2 className="text-sm font-bold">Load Project</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white">
+          <button onClick={onClose} title="Close" className="text-gray-400 hover:text-white">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -536,12 +551,14 @@ function ImportDialog({
           <div className="flex gap-3">
             <button
               onClick={() => onConfirm(project)}
+              title="Replace current project with imported file"
               className="flex-1 bg-equinix-black text-white py-2.5 rounded-md font-medium text-sm hover:bg-gray-800"
             >
               Load Project
             </button>
             <button
               onClick={onClose}
+              title="Cancel import"
               className="px-4 py-2.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200"
             >
               Cancel

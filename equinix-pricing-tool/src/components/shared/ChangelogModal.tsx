@@ -162,7 +162,7 @@ export function ChangelogModal({ onClose }: { onClose: () => void }) {
       <div className="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col">
         <div className="bg-equinix-black text-white px-6 py-4 rounded-t-lg flex items-center justify-between flex-shrink-0">
           <h2 className="text-sm font-bold">What's New</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white">
+          <button onClick={onClose} title="Close" className="text-gray-400 hover:text-white">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
