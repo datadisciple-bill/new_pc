@@ -124,7 +124,7 @@ export function CustomEdge({
       {isRedundant ? (
         <>
           {/* Outer thick stroke */}
-          <BaseEdge id={id} path={edgePath} style={{ ...style, strokeWidth: 5 }} markerEnd={markerEnd} />
+          <BaseEdge id={id} path={edgePath} style={{ ...style, strokeWidth: 5, pointerEvents: 'none' }} markerEnd={markerEnd} />
           {/* White inner gap to create double-line effect */}
           <path
             d={edgePath}
@@ -132,6 +132,7 @@ export function CustomEdge({
             stroke="#ffffff"
             strokeWidth={2}
             strokeDasharray={dashArray}
+            style={{ pointerEvents: 'none' }}
           />
         </>
       ) : (
@@ -156,7 +157,7 @@ export function CustomEdge({
             style={{
               position: 'absolute',
               transform: `translate(-50%, -50%) translate(${labelX + offset.x}px, ${labelY + offset.y}px)`,
-              zIndex: 10,
+              zIndex: 1000,
               pointerEvents: 'all',
               cursor: hasLabel ? 'grab' : 'default',
               userSelect: 'none',
