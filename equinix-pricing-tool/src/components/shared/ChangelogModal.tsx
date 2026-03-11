@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export const CURRENT_VERSION = 12;
+export const CURRENT_VERSION = 12.5;
 export const RELEASE_DATE = new Date('2026-03-10T00:00:00');
 
 interface ChangelogEntry {
@@ -10,6 +10,16 @@ interface ChangelogEntry {
 }
 
 const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: 12.5,
+    date: 'Mar 10, 2026',
+    items: [
+      'Connection handle pinning — right-click any connection label to choose which side (left/right/top/bottom) it attaches to on each node',
+      'All diagram nodes (services, local sites, cloud providers) now have handles on all four sides for flexible connection routing',
+      'Drag-to-connect captures which handle you dragged from/to and preserves it automatically',
+      'Handle pinning persists in saved project files (schema version 3)',
+    ],
+  },
   {
     version: 12,
     date: 'Mar 10, 2026',

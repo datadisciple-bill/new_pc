@@ -44,6 +44,8 @@ export type MultipointNetworkType = 'EVPLAN' | 'EPLAN' | 'IPWAN' | 'EVPTREE' | '
 export type MultipointNetworkScope = 'LOCAL' | 'REGIONAL' | 'GLOBAL';
 export type ETreeConnectionRole = 'ROOT' | 'LEAF';
 
+export type HandleSide = 'left' | 'right' | 'top' | 'bottom';
+
 export interface MultipointNetwork {
   id: string;
   name: string;
@@ -164,6 +166,7 @@ export interface ConnectionEndpoint {
   type: EndpointType;
   serviceId: string;
   serviceProfileName?: string;
+  handleSide?: HandleSide;
 }
 
 export interface PricingResult {

@@ -27,7 +27,14 @@ export const CloudNode = memo(function CloudNode({ data }: NodeProps) {
       >
         <span className="text-xs font-bold">{provider}</span>
       </div>
-      <Handle type="target" position={Position.Left} className="!bg-white !border-2" style={{ borderColor: bgColor }} />
+      <Handle type="target" position={Position.Left} id="left-target" className="!bg-white !border-2" style={{ borderColor: bgColor }} />
+      <Handle type="source" position={Position.Left} id="left-source" className="!bg-white !border-2" style={{ borderColor: bgColor }} />
+      <Handle type="target" position={Position.Right} id="right-target" className="!bg-white !border-2" style={{ borderColor: bgColor }} />
+      <Handle type="source" position={Position.Right} id="right-source" className="!bg-white !border-2" style={{ borderColor: bgColor }} />
+      <Handle type="target" position={Position.Top} id="top-target" className="!bg-white !border-2" style={{ borderColor: bgColor }} />
+      <Handle type="source" position={Position.Top} id="top-source" className="!bg-white !border-2" style={{ borderColor: bgColor }} />
+      <Handle type="target" position={Position.Bottom} id="bottom-target" className="!bg-white !border-2" style={{ borderColor: bgColor }} />
+      <Handle type="source" position={Position.Bottom} id="bottom-source" className="!bg-white !border-2" style={{ borderColor: bgColor }} />
     </div>
   );
 });

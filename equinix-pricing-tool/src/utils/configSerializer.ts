@@ -1,6 +1,6 @@
 import type { ProjectConfig } from '@/types/config';
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 interface ProjectEnvelope {
   schemaVersion: number;

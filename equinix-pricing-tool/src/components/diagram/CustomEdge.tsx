@@ -6,6 +6,7 @@ import {
   type EdgeProps,
 } from '@xyflow/react';
 import { useConfigStore } from '@/store/configStore';
+import type { HandleSide } from '@/types/config';
 
 interface CustomEdgeData {
   connectionId?: string;
@@ -16,6 +17,13 @@ interface CustomEdgeData {
   isRedundant?: boolean;
   [key: string]: unknown;
 }
+
+const HANDLE_SIDES: { side: HandleSide; label: string; icon: string }[] = [
+  { side: 'left', label: 'Left', icon: '←' },
+  { side: 'right', label: 'Right', icon: '→' },
+  { side: 'top', label: 'Top', icon: '↑' },
+  { side: 'bottom', label: 'Bottom', icon: '↓' },
+];
 
 export function CustomEdge({
   id,
@@ -32,6 +40,7 @@ export function CustomEdge({
   const edgeData = (data ?? {}) as CustomEdgeData;
   const removeConnection = useConfigStore((s) => s.removeConnection);
   const highlightConnection = useConfigStore((s) => s.highlightConnection);
+  const updateConnection = useConfigStore((s) => s.updateConnection);
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX, sourceY, sourcePosition,
     targetX, targetY, targetPosition,
@@ -58,6 +67,39 @@ export function CustomEdge({
       if (confirmTimer.current) clearTimeout(confirmTimer.current);
     };
   }, [confirming]);
+
+  // Handle pin menu state
+  const [showPinMenu, setShowPinMenu] = useState(false);
+  const pinMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close pin menu on outside click
+  useEffect(() => {
+    if (!showPinMenu) return;
+    const handleClick = (e: MouseEvent) => {
+      if (pinMenuRef.current && !pinMenuRef.current.contains(e.target as Node)) {
+        setShowPinMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showPinMenu]);
+
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    if (!edgeData.connectionId) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setShowPinMenu(true);
+  }, [edgeData.connectionId]);
+
+  const handlePinHandle = useCallback((endpoint: 'aSide' | 'zSide', side: HandleSide) => {
+    if (!edgeData.connectionId) return;
+    const conn = useConfigStore.getState().project.connections.find((c) => c.id === edgeData.connectionId);
+    if (!conn) return;
+    updateConnection(edgeData.connectionId, {
+      [endpoint]: { ...conn[endpoint], handleSide: side },
+    });
+    setShowPinMenu(false);
+  }, [edgeData.connectionId, updateConnection]);
 
   const onMouseDown = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -163,8 +205,9 @@ export function CustomEdge({
               userSelect: 'none',
             }}
             onMouseDown={hasLabel ? onMouseDown : undefined}
+            onContextMenu={handleContextMenu}
             onMouseEnter={() => setHovered(true)}
-            onMouseLeave={() => { if (!confirming) setHovered(false); }}
+            onMouseLeave={() => { if (!confirming && !showPinMenu) setHovered(false); }}
           >
             <div
               className="bg-white border border-gray-300 rounded px-1.5 py-0.5 shadow-sm text-center relative group"
@@ -207,6 +250,43 @@ export function CustomEdge({
                   >
                     Yes
                   </button>
+                </div>
+              )}
+              {/* Handle pin menu — right-click to change which side connections attach to */}
+              {showPinMenu && edgeData.connectionId && (
+                <div
+                  ref={pinMenuRef}
+                  className="absolute top-full left-1/2 -translate-x-1/2 mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-2 min-w-[140px]"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="text-[9px] font-bold text-gray-500 mb-1 px-1">Source (A-Side)</div>
+                  <div className="flex gap-0.5 mb-2">
+                    {HANDLE_SIDES.map(({ side, label, icon }) => (
+                      <button
+                        key={`a-${side}`}
+                        onClick={() => handlePinHandle('aSide', side)}
+                        title={`Attach source to ${label.toLowerCase()}`}
+                        className="flex-1 text-[10px] px-1 py-1 rounded text-center hover:bg-blue-50 hover:text-blue-700 border border-gray-100 transition-colors"
+                      >
+                        <span className="block text-xs">{icon}</span>
+                        <span className="block text-[8px] text-gray-400">{label}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="text-[9px] font-bold text-gray-500 mb-1 px-1">Target (Z-Side)</div>
+                  <div className="flex gap-0.5">
+                    {HANDLE_SIDES.map(({ side, label, icon }) => (
+                      <button
+                        key={`z-${side}`}
+                        onClick={() => handlePinHandle('zSide', side)}
+                        title={`Attach target to ${label.toLowerCase()}`}
+                        className="flex-1 text-[10px] px-1 py-1 rounded text-center hover:bg-green-50 hover:text-green-700 border border-gray-100 transition-colors"
+                      >
+                        <span className="block text-xs">{icon}</span>
+                        <span className="block text-[8px] text-gray-400">{label}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

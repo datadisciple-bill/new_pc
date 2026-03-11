@@ -37,7 +37,7 @@ import { CustomEdge } from './CustomEdge';
 import { DiagramLegend } from './DiagramLegend';
 import { NETWORK_TO_CONNECTION_TYPE } from '@/constants/serviceDefaults';
 import { NETWORK_NODE_COLORS } from '@/constants/brandColors';
-import type { MultipointNetworkType, VirtualConnection } from '@/types/config';
+import type { MultipointNetworkType, VirtualConnection, HandleSide } from '@/types/config';
 import {
   ALIGNMENT_OPTIONS,
   type AlignmentStrategy,
@@ -50,6 +50,14 @@ import {
   alignHubAndSpoke,
   alignByRegion,
 } from '@/utils/diagramAlignment';
+
+/** Extract handle side (left/right/top/bottom) from a handle ID like "right-source" */
+function parseHandleSide(handleId: string | null | undefined): HandleSide | undefined {
+  if (!handleId) return undefined;
+  const side = handleId.split('-')[0];
+  if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side;
+  return undefined;
+}
 
 const nodeTypes: NodeTypes = {
   metroNode: MetroNode,
@@ -368,6 +376,10 @@ export function NetworkDiagram() {
       const tgtInfo = nodeInfoMap.get(target);
       if (!srcInfo || !tgtInfo) return;
 
+      // Capture which handle sides the user dragged from/to
+      const srcHandleSide = parseHandleSide(connection.sourceHandle);
+      const tgtHandleSide = parseHandleSide(connection.targetHandle);
+
       // Check duplicate
       const conns = useConfigStore.getState().project.connections;
       const isDupe = conns.some(
@@ -401,8 +413,8 @@ export function NetworkDiagram() {
         const connId = addConnection({
           name: 'Site Connection',
           type: 'EVPL_VC',
-          aSide: { metroCode: srcInfo.metroCode, type: aSideType, serviceId: srcInfo.serviceId },
-          zSide: { metroCode: tgtInfo.metroCode, type: zSideType, serviceId: tgtInfo.serviceId },
+          aSide: { metroCode: srcInfo.metroCode, type: aSideType, serviceId: srcInfo.serviceId, handleSide: srcHandleSide },
+          zSide: { metroCode: tgtInfo.metroCode, type: zSideType, serviceId: tgtInfo.serviceId, handleSide: tgtHandleSide },
           bandwidthMbps: 1000,
           redundant: false,
         });
@@ -433,8 +445,8 @@ export function NetworkDiagram() {
         const connId = addConnection({
           name: desc,
           type: 'EVPL_VC',
-          aSide: { metroCode: srcInfo.metroCode, type: aSideType, serviceId: srcInfo.serviceId },
-          zSide: { metroCode: tgtInfo.metroCode, type: zSideType, serviceId: tgtInfo.serviceId },
+          aSide: { metroCode: srcInfo.metroCode, type: aSideType, serviceId: srcInfo.serviceId, handleSide: srcHandleSide },
+          zSide: { metroCode: tgtInfo.metroCode, type: zSideType, serviceId: tgtInfo.serviceId, handleSide: tgtHandleSide },
           bandwidthMbps: 10000,
           redundant: isRedundant,
         });
@@ -484,11 +496,12 @@ export function NetworkDiagram() {
       const connId = addConnection({
         name: isNetwork ? 'Network Connection' : isCloud ? `VC to ${tgtInfo.serviceId}` : 'Virtual Circuit',
         type: vcType,
-        aSide: { metroCode: srcInfo.metroCode, type: aSideType, serviceId: srcInfo.serviceId },
+        aSide: { metroCode: srcInfo.metroCode, type: aSideType, serviceId: srcInfo.serviceId, handleSide: srcHandleSide },
         zSide: {
           metroCode: tgtInfo.metroCode || srcInfo.metroCode,
           type: zSideType,
           serviceId: tgtInfo.serviceId,
+          handleSide: tgtHandleSide,
           ...(isCloud ? { serviceProfileName: tgtInfo.serviceId } : {}),
         },
         bandwidthMbps: 1000,

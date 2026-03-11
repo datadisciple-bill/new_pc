@@ -481,10 +481,20 @@ export function buildDiagramLayout(
 
     const strokeColor = isLocalSiteConnection ? '#6B7280' : isNetworkConnection ? '#0067B8' : isSameMetro ? '#33A85C' : '#000000';
 
+    // Resolve handle IDs from pinned handle sides
+    const aSideHandle = conn.aSide.handleSide
+      ? `${conn.aSide.handleSide}-source`
+      : 'right-source';
+    const zSideHandle = conn.zSide.handleSide
+      ? `${conn.zSide.handleSide}-target`
+      : 'left-target';
+
     edges.push({
       id: `edge-${conn.id}`,
       source: sourceId,
       target: targetId,
+      sourceHandle: aSideHandle,
+      targetHandle: zSideHandle,
       type: 'customEdge',
       style: {
         stroke: strokeColor,
