@@ -30,13 +30,6 @@ function getMetroInfos(nodes: Node[], metros: MetroSelection[]): MetroInfo[] {
   }).filter(Boolean) as MetroInfo[];
 }
 
-/** Get all non-metro, non-child floating nodes */
-function getFloatingNodes(nodes: Node[]): Node[] {
-  return nodes.filter(
-    (n) => n.type !== 'metroNode' && !n.parentId
-  );
-}
-
 /**
  * Apply new metro positions and shift floating nodes by the same delta as the
  * overall bounding box shift. Returns a new full node array.
