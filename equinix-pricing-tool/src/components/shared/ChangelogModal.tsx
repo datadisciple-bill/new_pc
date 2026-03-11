@@ -15,6 +15,7 @@ const CHANGELOG: ChangelogEntry[] = [
     date: 'Mar 10, 2026',
     items: [
       'Connection handle pinning — right-click any connection label to choose which side (left/right/top/bottom) it attaches to on each node',
+      'Color-coded A-Side / Z-Side labels appear at each end of the connection line when the pin menu is open',
       'All diagram nodes (services, local sites, cloud providers) now have handles on all four sides for flexible connection routing',
       'Drag-to-connect captures which handle you dragged from/to and preserves it automatically',
       'Handle pinning persists in saved project files (schema version 3)',

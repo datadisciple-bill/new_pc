@@ -259,7 +259,7 @@ export function CustomEdge({
                   className="absolute top-full left-1/2 -translate-x-1/2 mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-2 min-w-[140px]"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className="text-[9px] font-bold text-gray-500 mb-1 px-1">Source (A-Side)</div>
+                  <div className="text-[9px] font-bold text-blue-600 mb-1 px-1">A-Side (Source)</div>
                   <div className="flex gap-0.5 mb-2">
                     {HANDLE_SIDES.map(({ side, label, icon }) => (
                       <button
@@ -273,7 +273,7 @@ export function CustomEdge({
                       </button>
                     ))}
                   </div>
-                  <div className="text-[9px] font-bold text-gray-500 mb-1 px-1">Target (Z-Side)</div>
+                  <div className="text-[9px] font-bold text-green-600 mb-1 px-1">Z-Side (Target)</div>
                   <div className="flex gap-0.5">
                     {HANDLE_SIDES.map(({ side, label, icon }) => (
                       <button
@@ -290,6 +290,31 @@ export function CustomEdge({
                 </div>
               )}
             </div>
+          </div>
+        </EdgeLabelRenderer>
+      )}
+      {/* A-Side / Z-Side endpoint labels — shown only when pin menu is open */}
+      {showPinMenu && (
+        <EdgeLabelRenderer>
+          <div
+            style={{
+              position: 'absolute',
+              transform: `translate(-50%, -100%) translate(${sourceX}px, ${sourceY - 4}px)`,
+              zIndex: 1001,
+              pointerEvents: 'none',
+            }}
+          >
+            <span className="text-[8px] font-bold text-white bg-blue-600 rounded px-1 py-px shadow">A-Side</span>
+          </div>
+          <div
+            style={{
+              position: 'absolute',
+              transform: `translate(-50%, -100%) translate(${targetX}px, ${targetY - 4}px)`,
+              zIndex: 1001,
+              pointerEvents: 'none',
+            }}
+          >
+            <span className="text-[8px] font-bold text-white bg-green-600 rounded px-1 py-px shadow">Z-Side</span>
           </div>
         </EdgeLabelRenderer>
       )}
