@@ -196,6 +196,28 @@ export function alignCenter(nodes: Node[]): Node[] {
   });
 }
 
+/** Spread metros horizontally so none overlap, preserving left-to-right order */
+function spreadHorizontally(infos: MetroInfo[], positions: Map<string, { x: number; y: number }>): void {
+  // Sort by current X position to preserve order
+  const sorted = [...infos].sort((a, b) => {
+    const ax = positions.get(a.node.id)?.x ?? a.node.position.x;
+    const bx = positions.get(b.node.id)?.x ?? b.node.position.x;
+    return ax - bx;
+  });
+
+  // Walk left to right, pushing any overlapping metro further right
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = sorted[i - 1];
+    const curr = sorted[i];
+    const prevPos = positions.get(prev.node.id)!;
+    const currPos = positions.get(curr.node.id)!;
+    const minX = prevPos.x + prev.width + METRO_GAP;
+    if (currPos.x < minX) {
+      positions.set(curr.node.id, { x: minX, y: currPos.y });
+    }
+  }
+}
+
 /** Align Metros Top: snap all metros to a shared top Y baseline */
 export function alignMetrosTop(nodes: Node[], metros: MetroSelection[]): Node[] {
   const infos = getMetroInfos(nodes, metros);
@@ -206,6 +228,7 @@ export function alignMetrosTop(nodes: Node[], metros: MetroSelection[]): Node[] 
   for (const info of infos) {
     positions.set(info.node.id, { x: info.node.position.x, y: minY });
   }
+  spreadHorizontally(infos, positions);
   return applyMetroPositions(nodes, infos, positions);
 }
 
@@ -219,6 +242,7 @@ export function alignMetrosBottom(nodes: Node[], metros: MetroSelection[]): Node
   for (const info of infos) {
     positions.set(info.node.id, { x: info.node.position.x, y: maxBottom - info.height });
   }
+  spreadHorizontally(infos, positions);
   return applyMetroPositions(nodes, infos, positions);
 }
 
