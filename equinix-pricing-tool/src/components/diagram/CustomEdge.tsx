@@ -72,7 +72,7 @@ export function CustomEdge({
   const [showPinMenu, setShowPinMenu] = useState(false);
   const pinMenuRef = useRef<HTMLDivElement>(null);
 
-  // Close pin menu on outside click
+  // Close pin menu on outside click — use capture phase to catch clicks before React Flow swallows them
   useEffect(() => {
     if (!showPinMenu) return;
     const handleClick = (e: MouseEvent) => {
@@ -80,8 +80,8 @@ export function CustomEdge({
         setShowPinMenu(false);
       }
     };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    document.addEventListener('mousedown', handleClick, true);
+    return () => document.removeEventListener('mousedown', handleClick, true);
   }, [showPinMenu]);
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
@@ -102,6 +102,11 @@ export function CustomEdge({
   }, [edgeData.connectionId, updateConnection]);
 
   const onMouseDown = useCallback((e: React.MouseEvent) => {
+    // If pin menu is open, close it instead of starting a drag
+    if (showPinMenu) {
+      setShowPinMenu(false);
+      return;
+    }
     e.stopPropagation();
     e.preventDefault();
     dragging.current = true;
@@ -130,7 +135,7 @@ export function CustomEdge({
     };
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
-  }, [offset, edgeData.connectionId, highlightConnection]);
+  }, [offset, edgeData.connectionId, highlightConnection, showPinMenu]);
 
   const handleDeleteClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
