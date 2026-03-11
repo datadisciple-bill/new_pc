@@ -176,7 +176,7 @@ function App() {
             className="bg-transparent border-b border-gray-600 text-sm text-white px-1 py-0.5 focus:outline-none focus:border-equinix-green w-40 sm:w-60"
           />
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3" data-walkthrough="header-actions">
           <PricingModeToggle />
           <ConfigExportImport onImport={setImportResult} />
           <CsvExport />
@@ -240,12 +240,12 @@ function App() {
       {/* Desktop layout: 4-panel */}
       <div className="hidden lg:flex flex-1 overflow-hidden">
         {/* Panel 1: Metro list (narrow) */}
-        <div className="w-[240px] border-r border-gray-200 overflow-y-auto flex-shrink-0">
+        <div className="w-[240px] border-r border-gray-200 overflow-y-auto flex-shrink-0" data-walkthrough="metros-panel">
           <MetroSelector compact />
         </div>
 
         {/* Panel 2: Service config for selected metro */}
-        <div className="w-[360px] border-r border-gray-200 overflow-y-auto flex-shrink-0">
+        <div className="w-[360px] border-r border-gray-200 overflow-y-auto flex-shrink-0" data-walkthrough="services-panel">
           {selectedMetros.length === 0 ? (
             <div className="flex items-center justify-center h-full">
               <p className="text-gray-400 text-sm">Select a metro to configure services</p>

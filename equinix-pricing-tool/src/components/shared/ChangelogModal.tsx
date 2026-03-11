@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
-export const CURRENT_VERSION = 11.2;
-export const RELEASE_DATE = new Date('2026-03-03T00:00:00');
+export const CURRENT_VERSION = 12;
+export const RELEASE_DATE = new Date('2026-03-10T00:00:00');
 
 interface ChangelogEntry {
   version: number;
@@ -10,6 +10,19 @@ interface ChangelogEntry {
 }
 
 const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: 12,
+    date: 'Mar 10, 2026',
+    items: [
+      'First-time walkthrough tutorial with spotlight highlighting guides new users through each panel and toolbar',
+      'Nine diagram alignment strategies: Stack Vertical, Distribute Evenly, Compact, Center on Canvas, Align Top/Bottom, Hub & Spoke, and Group by Region',
+      'Align button now opens a dropdown menu with all layout options and descriptions',
+      'Tooltips added to every button across the entire application for discoverability',
+      'Header updated with Equinix SVG logo and renamed to "Equinix GTST Diagram Tool"',
+      'Pricing mode toggle now reads "Cached Pricing" / "Live Pricing" for clarity',
+      'Fixed redundant connection edge labels rendering behind lines and not being clickable or draggable',
+    ],
+  },
   {
     version: 11.2,
     date: 'Mar 3, 2026',

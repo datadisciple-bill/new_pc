@@ -38,6 +38,18 @@ import { DiagramLegend } from './DiagramLegend';
 import { NETWORK_TO_CONNECTION_TYPE } from '@/constants/serviceDefaults';
 import { NETWORK_NODE_COLORS } from '@/constants/brandColors';
 import type { MultipointNetworkType, VirtualConnection } from '@/types/config';
+import {
+  ALIGNMENT_OPTIONS,
+  type AlignmentStrategy,
+  alignVertical,
+  alignDistributeEven,
+  alignCompact,
+  alignCenter,
+  alignMetrosTop,
+  alignMetrosBottom,
+  alignHubAndSpoke,
+  alignByRegion,
+} from '@/utils/diagramAlignment';
 
 const nodeTypes: NodeTypes = {
   metroNode: MetroNode,
@@ -488,12 +500,62 @@ export function NetworkDiagram() {
     [nodeInfoMap, addConnection, updateConnectionPricing, fetchPriceForConnection, showToast]
   );
 
-  // Align to grid — reset all draggable positions to computed layout
-  const handleAlignToGrid = useCallback(() => {
-    savedPositions.current.clear();
-    setReactFlowNodes(layoutNodes);
+  // Alignment dropdown state
+  const [showAlignMenu, setShowAlignMenu] = useState(false);
+
+  // Apply an alignment strategy
+  const handleAlign = useCallback((strategy: AlignmentStrategy) => {
+    setShowAlignMenu(false);
+
+    if (strategy === 'reset') {
+      savedPositions.current.clear();
+      setReactFlowNodes(layoutNodes);
+      setTimeout(() => rfInstanceRef.current?.fitView(), 50);
+      return;
+    }
+
+    // Work from current rendered positions
+    let result: ReturnType<typeof alignVertical>;
+    const currentNodes = rfInstanceRef.current?.getNodes() ?? reactFlowNodes;
+
+    switch (strategy) {
+      case 'vertical':
+        result = alignVertical(currentNodes, metros);
+        break;
+      case 'distribute':
+        result = alignDistributeEven(currentNodes, metros);
+        break;
+      case 'compact':
+        result = alignCompact(currentNodes, metros);
+        break;
+      case 'center':
+        result = alignCenter(currentNodes);
+        break;
+      case 'align-top':
+        result = alignMetrosTop(currentNodes, metros);
+        break;
+      case 'align-bottom':
+        result = alignMetrosBottom(currentNodes, metros);
+        break;
+      case 'hub-spoke':
+        result = alignHubAndSpoke(currentNodes, metros, connections);
+        break;
+      case 'by-region':
+        result = alignByRegion(currentNodes, metros);
+        break;
+      default:
+        return;
+    }
+
+    // Persist new positions
+    for (const node of result) {
+      if (!node.parentId) {
+        savedPositions.current.set(node.id, node.position);
+      }
+    }
+    setReactFlowNodes(result);
     setTimeout(() => rfInstanceRef.current?.fitView(), 50);
-  }, [layoutNodes]);
+  }, [layoutNodes, reactFlowNodes, metros, connections]);
 
   // Helper: compute position at center of viewport
   const getViewportCenter = useCallback(() => {
@@ -671,7 +733,7 @@ export function NetworkDiagram() {
       </ReactFlow>
 
       {/* Toolbar overlay */}
-      <div className="absolute top-2 left-2 z-10 flex items-center gap-2 diagram-toolbar flex-wrap">
+      <div className="absolute top-2 left-2 z-10 flex items-center gap-2 diagram-toolbar flex-wrap" data-walkthrough="diagram-toolbar">
         <button
           onClick={() => setShowPricing(!showPricing)}
           title={showPricing ? 'Hide pricing on diagram' : 'Show pricing on diagram'}
@@ -694,16 +756,40 @@ export function NetworkDiagram() {
           </svg>
           Undo
         </button>
-        <button
-          onClick={handleAlignToGrid}
-          title="Reset layout positions"
-          className="px-3 py-1.5 text-[10px] font-medium rounded-md shadow-sm border bg-white border-gray-300 transition-colors hover:bg-gray-50 flex items-center gap-1"
-        >
-          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
-          </svg>
-          Align
-        </button>
+        <div className="relative">
+          <button
+            onClick={() => setShowAlignMenu((v) => !v)}
+            title="Layout and alignment options"
+            className="px-3 py-1.5 text-[10px] font-medium rounded-md shadow-sm border bg-white border-gray-300 transition-colors hover:bg-gray-50 flex items-center gap-1"
+          >
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+            </svg>
+            Align
+            <svg className="w-2.5 h-2.5 ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {showAlignMenu && (
+            <>
+              {/* Backdrop to close menu */}
+              <div className="fixed inset-0 z-10" onClick={() => setShowAlignMenu(false)} />
+              <div className="absolute left-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[200px]">
+                {ALIGNMENT_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.id}
+                    onClick={() => handleAlign(opt.id)}
+                    title={opt.description}
+                    className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-100 transition-colors flex items-center justify-between gap-2"
+                  >
+                    <span className="font-medium">{opt.label}</span>
+                    <span className="text-[10px] text-gray-400 truncate">{opt.description}</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
         <button
           onClick={handleAddTextBox}
           title="Add a text annotation"
