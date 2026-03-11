@@ -161,7 +161,13 @@ function App() {
       {/* Top header bar */}
       <header className="bg-equinix-black text-white flex items-center justify-between px-4 py-2 flex-shrink-0">
         <div className="flex items-center gap-3">
-          <img src={equinixLogo} alt="Equinix" className="h-5 w-auto" />
+          <img
+            src={equinixLogo}
+            alt="Equinix"
+            className="h-5 w-auto cursor-pointer hover:opacity-80 transition-opacity"
+            title="Restart walkthrough"
+            onClick={() => setShowWalkthrough(true)}
+          />
           <h1 className="text-sm font-bold">Equinix GTST Diagram Tool</h1>
           <span
             className="text-[10px] text-gray-500 cursor-pointer hover:text-white transition-colors"
