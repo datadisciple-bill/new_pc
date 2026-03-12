@@ -201,9 +201,10 @@ export function usePricing() {
           }
         }
 
-        // Cloud provider connections: z-side is a Service Profile (SP), not COLO
-        const zSideType = isCloudConnection ? 'SP' : 'COLO';
-        const cacheKey = isCloudConnection ? `${aMetro}-SP` : zMetro;
+        // Cloud connections now carry a real z-side metro (the cloud region's on-ramp)
+        // so they get proper metro-pair pricing instead of a flat rate
+        const zSideType = 'COLO';
+        const cacheKey = zMetro;
 
         // Check 24h cache first (skip cache in live mode — always hit API)
         const cached = isLive ? null : getCachedVCPrice(aMetro, cacheKey, bandwidthMbps);

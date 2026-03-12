@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useConfigStore } from '@/store/configStore';
 import { usePricing } from '@/hooks/usePricing';
-import { BANDWIDTH_OPTIONS, CLOUD_SERVICE_PROFILES, NETWORK_TO_CONNECTION_TYPE } from '@/constants/serviceDefaults';
+import { BANDWIDTH_OPTIONS, CLOUD_SERVICE_PROFILES, CLOUD_REGIONS, NETWORK_TO_CONNECTION_TYPE } from '@/constants/serviceDefaults';
 import { SERVICE_TYPE_LABELS } from '@/constants/brandColors';
 import { ConfirmDeleteButton } from '@/components/shared/ConfirmDeleteButton';
 import { formatCurrency } from '@/utils/priceCalculator';
@@ -40,6 +40,7 @@ interface ConnectionForm {
   zSideType: 'SERVICE' | 'SERVICE_PROFILE' | 'MULTIPOINT_NETWORK';
   zSideServiceId: string;
   zSideProfile: string;
+  zSideCloudRegion: string;
   zSideNetworkId: string;
   bandwidth: number;
   redundant: boolean;
@@ -49,7 +50,7 @@ interface ConnectionForm {
 
 const EMPTY_FORM: ConnectionForm = {
   name: '', type: 'EVPL_VC', aSideMetro: '', aSideServiceId: '',
-  zSideType: 'SERVICE', zSideServiceId: '', zSideProfile: '', zSideNetworkId: '',
+  zSideType: 'SERVICE', zSideServiceId: '', zSideProfile: '', zSideCloudRegion: '', zSideNetworkId: '',
   bandwidth: 1000, redundant: false, showPriceTable: false, eTreeRole: '',
 };
 
@@ -116,7 +117,9 @@ export function VirtualConnectionConfig() {
       zType = 'NETWORK';
       zServiceId = form.zSideNetworkId;
     } else if (form.zSideType === 'SERVICE_PROFILE') {
-      zMetro = aSvc?.metroCode ?? form.aSideMetro;
+      // Use the cloud region's metro for pricing (e.g., DA→DC for AWS US East from Denver)
+      const regionEntry = CLOUD_REGIONS[form.zSideProfile]?.find((r) => r.region === form.zSideCloudRegion);
+      zMetro = regionEntry?.metro ?? aSvc?.metroCode ?? form.aSideMetro;
       zType = 'SERVICE_PROFILE';
       zServiceId = form.zSideProfile;
       zProfileName = CLOUD_SERVICE_PROFILES.find((p) => p.name === form.zSideProfile)?.name;
@@ -140,6 +143,7 @@ export function VirtualConnectionConfig() {
         type: zType,
         serviceId: zServiceId,
         serviceProfileName: zProfileName,
+        cloudRegion: form.zSideType === 'SERVICE_PROFILE' ? form.zSideCloudRegion : undefined,
       },
       bandwidthMbps: form.bandwidth,
       redundant: form.redundant,
@@ -166,6 +170,7 @@ export function VirtualConnectionConfig() {
       zSideType: isNetwork ? 'MULTIPOINT_NETWORK' : isProfile ? 'SERVICE_PROFILE' : 'SERVICE',
       zSideServiceId: (isProfile || isNetwork) ? '' : conn.zSide.serviceId,
       zSideProfile: isProfile ? (conn.zSide.serviceProfileName ?? '') : '',
+      zSideCloudRegion: isProfile ? (conn.zSide.cloudRegion ?? '') : '',
       zSideNetworkId: isNetwork ? conn.zSide.serviceId : '',
       bandwidth: conn.bandwidthMbps,
       redundant: conn.redundant,
@@ -202,7 +207,8 @@ export function VirtualConnectionConfig() {
       zType = 'NETWORK';
       zServiceId = form.zSideNetworkId;
     } else if (form.zSideType === 'SERVICE_PROFILE') {
-      zMetro = aSvc?.metroCode ?? form.aSideMetro;
+      const regionEntry = CLOUD_REGIONS[form.zSideProfile]?.find((r) => r.region === form.zSideCloudRegion);
+      zMetro = regionEntry?.metro ?? aSvc?.metroCode ?? form.aSideMetro;
       zType = 'SERVICE_PROFILE';
       zServiceId = form.zSideProfile;
       zProfileName = CLOUD_SERVICE_PROFILES.find((p) => p.name === form.zSideProfile)?.name;
@@ -226,6 +232,7 @@ export function VirtualConnectionConfig() {
         type: zType,
         serviceId: zServiceId,
         serviceProfileName: zProfileName,
+        cloudRegion: form.zSideType === 'SERVICE_PROFILE' ? form.zSideCloudRegion : undefined,
       },
       bandwidthMbps: form.bandwidth,
       redundant: form.redundant,
@@ -254,7 +261,8 @@ export function VirtualConnectionConfig() {
       ? `${SERVICE_TYPE_LABELS[aSvc.type] ?? aSvc.type} (${conn.aSide.metroCode})`
       : conn.aSide.metroCode;
     const zSideLabel = conn.zSide.serviceProfileName
-      ?? (zSvc ? `${SERVICE_TYPE_LABELS[zSvc.type] ?? zSvc.type} (${conn.zSide.metroCode})` : conn.zSide.metroCode);
+      ? `${conn.zSide.serviceProfileName}${conn.zSide.cloudRegion ? ` (${conn.zSide.metroCode})` : ''}`
+      : (zSvc ? `${SERVICE_TYPE_LABELS[zSvc.type] ?? zSvc.type} (${conn.zSide.metroCode})` : conn.zSide.metroCode);
     const isSameMetro = conn.aSide.metroCode === conn.zSide.metroCode;
     return `${aSideLabel} -> ${zSideLabel}${isSameMetro ? ' (local)' : ''}`;
   };
@@ -423,7 +431,7 @@ export function VirtualConnectionConfig() {
                 ) : form.zSideType === 'SERVICE_PROFILE' ? (
                   <select
                     value={form.zSideProfile}
-                    onChange={(e) => setForm({ ...form, zSideProfile: e.target.value })}
+                    onChange={(e) => setForm({ ...form, zSideProfile: e.target.value, zSideCloudRegion: '' })}
                     className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md bg-white"
                   >
                     <option value="">Provider...</option>
@@ -453,6 +461,25 @@ export function VirtualConnectionConfig() {
                 )}
               </div>
             </div>
+
+            {/* Cloud region picker — appears after selecting a cloud provider */}
+            {form.zSideType === 'SERVICE_PROFILE' && form.zSideProfile && CLOUD_REGIONS[form.zSideProfile] && (
+              <div className="mt-2">
+                <label className="block text-xs font-medium text-gray-500 mb-1">Cloud Region</label>
+                <select
+                  value={form.zSideCloudRegion}
+                  onChange={(e) => setForm({ ...form, zSideCloudRegion: e.target.value })}
+                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md bg-white"
+                >
+                  <option value="">Select a region...</option>
+                  {CLOUD_REGIONS[form.zSideProfile].map((r) => (
+                    <option key={r.region} value={r.region}>
+                      {r.region} — {r.metro}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           {/* E-Tree role selector (only for E-Tree connection types) */}
@@ -495,7 +522,7 @@ export function VirtualConnectionConfig() {
           <div className="flex gap-2">
             <button
               onClick={editingId ? handleSaveEdit : handleAdd}
-              disabled={!form.aSideServiceId || (form.zSideType === 'SERVICE' ? !form.zSideServiceId : form.zSideType === 'MULTIPOINT_NETWORK' ? !form.zSideNetworkId : !form.zSideProfile)}
+              disabled={!form.aSideServiceId || (form.zSideType === 'SERVICE' ? !form.zSideServiceId : form.zSideType === 'MULTIPOINT_NETWORK' ? !form.zSideNetworkId : !form.zSideProfile || !form.zSideCloudRegion)}
               className="px-4 py-1.5 text-xs font-medium bg-equinix-green text-white rounded-md hover:bg-green-600 disabled:opacity-50"
             >
               {editingId ? 'Save Changes' : 'Add Connection'}

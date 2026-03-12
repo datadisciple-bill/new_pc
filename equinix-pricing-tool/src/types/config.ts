@@ -166,6 +166,7 @@ export interface ConnectionEndpoint {
   type: EndpointType;
   serviceId: string;
   serviceProfileName?: string;
+  cloudRegion?: string;
   handleSide?: HandleSide;
 }
 

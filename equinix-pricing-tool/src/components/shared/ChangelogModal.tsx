@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
-export const CURRENT_VERSION = 12.5;
-export const RELEASE_DATE = new Date('2026-03-10T00:00:00');
+export const CURRENT_VERSION = 13;
+export const RELEASE_DATE = new Date('2026-03-12T00:00:00');
 
 interface ChangelogEntry {
   version: number;
@@ -10,6 +10,17 @@ interface ChangelogEntry {
 }
 
 const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: 13,
+    date: 'Mar 12, 2026',
+    items: [
+      'Cloud region selection — when connecting to a cloud provider, pick a specific region/availability zone and get pricing based on actual metro-pair distance (thanks Charlie Meyersohn)',
+      'Collapsible Metros and Pricing panels — click the collapse arrow to hide side panels and maximize diagram workspace (thanks Charlie Meyersohn)',
+      'Legend toggle — hide/show the diagram legend; legend is always included in PNG exports',
+      'Walkthrough updated with instructions for connection routing and collapsible panels',
+      'Cloud region names verified and corrected against official provider documentation (AWS, Azure, GCP, Oracle, IBM, Alibaba)',
+    ],
+  },
   {
     version: 12.5,
     date: 'Mar 10, 2026',

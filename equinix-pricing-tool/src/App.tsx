@@ -73,6 +73,24 @@ function App() {
   const [importResult, setImportResult] = useState<ParseResult | null>(null);
   const [showChangelog, setShowChangelog] = useState(false);
   const [showWalkthrough, setShowWalkthrough] = useState(() => !hasSeenWalkthrough());
+  const [metrosCollapsed, setMetrosCollapsed] = useState(() => localStorage.getItem('panel-metros-collapsed') === '1');
+  const [pricingCollapsed, setPricingCollapsed] = useState(() => localStorage.getItem('panel-pricing-collapsed') === '1');
+
+  const toggleMetrosPanel = useCallback(() => {
+    setMetrosCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem('panel-metros-collapsed', next ? '1' : '0');
+      return next;
+    });
+  }, []);
+
+  const togglePricingPanel = useCallback(() => {
+    setPricingCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem('panel-pricing-collapsed', next ? '1' : '0');
+      return next;
+    });
+  }, []);
 
   // Auto-show changelog if current version was released within 24h and not yet dismissed
   useEffect(() => {
@@ -243,12 +261,39 @@ function App() {
         }} />
       )}
 
-      {/* Desktop layout: 4-panel */}
+      {/* Desktop layout: 4-panel with collapsible metros & pricing */}
       <div className="hidden lg:flex flex-1 overflow-hidden">
-        {/* Panel 1: Metro list (narrow) */}
-        <div className="w-[240px] border-r border-gray-200 overflow-y-auto flex-shrink-0" data-walkthrough="metros-panel">
-          <MetroSelector compact />
-        </div>
+        {/* Panel 1: Metro list (collapsible) */}
+        {metrosCollapsed ? (
+          <button
+            onClick={toggleMetrosPanel}
+            title="Expand metro selection panel"
+            className="w-8 flex-shrink-0 border-r border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors flex flex-col items-center justify-center gap-2 cursor-pointer"
+          >
+            <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+            <span className="text-[10px] font-medium text-gray-500 [writing-mode:vertical-lr] rotate-180 tracking-wider">METROS</span>
+          </button>
+        ) : (
+          <div className="w-[240px] border-r border-gray-200 overflow-y-auto flex-shrink-0 flex flex-col" data-walkthrough="metros-panel">
+            <div className="flex items-center justify-between px-3 py-1.5 border-b border-gray-200 bg-gray-50 flex-shrink-0">
+              <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Metros</span>
+              <button
+                onClick={toggleMetrosPanel}
+                title="Collapse metro selection panel"
+                className="p-0.5 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <MetroSelector compact />
+            </div>
+          </div>
+        )}
 
         {/* Panel 2: Service config for selected metro */}
         <div className="w-[360px] border-r border-gray-200 overflow-y-auto flex-shrink-0" data-walkthrough="services-panel">
@@ -293,10 +338,37 @@ function App() {
           <NetworkDiagram />
         </div>
 
-        {/* Panel 4: Pricing */}
-        <div className="w-[380px] border-l border-gray-200 overflow-y-auto flex-shrink-0">
-          <PriceSheet />
-        </div>
+        {/* Panel 4: Pricing (collapsible) */}
+        {pricingCollapsed ? (
+          <button
+            onClick={togglePricingPanel}
+            title="Expand pricing panel"
+            className="w-8 flex-shrink-0 border-l border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors flex flex-col items-center justify-center gap-2 cursor-pointer"
+          >
+            <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+            <span className="text-[10px] font-medium text-gray-500 [writing-mode:vertical-lr] tracking-wider">PRICING</span>
+          </button>
+        ) : (
+          <div className="w-[380px] border-l border-gray-200 overflow-y-auto flex-shrink-0 flex flex-col">
+            <div className="flex items-center justify-between px-3 py-1.5 border-b border-gray-200 bg-gray-50 flex-shrink-0">
+              <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Pricing</span>
+              <button
+                onClick={togglePricingPanel}
+                title="Collapse pricing panel"
+                className="p-0.5 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <PriceSheet />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Mobile layout: tab-based */}

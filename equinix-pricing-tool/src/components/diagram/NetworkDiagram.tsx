@@ -515,6 +515,9 @@ export function NetworkDiagram() {
 
   // Alignment dropdown state
   const [showAlignMenu, setShowAlignMenu] = useState(false);
+  // Legend visibility (persisted)
+  const [showLegend, setShowLegend] = useState(() => localStorage.getItem('diagram-legend-visible') !== '0');
+  const legendVisibleRef = useRef(showLegend);
 
   // Apply an alignment strategy
   const handleAlign = useCallback((strategy: AlignmentStrategy) => {
@@ -633,6 +636,11 @@ export function NetworkDiagram() {
 
     const prevViewport = instance.getViewport();
 
+    // Force legend visible during export
+    const legendEl = wrapper.querySelector('.diagram-legend') as HTMLElement | null;
+    const legendWasHidden = legendEl?.style.display === 'none';
+    if (legendEl && legendWasHidden) legendEl.style.display = '';
+
     try {
       // Compute tight bounding box of all nodes (absolute coordinates)
       const PAD = 40; // px padding around content
@@ -674,7 +682,6 @@ export function NetworkDiagram() {
               if (cls.includes('react-flow__controls')) return false;
               if (cls.includes('react-flow__minimap')) return false;
               if (cls.includes('diagram-toolbar')) return false;
-              if (cls.includes('diagram-legend')) return false;
             }
           }
           return true;
@@ -688,6 +695,8 @@ export function NetworkDiagram() {
       console.error('PNG export failed:', err);
     } finally {
       instance.setViewport(prevViewport);
+      // Restore legend hidden state if it was hidden before export
+      if (legendEl && legendWasHidden) legendEl.style.display = 'none';
     }
   }, []);
 
@@ -851,9 +860,30 @@ export function NetworkDiagram() {
           </svg>
           PNG
         </button>
+        <button
+          onClick={() => {
+            setShowLegend((v) => {
+              const next = !v;
+              legendVisibleRef.current = next;
+              localStorage.setItem('diagram-legend-visible', next ? '1' : '0');
+              return next;
+            });
+          }}
+          title={showLegend ? 'Hide diagram legend' : 'Show diagram legend'}
+          className={`px-3 py-1.5 text-[10px] font-medium rounded-md shadow-sm border transition-colors flex items-center gap-1 ${
+            showLegend
+              ? 'bg-equinix-green text-white border-equinix-green'
+              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+          }`}
+        >
+          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          </svg>
+          Legend
+        </button>
       </div>
 
-      <DiagramLegend />
+      <DiagramLegend visible={showLegend} />
 
       {/* Drag-to-connect toast */}
       {toast && (

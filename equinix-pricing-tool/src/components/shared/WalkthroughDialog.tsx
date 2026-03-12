@@ -48,16 +48,32 @@ const STEPS: WalkthroughStep[] = [
     description:
       'The diagram toolbar lets you toggle pricing overlays, undo changes, reset layout, and add elements like text boxes, local sites, annotation markers, and multipoint networks. You can also export the diagram as a PNG image.',
     icon: 'M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z',
-    tip: 'Each button in the toolbar has a tooltip — hover over them to learn what they do.',
+    tip: 'Use the Align dropdown to choose from 9 layout strategies including Hub & Spoke and Group by Region.',
     target: 'diagram-toolbar',
     dialogPosition: 'below',
+  },
+  {
+    title: 'Connection Routing',
+    description:
+      'Connections attach to node handles on the left and right by default. To change which side a connection attaches to, right-click its label on the diagram. A menu lets you pin the A-Side or Z-Side to any edge — left, right, top, or bottom.',
+    icon: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1',
+    tip: 'Color-coded labels appear at each end of the line so you know which side is A-Side (blue) and Z-Side (green).',
+    dialogPosition: 'center',
+  },
+  {
+    title: 'Collapsible Panels',
+    description:
+      'Need more diagram space? The Metros panel on the left and the Pricing panel on the right can each be collapsed. Click the arrow at the top of either panel to collapse it into a thin vertical tab. Click the tab to expand it again.',
+    icon: 'M4 6h16M4 12h8m-8 6h16',
+    tip: 'Your collapsed/expanded preference is remembered across sessions.',
+    dialogPosition: 'center',
   },
   {
     title: 'Pricing & Export',
     description:
       'View real-time pricing for all configured services and connections. Toggle between cached and live pricing modes. Export your full pricing sheet as a CSV file, or save/load projects as JSON.',
     icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
-    tip: 'Click the version number in the header to see the changelog.',
+    tip: 'Click the version number in the header to see the changelog. Click the Equinix logo to replay this walkthrough.',
     target: 'header-actions',
     dialogPosition: 'below',
   },

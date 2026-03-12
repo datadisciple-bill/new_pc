@@ -446,7 +446,11 @@ export function buildDiagramLayout(
             x: (colXOffsets[mCol] ?? 0) + mWidth + 40,
             y: aPos?.y ?? (rowYOffsets[mRow] + 60),
           },
-          data: { provider: conn.zSide.serviceProfileName },
+          data: {
+            provider: conn.zSide.serviceProfileName,
+            cloudRegion: conn.zSide.cloudRegion,
+            cloudMetro: conn.zSide.metroCode,
+          },
           zIndex: 2,
         });
       }

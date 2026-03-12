@@ -1,6 +1,9 @@
-export function DiagramLegend() {
+export function DiagramLegend({ visible = true }: { visible?: boolean }) {
   return (
-    <div className="absolute bottom-2 left-2 bg-white border border-gray-200 rounded-lg p-3 shadow-sm text-[10px] space-y-1.5 z-10 diagram-legend">
+    <div
+      className="absolute bottom-2 left-2 bg-white border border-gray-200 rounded-lg p-3 shadow-sm text-[10px] space-y-1.5 z-10 diagram-legend"
+      style={visible ? undefined : { display: 'none' }}
+    >
       <p className="font-bold text-xs text-equinix-navy">Legend</p>
       <div className="flex items-center gap-2">
         <div className="w-8 h-0 border-t-2 border-black" />

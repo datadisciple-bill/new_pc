@@ -146,21 +146,18 @@ export function mockPriceSearch(
       const bw = Number(properties['/connection/bandwidth'] ?? 1000);
       const aSide = String(properties['/connection/aSide/accessPoint/location/metroCode'] ?? '');
       const zSide = String(properties['/connection/zSide/accessPoint/location/metroCode'] ?? '');
-      const zSideType = String(properties['/connection/zSide/accessPoint/type'] ?? 'COLO');
       key = `VC_${bw}`;
 
       // 1. Try per-pair real data first (13 key metros, 819 cached prices)
-      if (zSideType !== 'SP') {
-        const pairPrice = lookupVCPairPrice(aSide, zSide, bw);
-        if (pairPrice) {
-          price = pairPrice;
-          break;
-        }
+      const pairPrice = lookupVCPairPrice(aSide, zSide, bw);
+      if (pairPrice) {
+        price = pairPrice;
+        break;
       }
 
       // 2. Fallback: base price × region multiplier
       const basePrice = lookupVCPrice(bw) ?? PRICING[key] ?? price;
-      const multiplier = zSideType === 'SP' ? 1 : getMetroPairMultiplier(aSide, zSide);
+      const multiplier = getMetroPairMultiplier(aSide, zSide);
       price = { mrc: Math.round(basePrice.mrc * multiplier), nrc: basePrice.nrc };
       break;
     }
