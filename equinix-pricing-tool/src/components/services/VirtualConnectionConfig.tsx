@@ -41,6 +41,8 @@ interface ConnectionForm {
   zSideServiceId: string;
   zSideProfile: string;
   zSideCloudRegion: string;
+  /** Override metro for the cloud on-ramp (defaults to the region's primary metro) */
+  zSideCloudMetro: string;
   zSideNetworkId: string;
   bandwidth: number;
   redundant: boolean;
@@ -50,7 +52,7 @@ interface ConnectionForm {
 
 const EMPTY_FORM: ConnectionForm = {
   name: '', type: 'EVPL_VC', aSideMetro: '', aSideServiceId: '',
-  zSideType: 'SERVICE', zSideServiceId: '', zSideProfile: '', zSideCloudRegion: '', zSideNetworkId: '',
+  zSideType: 'SERVICE', zSideServiceId: '', zSideProfile: '', zSideCloudRegion: '', zSideCloudMetro: '', zSideNetworkId: '',
   bandwidth: 1000, redundant: false, showPriceTable: false, eTreeRole: '',
 };
 
@@ -117,9 +119,9 @@ export function VirtualConnectionConfig() {
       zType = 'NETWORK';
       zServiceId = form.zSideNetworkId;
     } else if (form.zSideType === 'SERVICE_PROFILE') {
-      // Use the cloud region's metro for pricing (e.g., DA→DC for AWS US East from Denver)
+      // Use the overridden metro if set, otherwise the region's default metro
       const regionEntry = CLOUD_REGIONS[form.zSideProfile]?.find((r) => r.region === form.zSideCloudRegion);
-      zMetro = regionEntry?.metro ?? aSvc?.metroCode ?? form.aSideMetro;
+      zMetro = form.zSideCloudMetro || regionEntry?.metro || aSvc?.metroCode || form.aSideMetro;
       zType = 'SERVICE_PROFILE';
       zServiceId = form.zSideProfile;
       zProfileName = CLOUD_SERVICE_PROFILES.find((p) => p.name === form.zSideProfile)?.name;
@@ -171,6 +173,7 @@ export function VirtualConnectionConfig() {
       zSideServiceId: (isProfile || isNetwork) ? '' : conn.zSide.serviceId,
       zSideProfile: isProfile ? (conn.zSide.serviceProfileName ?? '') : '',
       zSideCloudRegion: isProfile ? (conn.zSide.cloudRegion ?? '') : '',
+      zSideCloudMetro: isProfile ? conn.zSide.metroCode : '',
       zSideNetworkId: isNetwork ? conn.zSide.serviceId : '',
       bandwidth: conn.bandwidthMbps,
       redundant: conn.redundant,
@@ -208,7 +211,7 @@ export function VirtualConnectionConfig() {
       zServiceId = form.zSideNetworkId;
     } else if (form.zSideType === 'SERVICE_PROFILE') {
       const regionEntry = CLOUD_REGIONS[form.zSideProfile]?.find((r) => r.region === form.zSideCloudRegion);
-      zMetro = regionEntry?.metro ?? aSvc?.metroCode ?? form.aSideMetro;
+      zMetro = form.zSideCloudMetro || regionEntry?.metro || aSvc?.metroCode || form.aSideMetro;
       zType = 'SERVICE_PROFILE';
       zServiceId = form.zSideProfile;
       zProfileName = CLOUD_SERVICE_PROFILES.find((p) => p.name === form.zSideProfile)?.name;
@@ -431,7 +434,7 @@ export function VirtualConnectionConfig() {
                 ) : form.zSideType === 'SERVICE_PROFILE' ? (
                   <select
                     value={form.zSideProfile}
-                    onChange={(e) => setForm({ ...form, zSideProfile: e.target.value, zSideCloudRegion: '' })}
+                    onChange={(e) => setForm({ ...form, zSideProfile: e.target.value, zSideCloudRegion: '', zSideCloudMetro: '' })}
                     className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md bg-white"
                   >
                     <option value="">Provider...</option>
@@ -464,20 +467,51 @@ export function VirtualConnectionConfig() {
 
             {/* Cloud region picker — appears after selecting a cloud provider */}
             {form.zSideType === 'SERVICE_PROFILE' && form.zSideProfile && CLOUD_REGIONS[form.zSideProfile] && (
-              <div className="mt-2">
-                <label className="block text-xs font-medium text-gray-500 mb-1">Cloud Region</label>
-                <select
-                  value={form.zSideCloudRegion}
-                  onChange={(e) => setForm({ ...form, zSideCloudRegion: e.target.value })}
-                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md bg-white"
-                >
-                  <option value="">Select a region...</option>
-                  {CLOUD_REGIONS[form.zSideProfile].map((r) => (
-                    <option key={r.region} value={r.region}>
-                      {r.region} — {r.metro}
-                    </option>
-                  ))}
-                </select>
+              <div className="mt-2 space-y-2">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Cloud Region</label>
+                  <select
+                    value={form.zSideCloudRegion}
+                    onChange={(e) => {
+                      const region = CLOUD_REGIONS[form.zSideProfile]?.find((r) => r.region === e.target.value);
+                      setForm({ ...form, zSideCloudRegion: e.target.value, zSideCloudMetro: region?.metro ?? '' });
+                    }}
+                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md bg-white"
+                  >
+                    <option value="">Select a region...</option>
+                    {CLOUD_REGIONS[form.zSideProfile].map((r) => (
+                      <option key={r.region} value={r.region}>
+                        {r.region} — {r.metro}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Metro override — shown when the selected region has alternate on-ramp locations */}
+                {(() => {
+                  const selectedRegion = CLOUD_REGIONS[form.zSideProfile]?.find((r) => r.region === form.zSideCloudRegion);
+                  if (!selectedRegion || !selectedRegion.altMetros?.length) return null;
+                  const allMetros = [selectedRegion.metro, ...selectedRegion.altMetros];
+                  return (
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">
+                        Interconnect Metro
+                        <span className="ml-1 text-[10px] text-gray-400 font-normal">(on-ramp location)</span>
+                      </label>
+                      <select
+                        value={form.zSideCloudMetro}
+                        onChange={(e) => setForm({ ...form, zSideCloudMetro: e.target.value })}
+                        className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md bg-white"
+                      >
+                        {allMetros.map((m) => (
+                          <option key={m} value={m}>
+                            {m}{m === selectedRegion.metro ? ' (default)' : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                })()}
               </div>
             )}
           </div>
