@@ -12,7 +12,30 @@
       "Bash(npx tsc:*)",
       "Bash(where node:*)",
       "Bash(xargs grep:*)",
-      "Bash(node_modules/.bin/tsc:*)"
+      "Bash(node_modules/.bin/tsc:*)",
+      "Bash(export:*)",
+      "Bash(where.exe:*)",
+      "Bash(git status:*)",
+      "WebFetch(domain:docs.equinix.com)",
+      "WebSearch",
+      "WebFetch(domain:developer.equinix.com)",
+      "WebFetch(domain:www.pulumi.com)",
+      "Bash(python3:*)",
+      "Bash(python:*)",
+      "Bash(node:*)",
+      "WebFetch(domain:docs.cloud.google.com)",
+      "WebFetch(domain:www.oracle.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:cloud.ibm.com)",
+      "WebFetch(domain:www.alibabacloud.com)",
+      "WebFetch(domain:aws.amazon.com)",
+      "WebFetch(domain:dgtlinfra.com)",
+      "WebFetch(domain:melb.awsug.org.au)",
+      "WebFetch(domain:www.edge-cloud.net)",
+      "WebFetch(domain:phoenixnap.com)",
+      "WebFetch(domain:www.megaport.com)",
+      "WebFetch(domain:chris.elsen.xyz)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ]
   }
 }

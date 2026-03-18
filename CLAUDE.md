@@ -124,3 +124,9 @@ Cloud provider colors: AWS `#FF9900`, Azure `#0067B8`, GCP `#0070F2`, Oracle `#E
 - Equinix Metal is excluded (sunset June 2026)
 - API docs live at `docs.equinix.com` (not the old `developer.equinix.com`)
 - The PPTX branding guide is the source of truth for diagram styling
+
+## gstack
+Use /browse from gstack for all web browsing. Never use mcp__claude-in-chrome__* tools.
+Available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-design-review,
+/design-consultation, /review, /ship, /browse, /qa, /qa-only, /design-review,
+/setup-browser-cookies, /retro, /debug, /document-release.
