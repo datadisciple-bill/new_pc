@@ -66,18 +66,18 @@ export function ConfirmDeleteButton({
   if (confirming) {
     return (
       <span className={`flex items-center gap-1 ${confirmClassName}`}>
-        <span className="text-[10px] font-medium opacity-80 whitespace-nowrap">{confirmLabel}</span>
+        <span className="text-xs font-medium opacity-80 whitespace-nowrap">{confirmLabel}</span>
         <button
           onClick={handleCancel}
           title="Cancel deletion"
-          className="text-[10px] px-1.5 py-0.5 rounded bg-white/20 hover:bg-white/30 font-medium whitespace-nowrap"
+          className="text-xs px-2.5 py-1 rounded bg-white/20 hover:bg-white/30 font-medium whitespace-nowrap min-h-[28px]"
         >
           No
         </button>
         <button
           onClick={handleConfirm}
           title="Confirm deletion"
-          className="text-[10px] px-1.5 py-0.5 rounded bg-red-500 hover:bg-red-600 text-white font-medium whitespace-nowrap"
+          className="text-xs px-2.5 py-1 rounded bg-red-500 hover:bg-red-600 text-white font-medium whitespace-nowrap min-h-[28px]"
         >
           Yes
         </button>
