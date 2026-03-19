@@ -57,6 +57,8 @@ interface UIState {
   error: string | null;
   showPricing: boolean;
   pricingMode: 'cached' | 'live';
+  /** Per-service/connection pricing errors keyed by ID */
+  pricingErrors: Record<string, string>;
 }
 
 const MAX_HISTORY = 10;
@@ -140,6 +142,10 @@ interface ConfigStore {
   setError: (error: string | null) => void;
   setShowPricing: (show: boolean) => void;
   setPricingMode: (mode: 'cached' | 'live') => void;
+  setPricingError: (id: string, error: string) => void;
+  clearPricingError: (id: string) => void;
+  clearAllPricingErrors: () => void;
+  setManualPrice: (metroCode: string, serviceId: string, mrc: number) => void;
 }
 
 /**
@@ -664,6 +670,7 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
     error: null,
     showPricing: true,
     pricingMode: 'cached',
+    pricingErrors: {},
   },
   setActiveTab: (tab) =>
     set((state) => ({ ui: { ...state.ui, activeTab: tab } })),
@@ -706,13 +713,52 @@ export const useConfigStore = create<ConfigStore>((set, get) => ({
   setPricingMode: (mode) =>
     set((state) => {
       if (mode === 'cached') {
-        // Clear auth when switching back to cached mode (security hygiene)
+        // Clear auth and pricing errors when switching back to cached mode
         return {
-          ui: { ...state.ui, pricingMode: mode },
+          ui: { ...state.ui, pricingMode: mode, pricingErrors: {} },
           auth: { token: null, tokenExpiry: null, isAuthenticated: false, userName: null },
         };
       }
-      return { ui: { ...state.ui, pricingMode: mode } };
+      return { ui: { ...state.ui, pricingMode: mode, pricingErrors: {} } };
+    }),
+  setPricingError: (id, error) =>
+    set((state) => ({
+      ui: { ...state.ui, pricingErrors: { ...state.ui.pricingErrors, [id]: error } },
+    })),
+  clearPricingError: (id) =>
+    set((state) => {
+      const { [id]: _, ...rest } = state.ui.pricingErrors;
+      return { ui: { ...state.ui, pricingErrors: rest } };
+    }),
+  clearAllPricingErrors: () =>
+    set((state) => ({ ui: { ...state.ui, pricingErrors: {} } })),
+  setManualPrice: (metroCode, serviceId, mrc) =>
+    set((state) => {
+      const { [serviceId]: _, ...restErrors } = state.ui.pricingErrors;
+      const metros = state.project.metros.map((m) => {
+        if (m.metroCode !== metroCode) return m;
+        return {
+          ...m,
+          services: m.services.map((s) => {
+            if (s.id !== serviceId) return s;
+            return {
+              ...s,
+              pricing: {
+                mrc,
+                nrc: 0,
+                currency: 'USD',
+                isEstimate: true,
+                breakdown: [{ description: 'Manual entry', mrc, nrc: 0 }],
+                fetchedAt: Date.now(),
+              },
+            };
+          }),
+        };
+      });
+      return {
+        project: { ...state.project, metros },
+        ui: { ...state.ui, pricingErrors: restErrors },
+      };
     }),
 }));
 

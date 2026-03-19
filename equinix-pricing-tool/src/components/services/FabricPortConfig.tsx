@@ -7,9 +7,10 @@ interface Props {
   metroCode: string;
   onUpdate: (config: Record<string, unknown>) => void;
   onRemove: () => void;
+  onRetry?: () => void;
 }
 
-export function FabricPortConfig({ service, onUpdate, onRemove }: Props) {
+export function FabricPortConfig({ service, metroCode, onUpdate, onRemove, onRetry }: Props) {
   const config = service.config as FPConfig;
 
   const handleTypeChange = (newType: string) => {
@@ -35,7 +36,7 @@ export function FabricPortConfig({ service, onUpdate, onRemove }: Props) {
   };
 
   return (
-    <ServiceCard serviceId={service.id} title="Fabric Port" pricing={service.pricing} onRemove={onRemove} quantity={config.quantity}>
+    <ServiceCard serviceId={service.id} title="Fabric Port" pricing={service.pricing} onRemove={onRemove} quantity={config.quantity} metroCode={metroCode} onRetry={onRetry}>
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">Speed</label>

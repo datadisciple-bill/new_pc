@@ -113,6 +113,7 @@ export function ServiceSelector({ metroCode }: Props) {
         fetchPriceForService(metroCode, updatedService);
       },
       onRemove: () => removeService(service.id),
+      onRetry: () => fetchPriceForService(metroCode, service),
     };
 
     switch (service.type) {

@@ -64,4 +64,42 @@ describe('generateCsv', () => {
     expect(csv).toContain('SUMMARY');
     expect(csv).toContain('$0.00');
   });
+
+  it('generates CSV without errors when line items have fetchedAt', () => {
+    const summary: PricingSummary = {
+      metroSubtotals: [
+        {
+          metroCode: 'DC',
+          metroName: 'Washington, D.C.',
+          mrc: 500,
+          nrc: 0,
+          annualCost: 6000,
+          lineItems: [
+            {
+              metro: 'DC',
+              metroName: 'Washington, D.C.',
+              serviceType: 'Colocation',
+              serviceName: 'Colocation',
+              description: 'Manual entry',
+              term: 'Monthly',
+              quantity: 1,
+              mrc: 500,
+              nrc: 0,
+              annualCost: 6000,
+              isEstimate: true,
+              fetchedAt: 1710800000000,
+            },
+          ],
+        },
+      ],
+      totalMrc: 500,
+      totalNrc: 0,
+      totalAnnualCost: 6000,
+    };
+
+    const csv = generateCsv(summary, 'Test');
+    // Should generate without errors and contain data
+    expect(csv).toContain('Colocation');
+    expect(csv).toContain('Manual entry');
+  });
 });

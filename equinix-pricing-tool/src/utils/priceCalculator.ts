@@ -85,6 +85,7 @@ export function buildLineItemFromService(
     nrc,
     annualCost: mrc * 12 * qty,
     isEstimate: pricing?.isEstimate ?? true,
+    fetchedAt: pricing?.fetchedAt,
   };
 }
 
@@ -128,6 +129,7 @@ export function buildLineItemFromConnection(
     nrc: pricing?.nrc ?? 0,
     annualCost: mrc * 12 * qty,
     isEstimate: pricing?.isEstimate ?? true,
+    fetchedAt: pricing?.fetchedAt,
   };
 }
 

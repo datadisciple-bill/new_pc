@@ -6,13 +6,14 @@ interface Props {
   metroCode: string;
   onUpdate: (config: Record<string, unknown>) => void;
   onRemove: () => void;
+  onRetry?: () => void;
 }
 
-export function CloudRouterConfig({ service, onUpdate, onRemove }: Props) {
+export function CloudRouterConfig({ service, metroCode, onUpdate, onRemove, onRetry }: Props) {
   const config = service.config as CRConfig;
 
   return (
-    <ServiceCard serviceId={service.id} title="Fabric Cloud Router" pricing={service.pricing} onRemove={onRemove}>
+    <ServiceCard serviceId={service.id} title="Fabric Cloud Router" pricing={service.pricing} onRemove={onRemove} metroCode={metroCode} onRetry={onRetry}>
       <div>
         <label className="block text-xs font-medium text-gray-500 mb-1">Package</label>
         <select

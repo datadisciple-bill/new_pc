@@ -12,6 +12,7 @@ export interface PriceLineItem {
   nrc: number;
   annualCost: number;
   isEstimate: boolean;
+  fetchedAt?: number;
 }
 
 export interface MetroSubtotal {

@@ -9,9 +9,10 @@ interface Props {
   metroCode: string;
   onUpdate: (config: Record<string, unknown>) => void;
   onRemove: () => void;
+  onRetry?: () => void;
 }
 
-export function InternetAccessConfig({ service, metroCode, onUpdate, onRemove }: Props) {
+export function InternetAccessConfig({ service, metroCode, onUpdate, onRemove, onRetry }: Props) {
   const config = service.config as IAConfig;
 
   const [showPriceTable, setShowPriceTable] = useState(config.showPriceTable ?? false);
@@ -74,6 +75,8 @@ export function InternetAccessConfig({ service, metroCode, onUpdate, onRemove }:
       title="Internet Access"
       pricing={service.pricing}
       onRemove={onRemove}
+      metroCode={metroCode}
+      onRetry={onRetry}
     >
       <div className="grid grid-cols-2 gap-3">
         <div>

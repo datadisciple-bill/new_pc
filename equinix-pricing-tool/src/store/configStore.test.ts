@@ -382,4 +382,42 @@ describe('configStore', () => {
       expect(result.size).toBe(0);
     });
   });
+
+  describe('pricing errors', () => {
+    it('sets a pricing error for a service ID', () => {
+      useConfigStore.getState().setPricingError('svc-1', 'API timeout');
+      expect(useConfigStore.getState().ui.pricingErrors['svc-1']).toBe('API timeout');
+    });
+
+    it('clears a pricing error for a service ID', () => {
+      useConfigStore.getState().setPricingError('svc-1', 'API timeout');
+      useConfigStore.getState().clearPricingError('svc-1');
+      expect(useConfigStore.getState().ui.pricingErrors['svc-1']).toBeUndefined();
+    });
+
+    it('clears all pricing errors on pricing mode switch', () => {
+      useConfigStore.getState().setPricingError('svc-1', 'Error 1');
+      useConfigStore.getState().setPricingError('svc-2', 'Error 2');
+      useConfigStore.getState().setPricingMode('live');
+      expect(Object.keys(useConfigStore.getState().ui.pricingErrors)).toHaveLength(0);
+    });
+
+    it('setManualPrice clears error and sets estimate pricing', () => {
+      useConfigStore.getState().addMetro(testMetro);
+      useConfigStore.getState().addService('DC', 'FABRIC_PORT');
+      const serviceId = useConfigStore.getState().project.metros[0].services[0].id;
+      useConfigStore.getState().setPricingError(serviceId, 'Fetch failed');
+
+      useConfigStore.getState().setManualPrice('DC', serviceId, 250);
+
+      // Error should be cleared
+      expect(useConfigStore.getState().ui.pricingErrors[serviceId]).toBeUndefined();
+      // Pricing should be set as estimate
+      const service = useConfigStore.getState().project.metros[0].services[0];
+      expect(service.pricing).not.toBeNull();
+      expect(service.pricing!.mrc).toBe(250);
+      expect(service.pricing!.isEstimate).toBe(true);
+      expect(service.pricing!.fetchedAt).toBeGreaterThan(0);
+    });
+  });
 });

@@ -1,0 +1,33 @@
+{
+  "date": "2026-03-18",
+  "url": "http://localhost:5173",
+  "mode": "code-only",
+  "healthScore": 68,
+  "issues": [
+    { "id": "ISSUE-001", "title": "Client Secret shown in plaintext", "severity": "critical", "category": "Security", "status": "fixed" },
+    { "id": "ISSUE-002", "title": "No ARIA labels on interactive elements", "severity": "critical", "category": "Accessibility", "status": "deferred" },
+    { "id": "ISSUE-003", "title": "Delete confirm buttons below touch target", "severity": "high", "category": "UX", "status": "fixed" },
+    { "id": "ISSUE-004", "title": "Handle pinning requires right-click", "severity": "high", "category": "Functional", "status": "deferred" },
+    { "id": "ISSUE-005", "title": "No Escape key to close modals", "severity": "medium", "category": "Accessibility", "status": "fixed" },
+    { "id": "ISSUE-006", "title": "No keyboard navigation in diagram", "severity": "medium", "category": "Accessibility", "status": "deferred" },
+    { "id": "ISSUE-007", "title": "Pricing fetch failures console only", "severity": "medium", "category": "Functional", "status": "deferred" },
+    { "id": "ISSUE-008", "title": "Token expiry not enforced", "severity": "medium", "category": "Security", "status": "deferred" },
+    { "id": "ISSUE-009", "title": "Undo stores full project snapshots", "severity": "medium", "category": "Performance", "status": "deferred" },
+    { "id": "ISSUE-010", "title": "Metro region badges poor contrast", "severity": "medium", "category": "Accessibility", "status": "deferred" },
+    { "id": "ISSUE-011", "title": "No horizontal scroll on mobile price table", "severity": "medium", "category": "Visual", "status": "deferred" },
+    { "id": "ISSUE-012", "title": "text-[10px] used for interactive elements", "severity": "medium", "category": "Visual", "status": "deferred" },
+    { "id": "ISSUE-013", "title": "Walkthrough dialog exceeds mobile viewport", "severity": "medium", "category": "Visual", "status": "deferred" },
+    { "id": "ISSUE-014", "title": "CSV export no pricing validation", "severity": "medium", "category": "Functional", "status": "deferred" },
+    { "id": "ISSUE-015", "title": "Connection with deleted endpoint persists", "severity": "medium", "category": "Functional", "status": "deferred" }
+  ],
+  "categoryScores": {
+    "console": 85,
+    "links": 100,
+    "visual": 60,
+    "functional": 65,
+    "ux": 70,
+    "performance": 75,
+    "content": 90,
+    "accessibility": 35
+  }
+}

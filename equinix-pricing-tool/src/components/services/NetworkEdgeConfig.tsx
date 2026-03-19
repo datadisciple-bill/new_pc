@@ -20,10 +20,11 @@ interface Props {
   deviceTypes: DeviceType[];
   onUpdate: (config: Record<string, unknown>) => void;
   onRemove: () => void;
+  onRetry?: () => void;
   onPricingFetched?: () => void;
 }
 
-export function NetworkEdgeConfig({ service, metroCode, deviceTypes, onUpdate, onRemove, onPricingFetched }: Props) {
+export function NetworkEdgeConfig({ service, metroCode, deviceTypes, onUpdate, onRemove, onRetry, onPricingFetched }: Props) {
   const config = service.config as NEConfig;
   const selectedDevice = deviceTypes.find((d) => d.deviceTypeCode === config.deviceTypeCode);
 
@@ -101,7 +102,7 @@ export function NetworkEdgeConfig({ service, metroCode, deviceTypes, onUpdate, o
   };
 
   return (
-    <ServiceCard serviceId={service.id} title="Network Edge" pricing={service.pricing} onRemove={onRemove} quantity={config.redundant ? 2 : 1}>
+    <ServiceCard serviceId={service.id} title="Network Edge" pricing={service.pricing} onRemove={onRemove} quantity={config.redundant ? 2 : 1} metroCode={metroCode} onRetry={onRetry}>
       <div className="space-y-3">
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">Device Type</label>

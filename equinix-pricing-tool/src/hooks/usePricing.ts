@@ -26,6 +26,8 @@ export function usePricing() {
   const updateConnectionPricing = useConfigStore((s) => s.updateConnectionPricing);
   const updateConnection = useConfigStore((s) => s.updateConnection);
   const pricingMode = useConfigStore((s) => s.ui.pricingMode);
+  const setPricingError = useConfigStore((s) => s.setPricingError);
+  const clearPricingError = useConfigStore((s) => s.clearPricingError);
   const isLive = pricingMode === 'live';
 
   const summary = useMemo(
@@ -58,7 +60,7 @@ export function usePricing() {
             const productLabel = c.portProduct === 'UNLIMITED_PLUS' ? 'Unlimited Plus' : c.portProduct === 'UNLIMITED' ? 'Unlimited' : 'Standard';
             const typeLabel = c.type === 'REDUNDANT' ? 'Redundant' : c.type === 'SECONDARY' ? 'Secondary' : 'Primary';
             const desc = `${c.speed} ${productLabel} ${typeLabel} Port`;
-            pricing = { mrc, nrc, currency: 'USD', isEstimate: false, breakdown: [{ description: desc, mrc, nrc }] };
+            pricing = { mrc, nrc, currency: 'USD', isEstimate: false, breakdown: [{ description: desc, mrc, nrc }], fetchedAt: Date.now() };
             break;
           }
           case 'NETWORK_EDGE': {
@@ -74,6 +76,7 @@ export function usePricing() {
               currency: result.currency,
               isEstimate: false,
               breakdown: [{ description: `${c.deviceTypeName} (${c.packageCode} cores)`, mrc: result.monthlyRecurring, nrc: result.nonRecurring }],
+              fetchedAt: Date.now(),
             };
             break;
           }
@@ -86,7 +89,7 @@ export function usePricing() {
             const charge = result.data[0]?.charges ?? [];
             const mrc = charge.find((ch) => ch.type === 'MONTHLY_RECURRING')?.price ?? 0;
             const nrc = charge.find((ch) => ch.type === 'NON_RECURRING')?.price ?? 0;
-            pricing = { mrc, nrc, currency: 'USD', isEstimate: false, breakdown: [{ description: `FCR ${c.package}`, mrc, nrc }] };
+            pricing = { mrc, nrc, currency: 'USD', isEstimate: false, breakdown: [{ description: `FCR ${c.package}`, mrc, nrc }], fetchedAt: Date.now() };
             break;
           }
           case 'INTERNET_ACCESS': {
@@ -102,6 +105,7 @@ export function usePricing() {
               currency: result.currency,
               isEstimate: false,
               breakdown: [{ description: `EIA ${bwLabel} ${serviceType === 'DUAL_PORT' ? 'Dual' : 'Single'} (${deliveryLabel})`, mrc: result.mrc, nrc: result.nrc }],
+              fetchedAt: Date.now(),
             };
             break;
           }
@@ -113,6 +117,7 @@ export function usePricing() {
               currency: 'USD',
               isEstimate: true,
               breakdown: [{ description: c.description || 'Colocation', mrc: c.mrcPrice, nrc: 0 }],
+              fetchedAt: Date.now(),
             };
             break;
           }
@@ -124,6 +129,7 @@ export function usePricing() {
               currency: 'USD',
               isEstimate: false,
               breakdown: [],
+              fetchedAt: Date.now(),
             };
             break;
           }
@@ -136,17 +142,20 @@ export function usePricing() {
               currency: 'USD',
               isEstimate: true,
               breakdown: [{ description: `${c.quantity}x ${mediaShort} ${c.connectorType}, ${c.protocolType}`, mrc: c.mrcPrice, nrc: 0 }],
+              fetchedAt: Date.now(),
             };
             break;
           }
         }
 
+        clearPricingError(service.id);
         updateServicePricing(metroCode, service.id, pricing!);
       } catch (err) {
-        console.error('Pricing fetch failed:', err);
+        const msg = err instanceof Error ? err.message : 'Pricing fetch failed';
+        setPricingError(service.id, msg);
       }
     },
-    [updateServicePricing, isLive]
+    [updateServicePricing, setPricingError, clearPricingError, isLive]
   );
 
   const fetchPriceForConnection = useCallback(
@@ -163,6 +172,7 @@ export function usePricing() {
           updateConnectionPricing(connectionId, {
             mrc: 0, nrc: 0, currency: 'USD', isEstimate: false,
             breakdown: [{ description: 'Local site connection', mrc: 0, nrc: 0 }],
+            fetchedAt: Date.now(),
           });
           return;
         }
@@ -176,6 +186,7 @@ export function usePricing() {
           updateConnectionPricing(connectionId, {
             mrc: 0, nrc: 0, currency: 'USD', isEstimate: false,
             breakdown: [{ description: 'Bundled with Equinix Internet Access', mrc: 0, nrc: 0 }],
+            fetchedAt: Date.now(),
           });
           return;
         }
@@ -195,6 +206,7 @@ export function usePricing() {
               currency: 'USD',
               isEstimate: false,
               breakdown: [{ description: `Local ${bandwidthMbps}Mbps Connection`, mrc: 0, nrc: 0 }],
+              fetchedAt: Date.now(),
             };
             updateConnectionPricing(connectionId, pricing);
             return;
@@ -238,13 +250,16 @@ export function usePricing() {
           currency: 'USD',
           isEstimate: false,
           breakdown: [{ description: `${bandwidthMbps}Mbps ${aMetro}-${cloudLabel} Connection`, mrc, nrc }],
+          fetchedAt: Date.now(),
         };
+        clearPricingError(connectionId);
         updateConnectionPricing(connectionId, pricing);
       } catch (err) {
-        console.error('Connection pricing fetch failed:', err);
+        const msg = err instanceof Error ? err.message : 'Connection pricing fetch failed';
+        setPricingError(connectionId, msg);
       }
     },
-    [updateConnectionPricing, isLive]
+    [updateConnectionPricing, setPricingError, clearPricingError, isLive]
   );
 
   const fetchPriceTableForConnection = useCallback(
@@ -317,10 +332,11 @@ export function usePricing() {
         }
         updateConnection(connectionId, { priceTable: entries });
       } catch (err) {
-        console.error('Price table fetch failed:', err);
+        const msg = err instanceof Error ? err.message : 'Price table fetch failed';
+        setPricingError(connectionId, msg);
       }
     },
-    [updateConnection, isLive]
+    [updateConnection, setPricingError, isLive]
   );
 
   const exportCsv = useCallback(() => {

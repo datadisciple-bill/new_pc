@@ -176,6 +176,8 @@ export interface PricingResult {
   currency: string;
   isEstimate: boolean;
   breakdown: PricingBreakdownItem[];
+  /** Unix timestamp (Date.now()) of when this price was fetched or entered */
+  fetchedAt?: number;
 }
 
 export interface PricingBreakdownItem {

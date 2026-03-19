@@ -10,9 +10,10 @@ interface Props {
   metroCode: string;
   onUpdate: (config: Record<string, unknown>) => void;
   onRemove: () => void;
+  onRetry?: () => void;
 }
 
-export function CrossConnectConfig({ service, onUpdate, onRemove }: Props) {
+export function CrossConnectConfig({ service, metroCode, onUpdate, onRemove, onRetry }: Props) {
   const config = service.config as XCConfig;
 
   return (
@@ -22,6 +23,8 @@ export function CrossConnectConfig({ service, onUpdate, onRemove }: Props) {
       pricing={service.pricing}
       onRemove={onRemove}
       quantity={config.quantity}
+      metroCode={metroCode}
+      onRetry={onRetry}
     >
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-3">

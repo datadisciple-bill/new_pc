@@ -6,13 +6,14 @@ interface Props {
   metroCode: string;
   onUpdate: (config: Record<string, unknown>) => void;
   onRemove: () => void;
+  onRetry?: () => void;
 }
 
-export function NspConfig({ service, onUpdate, onRemove }: Props) {
+export function NspConfig({ service, metroCode, onUpdate, onRemove, onRetry }: Props) {
   const config = service.config as NspConfigType;
 
   return (
-    <ServiceCard serviceId={service.id} title="Network Service Provider" pricing={service.pricing} onRemove={onRemove} hidePricing>
+    <ServiceCard serviceId={service.id} title="Network Service Provider" pricing={service.pricing} onRemove={onRemove} hidePricing metroCode={metroCode} onRetry={onRetry}>
       <div>
         <label className="block text-xs font-medium text-gray-500 mb-1">Provider Name</label>
         <input

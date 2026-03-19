@@ -151,3 +151,50 @@ describe('calculatePricingSummary', () => {
     expect(summary.totalAnnualCost).toBe(3450 * 12);
   });
 });
+
+describe('pricing trust — fetchedAt propagation', () => {
+  const metro: MetroSelection = {
+    metroCode: 'DC',
+    metroName: 'Washington, D.C.',
+    region: 'AMER',
+    services: [],
+  };
+
+  it('propagates fetchedAt from PricingResult to line item', () => {
+    const now = Date.now();
+    const service: ServiceSelection = {
+      id: 'ts-1',
+      type: 'FABRIC_PORT',
+      config: { speed: '10G', portProduct: 'STANDARD', type: 'PRIMARY', encapsulation: 'DOT1Q', quantity: 1 },
+      pricing: { mrc: 1500, nrc: 0, currency: 'USD', isEstimate: false, breakdown: [], fetchedAt: now },
+    };
+
+    const item = buildLineItemFromService(metro, service);
+    expect(item.fetchedAt).toBe(now);
+  });
+
+  it('returns undefined fetchedAt when pricing has no timestamp', () => {
+    const service: ServiceSelection = {
+      id: 'ts-2',
+      type: 'FABRIC_PORT',
+      config: { speed: '10G', portProduct: 'STANDARD', type: 'PRIMARY', encapsulation: 'DOT1Q', quantity: 1 },
+      pricing: { mrc: 1500, nrc: 0, currency: 'USD', isEstimate: false, breakdown: [] },
+    };
+
+    const item = buildLineItemFromService(metro, service);
+    expect(item.fetchedAt).toBeUndefined();
+  });
+
+  it('defaults isEstimate to true when pricing is null', () => {
+    const service: ServiceSelection = {
+      id: 'ts-3',
+      type: 'FABRIC_PORT',
+      config: { speed: '10G', portProduct: 'STANDARD', type: 'PRIMARY', encapsulation: 'DOT1Q', quantity: 1 },
+      pricing: null,
+    };
+
+    const item = buildLineItemFromService(metro, service);
+    expect(item.isEstimate).toBe(true);
+    expect(item.fetchedAt).toBeUndefined();
+  });
+});

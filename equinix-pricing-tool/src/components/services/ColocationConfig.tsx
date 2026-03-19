@@ -6,13 +6,14 @@ interface Props {
   metroCode: string;
   onUpdate: (config: Record<string, unknown>) => void;
   onRemove: () => void;
+  onRetry?: () => void;
 }
 
-export function ColocationConfig({ service, onUpdate, onRemove }: Props) {
+export function ColocationConfig({ service, metroCode, onUpdate, onRemove, onRetry }: Props) {
   const config = service.config as ColoConfig;
 
   return (
-    <ServiceCard serviceId={service.id} title="Colocation" pricing={service.pricing} onRemove={onRemove}>
+    <ServiceCard serviceId={service.id} title="Colocation" pricing={service.pricing} onRemove={onRemove} metroCode={metroCode} onRetry={onRetry}>
       <div className="space-y-3">
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">Description</label>
