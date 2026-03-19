@@ -94,7 +94,7 @@ export function LivePricingCredentialDialog({ onAuthenticated, onCancel }: LiveP
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Client Secret</label>
             <input
-              type="text"
+              type="password"
               value={clientSecret}
               onChange={(e) => setClientSecret(e.target.value)}
               autoComplete="off"
