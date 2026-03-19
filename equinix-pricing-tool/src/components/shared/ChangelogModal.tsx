@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export const CURRENT_VERSION = 13;
 export const RELEASE_DATE = new Date('2026-03-12T00:00:00');
@@ -182,6 +182,14 @@ const CHANGELOG: ChangelogEntry[] = [
 
 export function ChangelogModal({ onClose }: { onClose: () => void }) {
   const [expanded, setExpanded] = useState<Set<number>>(() => new Set([CURRENT_VERSION]));
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   const toggle = (version: number) => {
     setExpanded((prev) => {

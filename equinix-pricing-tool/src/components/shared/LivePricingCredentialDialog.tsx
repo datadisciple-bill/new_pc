@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { authenticate } from '@/api/auth';
 import { ApiError } from '@/api/client';
 import { clearVCPricingCache } from '@/api/vcPricingCache';
@@ -13,6 +13,14 @@ export function LivePricingCredentialDialog({ onAuthenticated, onCancel }: LiveP
   const [clientSecret, setClientSecret] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onCancel]);
 
   const handleSubmit = useCallback(async () => {
     setStatus('loading');
