@@ -22,7 +22,6 @@ export function generateCsv(
         Qty: item.quantity,
         'MRC (Monthly)': formatCurrency(item.mrc),
         'NRC (One-Time)': formatCurrency(item.nrc),
-        'Annual Cost': formatCurrency(item.annualCost),
       });
     }
   }
@@ -31,7 +30,7 @@ export function generateCsv(
   const blankRow: Record<string, string | number> = {
     Metro: '', 'Service Type': '', 'Service Name': '',
     'Configuration Details': '', Term: '', Qty: '',
-    'MRC (Monthly)': '', 'NRC (One-Time)': '', 'Annual Cost': '',
+    'MRC (Monthly)': '', 'NRC (One-Time)': '',
   };
 
   const summaryRows: Record<string, string | number>[] = [
@@ -39,7 +38,6 @@ export function generateCsv(
     { ...blankRow, Metro: 'SUMMARY', 'Service Type': projectName },
     { ...blankRow, Metro: 'Total MRC', 'MRC (Monthly)': formatCurrency(summary.totalMrc) },
     { ...blankRow, Metro: 'Total NRC', 'NRC (One-Time)': formatCurrency(summary.totalNrc) },
-    { ...blankRow, Metro: 'Total Annual Cost', 'Annual Cost': formatCurrency(summary.totalAnnualCost) },
   ];
 
   // Price tables for connections with showPriceTable enabled
@@ -59,7 +57,6 @@ export function generateCsv(
           ...blankRow,
           Metro: 'Bandwidth',
           'MRC (Monthly)': 'MRC',
-          'Annual Cost': 'Annual Cost',
         });
         for (const entry of conn.priceTable) {
           const isSelected = entry.bandwidthMbps === conn.bandwidthMbps;
@@ -67,7 +64,6 @@ export function generateCsv(
             ...blankRow,
             Metro: `${isSelected ? '> ' : ''}${entry.label}`,
             'MRC (Monthly)': formatCurrency(entry.mrc),
-            'Annual Cost': formatCurrency(entry.mrc * 12),
           });
         }
       }

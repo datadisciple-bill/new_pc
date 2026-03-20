@@ -70,7 +70,6 @@ export function PriceSheet() {
                   <th className="text-right px-3 py-2 font-medium">Qty</th>
                   <th className="text-right px-3 py-2 font-medium">MRC</th>
                   <th className="text-right px-3 py-2 font-medium hidden sm:table-cell">NRC</th>
-                  <th className="text-right px-3 py-2 font-medium">Annual</th>
                 </tr>
               </thead>
               <tbody>
@@ -94,13 +93,6 @@ export function PriceSheet() {
                     <td className="px-3 py-2 text-right hidden sm:table-cell">
                       {item.nrc > 0 ? formatCurrency(item.nrc) : '—'}
                     </td>
-                    <td className="px-3 py-2 text-right font-medium">
-                      {item.isEstimate && item.mrc === 0 ? (
-                        <span className="text-amber-500">—</span>
-                      ) : (
-                        formatCurrency(item.annualCost)
-                      )}
-                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -111,7 +103,6 @@ export function PriceSheet() {
                   <td className="px-3 py-2 text-right" />
                   <td className="px-3 py-2 text-right">{formatCurrency(metro.mrc)}</td>
                   <td className="px-3 py-2 text-right hidden sm:table-cell">{formatCurrency(metro.nrc)}</td>
-                  <td className="px-3 py-2 text-right">{formatCurrency(metro.annualCost)}</td>
                 </tr>
               </tfoot>
             </table>

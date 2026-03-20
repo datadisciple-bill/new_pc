@@ -39,7 +39,7 @@ describe('generateCsv', () => {
     // Should contain header
     expect(csv).toContain('Metro');
     expect(csv).toContain('MRC (Monthly)');
-    expect(csv).toContain('Annual Cost');
+    expect(csv).not.toContain('Annual Cost');
 
     // Should contain line item
     expect(csv).toContain('DC - Washington');
@@ -49,7 +49,7 @@ describe('generateCsv', () => {
     // Should contain summary
     expect(csv).toContain('SUMMARY');
     expect(csv).toContain('Total MRC');
-    expect(csv).toContain('Total Annual Cost');
+    expect(csv).not.toContain('Total Annual Cost');
   });
 
   it('generates empty CSV for no data', () => {

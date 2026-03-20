@@ -40,5 +40,4 @@ export interface CsvExportRow {
   Qty: number;
   'MRC (Monthly)': string;
   'NRC (One-Time)': string;
-  'Annual Cost': string;
 }
