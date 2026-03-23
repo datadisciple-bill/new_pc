@@ -1,8 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import { generateDrawioXml } from './drawioExporter';
 import { buildDiagramLayout } from './diagramLayout';
-import type { ProjectConfig, MetroSelection } from '@/types/config';
+import type { ProjectConfig, MetroSelection, ServiceSelection, FabricPortConfig, NetworkEdgeConfig, CloudRouterConfig } from '@/types/config';
 import type { Node, Edge } from '@xyflow/react';
+
+const fabricPortConfig: FabricPortConfig = { speed: '10G', portProduct: 'STANDARD', type: 'PRIMARY', encapsulation: 'DOT1Q', quantity: 1 };
+const networkEdgeConfig: NetworkEdgeConfig = { deviceTypeCode: 'CSR', deviceTypeName: 'Cisco', vendorName: 'Cisco', packageCode: 'STD', softwareVersion: '', licenseType: 'SUBSCRIPTION', redundant: false, termLength: 1 };
+const cloudRouterConfig: CloudRouterConfig = { package: 'STANDARD' };
+
+const makeService = (id: string, type: ServiceSelection['type'], config: ServiceSelection['config']): ServiceSelection => ({
+  id, type, config, pricing: null,
+});
 
 const emptyProject: ProjectConfig = {
   id: 'test',
@@ -64,7 +72,7 @@ describe('generateDrawioXml', () => {
   it('generates service node cells inside metro group', () => {
     const project = {
       ...emptyProject,
-      metros: [{ ...makeMetro('DC'), services: [{ id: 's1', type: 'FABRIC_PORT' as const, config: { speed: '10G', portProduct: 'STANDARD', type: 'PRIMARY', encapsulation: 'DOT1Q', quantity: 1 }, pricing: null }] }],
+      metros: [{ ...makeMetro('DC'), services: [makeService('s1', 'FABRIC_PORT', fabricPortConfig)] }],
     };
     const nodes: Node[] = [
       {
@@ -388,8 +396,8 @@ describe('generateDrawioXml', () => {
     const project = {
       ...emptyProject,
       metros: [
-        { metroCode: 'DC', metroName: 'Metro DC', region: 'AMER', services: [{ id: 's1', type: 'FABRIC_PORT' as const, config: { speed: '10G', portProduct: 'STANDARD', type: 'PRIMARY', encapsulation: 'DOT1Q', quantity: 1 }, pricing: null }] },
-        { metroCode: 'SV', metroName: 'Metro SV', region: 'AMER', services: [{ id: 's2', type: 'NETWORK_EDGE' as const, config: { deviceTypeCode: 'CSR', deviceTypeName: 'Cisco', vendorName: 'Cisco', packageCode: 'STD', softwareVersion: '', licenseType: 'SUBSCRIPTION', redundant: false, termLength: 1 }, pricing: null }] },
+        { metroCode: 'DC', metroName: 'Metro DC', region: 'AMER', services: [makeService('s1', 'FABRIC_PORT', fabricPortConfig)] },
+        { metroCode: 'SV', metroName: 'Metro SV', region: 'AMER', services: [makeService('s2', 'NETWORK_EDGE', networkEdgeConfig)] },
       ],
     };
     const xml = generateDrawioXml(project, nodes, edges);
@@ -423,8 +431,8 @@ describe('generateDrawioXml', () => {
     const project = {
       ...emptyProject,
       metros: [{ metroCode: 'DC', metroName: 'Metro DC', region: 'AMER', services: [
-        { id: 's1', type: 'FABRIC_PORT' as const, config: { speed: '10G', portProduct: 'STANDARD', type: 'PRIMARY', encapsulation: 'DOT1Q', quantity: 1 }, pricing: null },
-        { id: 's2', type: 'NETWORK_EDGE' as const, config: { deviceTypeCode: 'CSR', deviceTypeName: 'Cisco', vendorName: 'Cisco', packageCode: 'STD', softwareVersion: '', licenseType: 'SUBSCRIPTION', redundant: false, termLength: 1 }, pricing: null },
+        makeService('s1', 'FABRIC_PORT', fabricPortConfig),
+        makeService('s2', 'NETWORK_EDGE', networkEdgeConfig),
       ] }],
     };
     const xml = generateDrawioXml(project, nodes, edges);
@@ -451,8 +459,8 @@ describe('generateDrawioXml', () => {
     const project = {
       ...emptyProject,
       metros: [{ metroCode: 'DC', metroName: 'Metro DC', region: 'AMER', services: [
-        { id: 's1', type: 'FABRIC_PORT' as const, config: { speed: '10G', portProduct: 'STANDARD', type: 'PRIMARY', encapsulation: 'DOT1Q', quantity: 1 }, pricing: null },
-        { id: 's2', type: 'NETWORK_EDGE' as const, config: { deviceTypeCode: 'CSR', deviceTypeName: 'Cisco', vendorName: 'Cisco', packageCode: 'STD', softwareVersion: '', licenseType: 'SUBSCRIPTION', redundant: false, termLength: 1 }, pricing: null },
+        makeService('s1', 'FABRIC_PORT', fabricPortConfig),
+        makeService('s2', 'NETWORK_EDGE', networkEdgeConfig),
       ] }],
     };
     const xml = generateDrawioXml(project, nodes, edges);
@@ -481,13 +489,6 @@ describe('generateDrawioXml', () => {
 
 describe('generateDrawioXml integration', () => {
   it('exports a complete diagram with all node and edge types', () => {
-    const makeServiceForIntegration = (id: string, type: string, config: unknown) => ({
-      id,
-      type: type as 'FABRIC_PORT' | 'NETWORK_EDGE' | 'CLOUD_ROUTER',
-      config,
-      pricing: null,
-    });
-
     const project: ProjectConfig = {
       id: 'int-test',
       name: 'Integration Test',
@@ -497,8 +498,8 @@ describe('generateDrawioXml integration', () => {
           metroName: 'Washington D.C.',
           region: 'AMER',
           services: [
-            makeServiceForIntegration('fp1', 'FABRIC_PORT', { speed: '10G', portProduct: 'STANDARD', type: 'PRIMARY', encapsulation: 'DOT1Q', quantity: 1 }),
-            makeServiceForIntegration('ne1', 'NETWORK_EDGE', { deviceTypeCode: 'CSR', deviceTypeName: 'Cisco', vendorName: 'Cisco', packageCode: 'STD', softwareVersion: '', licenseType: 'SUBSCRIPTION', redundant: false, termLength: 1 }),
+            makeService('fp1', 'FABRIC_PORT', fabricPortConfig),
+            makeService('ne1', 'NETWORK_EDGE', networkEdgeConfig),
           ],
         },
         {
@@ -506,7 +507,7 @@ describe('generateDrawioXml integration', () => {
           metroName: 'London',
           region: 'EMEA',
           services: [
-            makeServiceForIntegration('cr1', 'CLOUD_ROUTER', { package: 'STANDARD' }),
+            makeService('cr1', 'CLOUD_ROUTER', cloudRouterConfig),
           ],
         },
       ],
