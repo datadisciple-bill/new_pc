@@ -212,7 +212,9 @@ export function generateDrawioXml(
       case 'annotationLegendNode': {
         const legendId = nextId++;
         const markers = (data.markers ?? []) as Array<{ id: string; number: number; x: number; y: number; color: string; text: string }>;
-        const rows = markers.map(m => `<b style="color:${escapeXml(m.color)}">${m.number}</b> ${escapeXml(m.text)}`).join('<br/>');
+        // Build raw HTML here — only escape once when placing in the XML value attribute.
+        // Inner escapeXml calls would cause double-escaping, breaking HTML style attributes.
+        const rows = markers.map(m => `<b style="color:${m.color}">${m.number}</b> ${m.text}`).join('<br/>');
         const legendLabel = `<div style="text-align:left;padding:8px;">${rows}</div>`;
         const legendH = Math.max(h, markers.length * 24 + 16);
 
