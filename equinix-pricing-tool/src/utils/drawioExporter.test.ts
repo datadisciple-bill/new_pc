@@ -341,6 +341,125 @@ describe('generateDrawioXml', () => {
     expect(xml).toContain('month');
   });
 
+  it('generates logical connector edge with correct style', () => {
+    const nodes: Node[] = [
+      {
+        id: 'metro-DC', type: 'metroNode', position: { x: 0, y: 0 },
+        data: { metroCode: 'DC', metroName: 'Metro DC', region: 'AMER' },
+        style: { width: 472, height: 200 }, width: 472, height: 200,
+      },
+      {
+        id: 'metro-SV', type: 'metroNode', position: { x: 600, y: 0 },
+        data: { metroCode: 'SV', metroName: 'Metro SV', region: 'AMER' },
+        style: { width: 472, height: 200 }, width: 472, height: 200,
+      },
+      {
+        id: 'service-s1', type: 'serviceNode', position: { x: 16, y: 64 },
+        parentId: 'metro-DC',
+        data: { serviceId: 's1', serviceType: 'FABRIC_PORT' },
+        style: { width: 204, height: 72 }, width: 204, height: 72,
+      },
+      {
+        id: 'service-s2', type: 'serviceNode', position: { x: 16, y: 64 },
+        parentId: 'metro-SV',
+        data: { serviceId: 's2', serviceType: 'NETWORK_EDGE' },
+        style: { width: 204, height: 72 }, width: 204, height: 72,
+      },
+    ];
+    const edges: Edge[] = [
+      {
+        id: 'edge-c1',
+        source: 'service-s1',
+        target: 'service-s2',
+        sourceHandle: 'right-source',
+        targetHandle: 'left-target',
+        type: 'customEdge',
+        style: { stroke: '#33A85C', strokeWidth: 1.5 },
+        data: {
+          connectionId: 'c1',
+          labelLine1: 'EVPL 1 Gbps',
+          labelLine2: '$800/mo',
+          isRedundant: false,
+          isSameMetro: false,
+        },
+      },
+    ];
+    const project = {
+      ...emptyProject,
+      metros: [
+        { metroCode: 'DC', metroName: 'Metro DC', region: 'AMER', services: [{ id: 's1', type: 'FABRIC_PORT' as const, config: { speed: '10G', portProduct: 'STANDARD', type: 'PRIMARY', encapsulation: 'DOT1Q', quantity: 1 }, pricing: null }] },
+        { metroCode: 'SV', metroName: 'Metro SV', region: 'AMER', services: [{ id: 's2', type: 'NETWORK_EDGE' as const, config: { deviceTypeCode: 'CSR', deviceTypeName: 'Cisco', vendorName: 'Cisco', packageCode: 'STD', softwareVersion: '', licenseType: 'SUBSCRIPTION', redundant: false, termLength: 1 }, pricing: null }] },
+      ],
+    };
+    const xml = generateDrawioXml(project, nodes, edges);
+
+    expect(xml).toContain('edge="1"');
+    expect(xml).toContain('source=');
+    expect(xml).toContain('target=');
+    expect(xml).toContain('#33A85C');
+    expect(xml).toContain('EVPL 1 Gbps');
+    // Handle sides: right exit, left entry
+    expect(xml).toContain('exitX=1');
+    expect(xml).toContain('entryX=0');
+  });
+
+  it('generates two connectors for redundant edges', () => {
+    const nodes: Node[] = [
+      { id: 'metro-DC', type: 'metroNode', position: { x: 0, y: 0 }, data: { metroCode: 'DC', metroName: 'Metro DC', region: 'AMER' }, style: { width: 472, height: 200 }, width: 472, height: 200 },
+      { id: 'service-s1', type: 'serviceNode', position: { x: 16, y: 64 }, parentId: 'metro-DC', data: { serviceId: 's1', serviceType: 'FABRIC_PORT' }, style: { width: 204, height: 72 }, width: 204, height: 72 },
+      { id: 'service-s2', type: 'serviceNode', position: { x: 250, y: 64 }, parentId: 'metro-DC', data: { serviceId: 's2', serviceType: 'NETWORK_EDGE' }, style: { width: 204, height: 72 }, width: 204, height: 72 },
+    ];
+    const edges: Edge[] = [
+      {
+        id: 'edge-c2',
+        source: 'service-s1', target: 'service-s2',
+        sourceHandle: 'right-source', targetHandle: 'left-target',
+        type: 'customEdge',
+        style: { stroke: '#33A85C', strokeWidth: 1.5 },
+        data: { connectionId: 'c2', labelLine1: 'Redundant EVPL', isRedundant: true, isSameMetro: true },
+      },
+    ];
+    const project = {
+      ...emptyProject,
+      metros: [{ metroCode: 'DC', metroName: 'Metro DC', region: 'AMER', services: [
+        { id: 's1', type: 'FABRIC_PORT' as const, config: { speed: '10G', portProduct: 'STANDARD', type: 'PRIMARY', encapsulation: 'DOT1Q', quantity: 1 }, pricing: null },
+        { id: 's2', type: 'NETWORK_EDGE' as const, config: { deviceTypeCode: 'CSR', deviceTypeName: 'Cisco', vendorName: 'Cisco', packageCode: 'STD', softwareVersion: '', licenseType: 'SUBSCRIPTION', redundant: false, termLength: 1 }, pricing: null },
+      ] }],
+    };
+    const xml = generateDrawioXml(project, nodes, edges);
+    const edgeMatches = xml.match(/edge="1"/g);
+    expect(edgeMatches?.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('generates dashed edge when strokeDasharray is set', () => {
+    const nodes: Node[] = [
+      { id: 'metro-DC', type: 'metroNode', position: { x: 0, y: 0 }, data: { metroCode: 'DC', metroName: 'Metro DC', region: 'AMER' }, style: { width: 472, height: 200 }, width: 472, height: 200 },
+      { id: 'service-s1', type: 'serviceNode', position: { x: 16, y: 64 }, parentId: 'metro-DC', data: { serviceId: 's1', serviceType: 'FABRIC_PORT' }, style: { width: 204, height: 72 }, width: 204, height: 72 },
+      { id: 'service-s2', type: 'serviceNode', position: { x: 250, y: 64 }, parentId: 'metro-DC', data: { serviceId: 's2', serviceType: 'NETWORK_EDGE' }, style: { width: 204, height: 72 }, width: 204, height: 72 },
+    ];
+    const edges: Edge[] = [
+      {
+        id: 'edge-c3',
+        source: 'service-s1', target: 'service-s2',
+        sourceHandle: 'bottom-source', targetHandle: 'top-target',
+        type: 'customEdge',
+        style: { stroke: '#0067B8', strokeWidth: 1.5, strokeDasharray: '4 3' },
+        data: { connectionId: 'c3', labelLine1: 'Network Link', isRedundant: false, isSameMetro: true },
+      },
+    ];
+    const project = {
+      ...emptyProject,
+      metros: [{ metroCode: 'DC', metroName: 'Metro DC', region: 'AMER', services: [
+        { id: 's1', type: 'FABRIC_PORT' as const, config: { speed: '10G', portProduct: 'STANDARD', type: 'PRIMARY', encapsulation: 'DOT1Q', quantity: 1 }, pricing: null },
+        { id: 's2', type: 'NETWORK_EDGE' as const, config: { deviceTypeCode: 'CSR', deviceTypeName: 'Cisco', vendorName: 'Cisco', packageCode: 'STD', softwareVersion: '', licenseType: 'SUBSCRIPTION', redundant: false, termLength: 1 }, pricing: null },
+      ] }],
+    };
+    const xml = generateDrawioXml(project, nodes, edges);
+    expect(xml).toContain('dashed=1');
+    expect(xml).toContain('exitY=1'); // bottom
+    expect(xml).toContain('entryY=0'); // top
+  });
+
   it('uses correct region colors', () => {
     const project = { ...emptyProject, metros: [makeMetro('LN', 'EMEA')] };
     const nodes: Node[] = [

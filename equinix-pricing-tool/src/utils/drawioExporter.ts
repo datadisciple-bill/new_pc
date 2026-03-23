@@ -62,6 +62,22 @@ function escapeXml(str: string): string {
     .replace(/'/g, '&apos;');
 }
 
+function parseHandleSide(handle: string | null | undefined): string {
+  if (!handle) return 'right';
+  const side = handle.split('-')[0];
+  return ['left', 'right', 'top', 'bottom'].includes(side) ? side : 'right';
+}
+
+function handleToCoords(side: string): { x: number; y: number } {
+  switch (side) {
+    case 'left': return { x: 0, y: 0.5 };
+    case 'right': return { x: 1, y: 0.5 };
+    case 'top': return { x: 0.5, y: 0 };
+    case 'bottom': return { x: 0.5, y: 1 };
+    default: return { x: 0.5, y: 0.5 };
+  }
+}
+
 export function generateDrawioXml(
   config: ProjectConfig,
   nodes: Node[],
@@ -278,6 +294,53 @@ export function generateDrawioXml(
 
       default:
         break;
+    }
+  }
+
+  // Generate edge connector cells
+  for (const edge of edges) {
+    const srcId = nodeIdMap.get(edge.source);
+    const tgtId = nodeIdMap.get(edge.target);
+    if (srcId == null || tgtId == null) continue;
+
+    const data = (edge.data ?? {}) as Record<string, unknown>;
+    const edgeStyle = (edge.style ?? {}) as Record<string, unknown>;
+    const strokeColor = String(edgeStyle.stroke ?? '#000000');
+    const strokeDasharray = edgeStyle.strokeDasharray ? String(edgeStyle.strokeDasharray) : '';
+
+    const sourceSide = parseHandleSide(edge.sourceHandle);
+    const targetSide = parseHandleSide(edge.targetHandle);
+    const exit = handleToCoords(sourceSide);
+    const entry = handleToCoords(targetSide);
+
+    const labelLine1 = data.labelLine1 ? String(data.labelLine1) : '';
+    const labelLine2 = data.labelLine2 ? String(data.labelLine2) : '';
+    const label = escapeXml(labelLine2 ? `${labelLine1}\n${labelLine2}` : labelLine1);
+
+    const isRedundant = data.isRedundant === true;
+
+    const buildEdgeStyle = (exitDyOffset: number, entryDyOffset: number): string => {
+      let s = `edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;strokeColor=${strokeColor};strokeWidth=1.5;exitX=${exit.x};exitY=${exit.y};exitDx=0;exitDy=${exitDyOffset};entryX=${entry.x};entryY=${entry.y};entryDx=0;entryDy=${entryDyOffset};`;
+      if (strokeDasharray) {
+        s += `dashed=1;dashPattern=${strokeDasharray.replace(/ /g, ' ')};`;
+      }
+      return s;
+    };
+
+    if (isRedundant) {
+      // First connector with label, offset -4
+      const id1 = nextId++;
+      const style1 = buildEdgeStyle(-4, -4);
+      cells.push(`      <mxCell id="${id1}" value="${label}" style="${style1}" edge="1" source="${srcId}" target="${tgtId}" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>`);
+
+      // Second connector without label, offset +4
+      const id2 = nextId++;
+      const style2 = buildEdgeStyle(4, 4);
+      cells.push(`      <mxCell id="${id2}" value="" style="${style2}" edge="1" source="${srcId}" target="${tgtId}" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>`);
+    } else {
+      const edgeCellId = nextId++;
+      const style = buildEdgeStyle(0, 0);
+      cells.push(`      <mxCell id="${edgeCellId}" value="${label}" style="${style}" edge="1" source="${srcId}" target="${tgtId}" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>`);
     }
   }
 
