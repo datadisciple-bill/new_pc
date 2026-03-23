@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 
-export const CURRENT_VERSION = 13;
-export const RELEASE_DATE = new Date('2026-03-12T00:00:00');
+export const CURRENT_VERSION = 13.5;
+export const RELEASE_DATE = new Date('2026-03-23T00:00:00');
 
 interface ChangelogEntry {
   version: number;
@@ -10,6 +10,16 @@ interface ChangelogEntry {
 }
 
 const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: 13.5,
+    date: 'Mar 23, 2026',
+    items: [
+      'LucidChart / draw.io export — click the "LucidChart" button in the diagram toolbar to download a .drawio file you can import into LucidChart or open in diagrams.net for full editing (thanks Brock King)',
+      'Exported diagrams preserve metro grouping, connection routing, Equinix branding colors, and embedded service icons',
+      'All connection types (solid, dashed, dotted, redundant) export as logical connectors that follow shapes when moved',
+      'Price tables export as readable HTML tables with selected bandwidth/tier highlighted',
+    ],
+  },
   {
     version: 13,
     date: 'Mar 12, 2026',
