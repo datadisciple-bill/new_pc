@@ -26,8 +26,8 @@ Single utility module. No external dependencies — XML is built with template l
 
 **Exported functions:**
 
-- `generateDrawioXml(projectConfig, reactFlowNodes, reactFlowEdges)` — Takes Zustand project config + current React Flow node/edge state, returns draw.io XML string.
-- `downloadDrawio(xmlContent, projectName)` — Triggers browser download of `{projectName}.drawio`.
+- `generateDrawioXml(projectConfig: ProjectConfig, nodes: Node[], edges: Edge[]): string` — Takes Zustand project config + current React Flow node/edge state (types from `@xyflow/react`), returns draw.io XML string.
+- `downloadDrawio(xmlContent: string, projectName: string): void` — Triggers browser download of `{projectName}.drawio`. Uses `application/xml` MIME type, follows the same `URL.createObjectURL` + `link.click()` + `URL.revokeObjectURL` pattern as the existing `downloadCsv` in `csvGenerator.ts`.
 
 **Internal helpers (not exported):**
 
@@ -35,7 +35,12 @@ Single utility module. No external dependencies — XML is built with template l
 - `addMetroGroup(metro, position, dimensions)` — Emits grouped metro container + region-colored header + child service cells
 - `addServiceCell(service, parentId, position)` — Emits service shape inside metro group with base64 SVG icon
 - `addCloudCell(cloudNode, position)` — Emits cloud provider shape with brand color
-- `addFloatyNode(node)` — Handles TextBox, LocalSite, AnnotationMarker, MultipointNetwork
+- `addFloatyNode(node)` — Dispatch function that switches on node type and delegates to type-specific logic:
+  - TextBox → text-only cell (no fill, no border)
+  - LocalSite → rectangle with base64 SVG icon + labels
+  - AnnotationMarker → ellipse with red fill + number
+  - AnnotationLegend → rectangle with marker description text rows
+  - MultipointNetwork → rounded rectangle with network-type color
 - `addPriceTable(priceData, position)` — Emits HTML-label table cell
 - `addEdge(connection, sourceId, targetId)` — Emits connector with style, labels, handle positions
 - `mapHandleToExitEntry(handleSide)` — Converts `'left'|'right'|'top'|'bottom'` to draw.io exit/entry coordinates
@@ -53,7 +58,7 @@ Zustand store (projectConfig)
 
 ### UI integration
 
-New "Export to LucidChart" button in the existing export area (next to CSV export). The component uses React Flow's `useReactFlow()` hook to access current node positions.
+New "Export to LucidChart" button placed **inside `NetworkDiagram.tsx`** (within the `<ReactFlowProvider>` context), not in the external export area. This is required because `useReactFlow()` throws if called outside the provider. The button uses `useReactFlow().getNodes()` and `useReactFlow().getEdges()` to access current diagram state, then calls `generateDrawioXml` with the Zustand project config + the React Flow nodes/edges.
 
 ## Node Type Mapping
 
@@ -61,7 +66,7 @@ New "Export to LucidChart" button in the existing export area (next to CSV expor
 |---|---|---|---|
 | MetroNode | `mxCell` with `group` style + child header label | Parent group — children nest inside | Light gray fill `#F4F4F4`, region-colored header bar (AMER `#3B82F6`, EMEA `#10B981`, APAC `#8B5CF6`) |
 | ServiceNode | Rounded rectangle with base64 SVG icon | Child of metro group | Black fill `#000000`, white text, embedded icon |
-| CloudNode | Rounded rectangle | Standalone | Brand color fill (AWS `#FF9900`, Azure `#0067B8`, GCP `#0070F2`, etc.), white text |
+| CloudNode | Rounded rectangle | Standalone | Brand color fill (AWS `#FF9900`, Azure `#0067B8`, GCP `#4285F4`, etc.), white text. Note: GCP uses `#4285F4` (actual brand blue) — `brandColors.ts` has `#0070F2` shared with IBM/SAP; the exporter should use distinct colors where possible. |
 | LocalSiteNode | Rectangle with base64 SVG icon | Standalone | White fill, embedded icon, name + description labels |
 | TextBoxNode | Text-only `mxCell` | Standalone | No fill, no border, user text content |
 | AnnotationMarkerNode | Ellipse (circle) | Standalone | Red fill `#E91C24`, white number label |
@@ -79,7 +84,7 @@ New "Export to LucidChart" button in the existing export area (next to CSV expor
 | Inter-metro (solid) | `strokeColor=#00A85F;dashed=0` |
 | IP-WAN (dashed) | `strokeColor=#000000;dashed=1;dashPattern=8 4` |
 | Cloud/network (dotted) | `strokeColor=#0067B8;dashed=1;dashPattern=2 2` |
-| Redundant (double-line) | Two parallel `mxCell` connectors offset +/-2px |
+| Redundant (double-line) | Two parallel `mxCell` connectors with `exitDy`/`entryDy` offsets (see below) |
 
 All edges are logical connectors — they attach to source/target shape IDs so connections follow when shapes are dragged in LucidChart.
 
@@ -100,11 +105,15 @@ Bandwidth/redundancy text and optional price text become draw.io edge labels, ed
 
 ### Redundant connections
 
-draw.io has no native double-line style. Redundant connections emit two parallel connectors with a small offset. Each line is independently selectable/editable — better for structural editing.
+draw.io has no native double-line style. Redundant connections emit two parallel connectors using `exitDy`/`entryDy` style offsets to create visual separation:
+- Connector 1: `exitDy=-4;entryDy=-4` (shifted up/left)
+- Connector 2: `exitDy=4;entryDy=4` (shifted down/right)
+
+Both connectors share the same source/target IDs and base style. Each line is independently selectable/editable — better for structural editing. The exact offset values may need tuning during implementation to match the visual weight of the app's double-line rendering.
 
 ## Icon Embedding
 
-12 SVG icon files from `src/assets/icons/` are embedded as base64 in the draw.io cell style:
+11 SVG icon files from `src/assets/icons/` are embedded as base64 in the draw.io cell style (`equinix-logo.svg` is excluded — per CLAUDE.md, no partner/customer logos in diagrams):
 
 ```
 shape=image;image=data:image/svg+xml;base64,{encoded};aspect=fixed;imageWidth=24;imageHeight=24;
@@ -132,12 +141,20 @@ shape=image;image=data:image/svg+xml;base64,{encoded};aspect=fixed;imageWidth=24
 
 ### Embedding approach
 
+Icons are imported as raw SVG strings at module load time using Vite's `?raw` query suffix — this avoids runtime fetch issues in production builds where asset paths are hashed:
+
+```ts
+import fabricPortSvg from '@/assets/icons/fabric-port.svg?raw';
+import networkEdgeSvg from '@/assets/icons/network-edge.svg?raw';
+// ... etc for all 11 icons
+```
+
 At export time:
-1. Fetch each SVG file via its import URL
-2. Base64-encode the SVG content
+1. Look up the raw SVG string for the node's icon type
+2. Base64-encode with `btoa(svgString)`
 3. Embed in the cell `style` attribute as a `data:image/svg+xml;base64,` URI
 
-Total overhead: ~15KB for all 12 icons (each SVG is ~1-2KB).
+Total overhead: ~14KB for all 11 icons (each SVG is ~1-2KB).
 
 ## ID Strategy
 
