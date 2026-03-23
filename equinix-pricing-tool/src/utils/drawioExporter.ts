@@ -1,6 +1,12 @@
 import type { ProjectConfig } from '@/types/config';
 import type { Node, Edge } from '@xyflow/react';
 
+const REGION_COLORS: Record<string, string> = {
+  AMER: '#3B82F6',
+  EMEA: '#10B981',
+  APAC: '#8B5CF6',
+};
+
 function escapeXml(str: string): string {
   return str
     .replace(/&/g, '&amp;')
@@ -18,6 +24,36 @@ export function generateDrawioXml(
   const cells: string[] = [];
   cells.push('      <mxCell id="0"/>');
   cells.push('      <mxCell id="1" parent="0"/>');
+
+  let nextId = 2;
+  const nodeIdMap = new Map<string, number>();
+
+  // Generate metro group cells
+  for (const node of nodes) {
+    if (node.type !== 'metroNode') continue;
+
+    const x = node.position.x;
+    const y = node.position.y;
+    const w = node.width ?? (node.style as Record<string, number>)?.width ?? 472;
+    const h = node.height ?? (node.style as Record<string, number>)?.height ?? 200;
+    const metroName = escapeXml(String(node.data?.metroName ?? ''));
+    const region = String(node.data?.region ?? 'AMER');
+    const regionColor = REGION_COLORS[region] ?? REGION_COLORS.AMER;
+
+    const groupId = nextId++;
+    nodeIdMap.set(node.id, groupId);
+
+    // Group container
+    cells.push(`      <mxCell id="${groupId}" value="" style="group" vertex="1" connectable="0" parent="1"><mxGeometry x="${x}" y="${y}" width="${w}" height="${h}" as="geometry"/></mxCell>`);
+
+    // Background rectangle
+    const bgId = nextId++;
+    cells.push(`      <mxCell id="${bgId}" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F4F4F4;strokeColor=#CCCCCC;" vertex="1" parent="${groupId}"><mxGeometry width="${w}" height="${h}" as="geometry"/></mxCell>`);
+
+    // Header bar with region color
+    const headerId = nextId++;
+    cells.push(`      <mxCell id="${headerId}" value="${metroName}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=${regionColor};fontColor=#FFFFFF;fontStyle=1;fontSize=14;arcSize=0;" vertex="1" parent="${groupId}"><mxGeometry width="${w}" height="48" as="geometry"/></mxCell>`);
+  }
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <mxfile>
