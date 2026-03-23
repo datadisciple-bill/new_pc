@@ -1,5 +1,40 @@
 import type { ProjectConfig } from '@/types/config';
 import type { Node, Edge } from '@xyflow/react';
+import { SERVICE_TYPE_LABELS } from '@/constants/brandColors';
+
+import fabricPortSvg from '@/assets/icons/fabric-port.svg?raw';
+import networkEdgeSvg from '@/assets/icons/network-edge.svg?raw';
+import internetAccessSvg from '@/assets/icons/internet-access.svg?raw';
+import cloudRouterSvg from '@/assets/icons/cloud-router.svg?raw';
+import colocationSvg from '@/assets/icons/colocation.svg?raw';
+import nspSvg from '@/assets/icons/nsp.svg?raw';
+import crossConnectSvg from '@/assets/icons/cross-connect.svg?raw';
+import buildingCorporateSvg from '@/assets/icons/building-corporate.svg?raw';
+import buildingFactorySvg from '@/assets/icons/building-factory.svg?raw';
+import buildingHomeSvg from '@/assets/icons/building-home.svg?raw';
+import peopleUserSvg from '@/assets/icons/people-user.svg?raw';
+
+const SERVICE_ICON_SVG: Record<string, string> = {
+  FABRIC_PORT: fabricPortSvg,
+  NETWORK_EDGE: networkEdgeSvg,
+  INTERNET_ACCESS: internetAccessSvg,
+  CLOUD_ROUTER: cloudRouterSvg,
+  COLOCATION: colocationSvg,
+  NSP: nspSvg,
+  CROSS_CONNECT: crossConnectSvg,
+};
+
+export const LOCAL_SITE_ICON_SVG: Record<string, string> = {
+  'fabric-port': fabricPortSvg,
+  'network-edge': networkEdgeSvg,
+  'internet-access': internetAccessSvg,
+  'cloud-router': cloudRouterSvg,
+  colocation: colocationSvg,
+  'building-corporate': buildingCorporateSvg,
+  'building-factory': buildingFactorySvg,
+  'building-home': buildingHomeSvg,
+  'people-user': peopleUserSvg,
+};
 
 const REGION_COLORS: Record<string, string> = {
   AMER: '#3B82F6',
@@ -53,6 +88,34 @@ export function generateDrawioXml(
     // Header bar with region color
     const headerId = nextId++;
     cells.push(`      <mxCell id="${headerId}" value="${metroName}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=${regionColor};fontColor=#FFFFFF;fontStyle=1;fontSize=14;arcSize=0;" vertex="1" parent="${groupId}"><mxGeometry width="${w}" height="48" as="geometry"/></mxCell>`);
+  }
+
+  // Generate service node cells
+  for (const node of nodes) {
+    if (node.type !== 'serviceNode') continue;
+
+    const data = node.data as Record<string, unknown>;
+    const serviceType = String(data.serviceType ?? '');
+    const label = escapeXml(SERVICE_TYPE_LABELS[serviceType] ?? serviceType);
+    const parentGroupId = nodeIdMap.get(node.parentId ?? '');
+    const parentRef = parentGroupId != null ? parentGroupId : 1;
+
+    const sx = node.position.x;
+    const sy = node.position.y;
+    const sw = node.width ?? (node.style as Record<string, number>)?.width ?? 204;
+    const sh = node.height ?? (node.style as Record<string, number>)?.height ?? 72;
+
+    const serviceId = nextId++;
+    nodeIdMap.set(node.id, serviceId);
+
+    // Service rectangle: black fill, white text, left padding for icon
+    cells.push(`      <mxCell id="${serviceId}" value="${label}" style="rounded=1;fillColor=#000000;fontColor=#FFFFFF;fontSize=10;fontStyle=1;fontFamily=Arial;whiteSpace=wrap;verticalAlign=middle;spacingLeft=28;" vertex="1" parent="${parentRef}"><mxGeometry x="${sx}" y="${sy}" width="${sw}" height="${sh}" as="geometry"/></mxCell>`);
+
+    // Icon image inside the service cell
+    const rawSvg = SERVICE_ICON_SVG[serviceType] ?? '';
+    const iconBase64 = btoa(rawSvg);
+    const iconId = nextId++;
+    cells.push(`      <mxCell id="${iconId}" value="" style="shape=image;image=data:image/svg+xml;base64,${iconBase64};imageWidth=20;imageHeight=20;" vertex="1" parent="${serviceId}"><mxGeometry x="4" y="${(sh - 24) / 2}" width="24" height="24" as="geometry"/></mxCell>`);
   }
 
   return `<?xml version="1.0" encoding="UTF-8"?>

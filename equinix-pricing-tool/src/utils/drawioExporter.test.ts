@@ -60,6 +60,40 @@ describe('generateDrawioXml', () => {
     expect(xml).toContain('#F4F4F4'); // metro background
   });
 
+  it('generates service node cells inside metro group', () => {
+    const project = {
+      ...emptyProject,
+      metros: [{ ...makeMetro('DC'), services: [{ id: 's1', type: 'FABRIC_PORT' as const, config: { speed: '10G', portProduct: 'STANDARD', type: 'PRIMARY', encapsulation: 'DOT1Q', quantity: 1 }, pricing: null }] }],
+    };
+    const nodes: Node[] = [
+      {
+        id: 'metro-DC',
+        type: 'metroNode',
+        position: { x: 0, y: 0 },
+        data: { metroCode: 'DC', metroName: 'Metro DC', region: 'AMER' },
+        style: { width: 472, height: 200 },
+        width: 472,
+        height: 200,
+      },
+      {
+        id: 'service-s1',
+        type: 'serviceNode',
+        position: { x: 16, y: 64 },
+        parentId: 'metro-DC',
+        data: { serviceId: 's1', serviceType: 'FABRIC_PORT', config: { speed: '10G', portProduct: 'STANDARD', type: 'PRIMARY', encapsulation: 'DOT1Q', quantity: 1 } },
+        style: { width: 204, height: 72 },
+        width: 204,
+        height: 72,
+      },
+    ];
+    const xml = generateDrawioXml(project, nodes, []);
+    // Service node should be a child of the metro group
+    expect(xml).toContain('Fabric Port');
+    expect(xml).toContain('#000000'); // black fill
+    // Should contain base64 SVG icon
+    expect(xml).toContain('data:image/svg+xml;base64,');
+  });
+
   it('uses correct region colors', () => {
     const project = { ...emptyProject, metros: [makeMetro('LN', 'EMEA')] };
     const nodes: Node[] = [
