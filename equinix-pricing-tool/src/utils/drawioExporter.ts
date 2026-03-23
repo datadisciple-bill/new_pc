@@ -215,6 +215,67 @@ export function generateDrawioXml(
         break;
       }
 
+      case 'priceTableNode': {
+        const ptId = nextId++;
+        const connName = String(data.connectionName ?? '');
+        const selectedBw = Number(data.selectedBandwidthMbps ?? 0);
+        const priceTable = (data.priceTable ?? []) as Array<{ bandwidthMbps: number; label: string; mrc: number; currency: string }>;
+
+        let html = '<table style="font-size:9px;font-family:Arial;border-collapse:collapse;width:100%;">';
+        html += `<tr><th colspan="2" style="background:#333;color:#fff;padding:4px;">${connName}</th></tr>`;
+        html += '<tr style="background:#eee;"><th style="padding:2px 4px;">Bandwidth</th><th style="padding:2px 4px;">MRC</th></tr>';
+        for (const entry of priceTable) {
+          const isSelected = entry.bandwidthMbps === selectedBw;
+          const rowStyle = isSelected ? 'background:#E8F5E9;font-weight:bold;' : '';
+          html += `<tr style="${rowStyle}"><td style="padding:2px 4px;">${entry.label}</td><td style="padding:2px 4px;">$${entry.mrc}</td></tr>`;
+        }
+        html += '</table>';
+
+        cells.push(`      <mxCell id="${ptId}" value="${escapeXml(html)}" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fillColor=#FFFFFF;strokeColor=#CCCCCC;fontSize=9;fontFamily=Arial;" vertex="1" parent="1"><mxGeometry x="${x}" y="${y}" width="${w}" height="${h}" as="geometry"/></mxCell>`);
+        break;
+      }
+
+      case 'nePriceTableNode': {
+        const neId = nextId++;
+        const neName = String(data.serviceName ?? '');
+        const selectedCores = Number(data.selectedCores ?? 0);
+        const termLength = Number(data.termLength ?? 1);
+        const nePriceTable = (data.priceTable ?? []) as Array<{ cores: number; mrc: number; nrc: number }>;
+
+        let html = '<table style="font-size:9px;font-family:Arial;border-collapse:collapse;width:100%;">';
+        html += `<tr><th colspan="3" style="background:#333;color:#fff;padding:4px;">${neName}</th></tr>`;
+        if (termLength > 1) {
+          html += `<tr><td colspan="3" style="background:#33A85C;color:#fff;padding:2px 4px;text-align:center;font-size:8px;">${termLength}-month term</td></tr>`;
+        }
+        html += '<tr style="background:#eee;"><th style="padding:2px 4px;">Cores</th><th style="padding:2px 4px;">MRC</th><th style="padding:2px 4px;">NRC</th></tr>';
+        for (const entry of nePriceTable) {
+          const isSelected = entry.cores === selectedCores;
+          const rowStyle = isSelected ? 'background:#E8F5E9;font-weight:bold;' : '';
+          html += `<tr style="${rowStyle}"><td style="padding:2px 4px;">${entry.cores}</td><td style="padding:2px 4px;">$${entry.mrc}</td><td style="padding:2px 4px;">$${entry.nrc}</td></tr>`;
+        }
+        html += '</table>';
+
+        cells.push(`      <mxCell id="${neId}" value="${escapeXml(html)}" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fillColor=#FFFFFF;strokeColor=#CCCCCC;fontSize=9;fontFamily=Arial;" vertex="1" parent="1"><mxGeometry x="${x}" y="${y}" width="${w}" height="${h}" as="geometry"/></mxCell>`);
+        break;
+      }
+
+      case 'eiaPriceTableNode': {
+        const eiaId = nextId++;
+        const eiaName = String(data.serviceName ?? '');
+        const eiaPriceTable = (data.priceTable ?? []) as Array<{ bandwidthMbps: number; label: string; mrc: number; currency: string }>;
+
+        let html = '<table style="font-size:9px;font-family:Arial;border-collapse:collapse;width:100%;">';
+        html += `<tr><th colspan="2" style="background:#333;color:#fff;padding:4px;">${eiaName}</th></tr>`;
+        html += '<tr style="background:#eee;"><th style="padding:2px 4px;">Bandwidth</th><th style="padding:2px 4px;">MRC</th></tr>';
+        for (const entry of eiaPriceTable) {
+          html += `<tr><td style="padding:2px 4px;">${entry.label}</td><td style="padding:2px 4px;">$${entry.mrc}</td></tr>`;
+        }
+        html += '</table>';
+
+        cells.push(`      <mxCell id="${eiaId}" value="${escapeXml(html)}" style="rounded=1;whiteSpace=wrap;html=1;overflow=fill;fillColor=#FFFFFF;strokeColor=#CCCCCC;fontSize=9;fontFamily=Arial;" vertex="1" parent="1"><mxGeometry x="${x}" y="${y}" width="${w}" height="${h}" as="geometry"/></mxCell>`);
+        break;
+      }
+
       default:
         break;
     }

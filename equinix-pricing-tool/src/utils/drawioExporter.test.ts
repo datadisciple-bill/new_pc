@@ -206,6 +206,141 @@ describe('generateDrawioXml', () => {
     expect(xml).toContain('#0067B8');
   });
 
+  it('generates price table node with HTML table label', () => {
+    const nodes: Node[] = [
+      {
+        id: 'pricetable-c1',
+        type: 'priceTableNode',
+        position: { x: 0, y: 400 },
+        data: {
+          connectionId: 'c1',
+          connectionName: 'EVPL VC',
+          selectedBandwidthMbps: 1000,
+          priceTable: [
+            { bandwidthMbps: 500, label: '500 Mbps', mrc: 500, currency: 'USD' },
+            { bandwidthMbps: 1000, label: '1 Gbps', mrc: 800, currency: 'USD' },
+          ],
+        },
+        style: { width: 200, height: 60 },
+        width: 200,
+        height: 60,
+      },
+    ];
+    const xml = generateDrawioXml(emptyProject, nodes, []);
+    expect(xml).toContain('EVPL VC');
+    expect(xml).toContain('500 Mbps');
+    expect(xml).toContain('1 Gbps');
+    // HTML table is XML-escaped inside the value attribute
+    expect(xml).toContain('&lt;table');
+  });
+
+  it('generates NE price table node with cores columns', () => {
+    const nodes: Node[] = [
+      {
+        id: 'nepricetable-s1',
+        type: 'nePriceTableNode',
+        position: { x: 0, y: 500 },
+        data: {
+          serviceId: 's1',
+          metroCode: 'DC',
+          serviceName: 'CSR 1000v',
+          selectedCores: 4,
+          priceTable: [
+            { cores: 2, mrc: 200, nrc: 100 },
+            { cores: 4, mrc: 400, nrc: 200 },
+          ],
+          termLength: 1,
+        },
+        style: { width: 220, height: 60 },
+        width: 220,
+        height: 60,
+      },
+    ];
+    const xml = generateDrawioXml(emptyProject, nodes, []);
+    expect(xml).toContain('CSR 1000v');
+    expect(xml).toContain('&lt;table');
+    expect(xml).toContain('Cores');
+    expect(xml).toContain('MRC');
+    expect(xml).toContain('NRC');
+  });
+
+  it('generates EIA price table node without selection highlighting', () => {
+    const nodes: Node[] = [
+      {
+        id: 'eiapricetable-s2',
+        type: 'eiaPriceTableNode',
+        position: { x: 0, y: 600 },
+        data: {
+          serviceId: 's2',
+          metroCode: 'DC',
+          serviceName: 'Internet Access',
+          priceTable: [
+            { bandwidthMbps: 100, label: '100 Mbps', mrc: 300, currency: 'USD' },
+          ],
+        },
+        style: { width: 200, height: 60 },
+        width: 200,
+        height: 60,
+      },
+    ];
+    const xml = generateDrawioXml(emptyProject, nodes, []);
+    expect(xml).toContain('Internet Access');
+    expect(xml).toContain('&lt;table');
+    expect(xml).toContain('100 Mbps');
+  });
+
+  it('highlights selected bandwidth row in VC price table', () => {
+    const nodes: Node[] = [
+      {
+        id: 'pricetable-c1',
+        type: 'priceTableNode',
+        position: { x: 0, y: 400 },
+        data: {
+          connectionId: 'c1',
+          connectionName: 'EVPL VC',
+          selectedBandwidthMbps: 1000,
+          priceTable: [
+            { bandwidthMbps: 500, label: '500 Mbps', mrc: 500, currency: 'USD' },
+            { bandwidthMbps: 1000, label: '1 Gbps', mrc: 800, currency: 'USD' },
+          ],
+        },
+        style: { width: 200, height: 60 },
+        width: 200,
+        height: 60,
+      },
+    ];
+    const xml = generateDrawioXml(emptyProject, nodes, []);
+    // The selected row (1 Gbps) should have bold styling
+    expect(xml).toContain('font-weight:bold');
+  });
+
+  it('shows discount banner for NE price table with term > 1', () => {
+    const nodes: Node[] = [
+      {
+        id: 'nepricetable-s1',
+        type: 'nePriceTableNode',
+        position: { x: 0, y: 500 },
+        data: {
+          serviceId: 's1',
+          metroCode: 'DC',
+          serviceName: 'CSR 1000v',
+          selectedCores: 4,
+          priceTable: [
+            { cores: 2, mrc: 200, nrc: 100 },
+            { cores: 4, mrc: 400, nrc: 200 },
+          ],
+          termLength: 36,
+        },
+        style: { width: 220, height: 60 },
+        width: 220,
+        height: 60,
+      },
+    ];
+    const xml = generateDrawioXml(emptyProject, nodes, []);
+    expect(xml).toContain('36');
+    expect(xml).toContain('month');
+  });
+
   it('uses correct region colors', () => {
     const project = { ...emptyProject, metros: [makeMetro('LN', 'EMEA')] };
     const nodes: Node[] = [
