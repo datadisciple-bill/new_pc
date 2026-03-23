@@ -112,6 +112,100 @@ describe('generateDrawioXml', () => {
     expect(xml).toContain('rounded=1');
   });
 
+  it('generates text box node', () => {
+    const nodes: Node[] = [
+      {
+        id: 'textbox-t1',
+        type: 'textBoxNode',
+        position: { x: 100, y: 100 },
+        data: { text: 'Hello World' },
+        style: { width: 150, height: 40 },
+        width: 150,
+        height: 40,
+      },
+    ];
+    const xml = generateDrawioXml(emptyProject, nodes, []);
+    expect(xml).toContain('Hello World');
+    expect(xml).toContain('fillColor=none');
+  });
+
+  it('generates local site node with icon', () => {
+    const nodes: Node[] = [
+      {
+        id: 'localsite-ls1',
+        type: 'localSiteNode',
+        position: { x: 200, y: 200 },
+        data: { localSiteId: 'ls1', name: 'HQ Office', description: 'Main campus', icon: 'building-corporate' },
+        style: { width: 204, height: 52 },
+        width: 204,
+        height: 52,
+      },
+    ];
+    const xml = generateDrawioXml(emptyProject, nodes, []);
+    expect(xml).toContain('HQ Office');
+    expect(xml).toContain('data:image/svg+xml;base64,');
+  });
+
+  it('generates annotation marker as red circle', () => {
+    const nodes: Node[] = [
+      {
+        id: 'marker-m1',
+        type: 'annotationMarkerNode',
+        position: { x: 50, y: 50 },
+        data: { markerId: 'm1', number: 1, color: '#E91C24' },
+        style: { width: 28, height: 28 },
+        width: 28,
+        height: 28,
+      },
+    ];
+    const project = {
+      ...emptyProject,
+      annotationMarkers: [{ id: 'm1', number: 1, x: 50, y: 50, color: '#E91C24', text: 'Primary link' }],
+    };
+    const xml = generateDrawioXml(project, nodes, []);
+    expect(xml).toContain('ellipse');
+    expect(xml).toContain('#E91C24');
+    expect(xml).toContain('value="1"');
+  });
+
+  it('generates annotation legend node', () => {
+    const nodes: Node[] = [
+      {
+        id: 'annotation-legend',
+        type: 'annotationLegendNode',
+        position: { x: 600, y: 0 },
+        data: {
+          markers: [
+            { id: 'm1', number: 1, x: 50, y: 50, color: '#E91C24', text: 'Primary link' },
+            { id: 'm2', number: 2, x: 100, y: 100, color: '#E91C24', text: 'Backup link' },
+          ],
+        },
+        style: { width: 260 },
+        width: 260,
+      },
+    ];
+    const xml = generateDrawioXml(emptyProject, nodes, []);
+    expect(xml).toContain('Primary link');
+    expect(xml).toContain('Backup link');
+  });
+
+  it('generates multipoint network node', () => {
+    const nodes: Node[] = [
+      {
+        id: 'network-n1',
+        type: 'multipointNetworkNode',
+        position: { x: 300, y: 300 },
+        data: { networkId: 'n1', name: 'EVP-LAN', type: 'EVPLAN', scope: 'LOCAL' },
+        style: { width: 160, height: 50 },
+        width: 160,
+        height: 50,
+      },
+    ];
+    const xml = generateDrawioXml(emptyProject, nodes, []);
+    expect(xml).toContain('EVP-LAN');
+    expect(xml).toContain('#0067B8');
+  });
+
   it('uses correct region colors', () => {
     const project = { ...emptyProject, metros: [makeMetro('LN', 'EMEA')] };
     const nodes: Node[] = [

@@ -1,6 +1,6 @@
 import type { ProjectConfig } from '@/types/config';
 import type { Node, Edge } from '@xyflow/react';
-import { SERVICE_TYPE_LABELS, CLOUD_PROVIDER_COLORS } from '@/constants/brandColors';
+import { SERVICE_TYPE_LABELS, CLOUD_PROVIDER_COLORS, NETWORK_NODE_COLORS } from '@/constants/brandColors';
 
 import fabricPortSvg from '@/assets/icons/fabric-port.svg?raw';
 import networkEdgeSvg from '@/assets/icons/network-edge.svg?raw';
@@ -147,6 +147,77 @@ export function generateDrawioXml(
     nodeIdMap.set(node.id, cloudId);
 
     cells.push(`      <mxCell id="${cloudId}" value="${label}" style="rounded=1;fillColor=${fillColor};fontColor=#FFFFFF;fontSize=10;fontStyle=1;fontFamily=Arial;whiteSpace=wrap;" vertex="1" parent="1"><mxGeometry x="${cx}" y="${cy}" width="${cw}" height="${ch}" as="geometry"/></mxCell>`);
+  }
+
+  // Generate floaty nodes (textBox, localSite, annotationMarker, annotationLegend, multipointNetwork)
+  for (const node of nodes) {
+    const data = node.data as Record<string, unknown>;
+    const x = node.position.x;
+    const y = node.position.y;
+    const w = node.width ?? (node.style as Record<string, number>)?.width ?? 150;
+    const h = node.height ?? (node.style as Record<string, number>)?.height ?? 40;
+
+    switch (node.type) {
+      case 'textBoxNode': {
+        const textId = nextId++;
+        const text = escapeXml(String(data.text ?? ''));
+        cells.push(`      <mxCell id="${textId}" value="${text}" style="text;fillColor=none;strokeColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;fontFamily=Arial;fontSize=10;" vertex="1" parent="1"><mxGeometry x="${x}" y="${y}" width="${w}" height="${h}" as="geometry"/></mxCell>`);
+        break;
+      }
+
+      case 'localSiteNode': {
+        const siteId = nextId++;
+        nodeIdMap.set(node.id, siteId);
+        const name = escapeXml(String(data.name ?? ''));
+        const description = data.description ? escapeXml(String(data.description)) : '';
+        const label = description ? `${name}&lt;br/&gt;&lt;font style=&quot;font-size:8px&quot;&gt;${description}&lt;/font&gt;` : name;
+
+        cells.push(`      <mxCell id="${siteId}" value="${label}" style="rounded=1;fillColor=#FFFFFF;strokeColor=#CCCCCC;fontColor=#000000;fontSize=10;fontStyle=1;fontFamily=Arial;whiteSpace=wrap;html=1;verticalAlign=middle;spacingLeft=28;" vertex="1" parent="1"><mxGeometry x="${x}" y="${y}" width="${w}" height="${h}" as="geometry"/></mxCell>`);
+
+        // Icon image
+        const iconKey = String(data.icon ?? '');
+        const rawSvg = LOCAL_SITE_ICON_SVG[iconKey] ?? '';
+        if (rawSvg) {
+          const iconBase64 = btoa(rawSvg);
+          const iconId = nextId++;
+          cells.push(`      <mxCell id="${iconId}" value="" style="shape=image;image=data:image/svg+xml;base64,${iconBase64};imageWidth=20;imageHeight=20;" vertex="1" parent="${siteId}"><mxGeometry x="4" y="${(h - 24) / 2}" width="24" height="24" as="geometry"/></mxCell>`);
+        }
+        break;
+      }
+
+      case 'annotationMarkerNode': {
+        const markerId = nextId++;
+        const color = String(data.color ?? '#E91C24');
+        const number = String(data.number ?? '');
+        cells.push(`      <mxCell id="${markerId}" value="${number}" style="ellipse;fillColor=${color};fontColor=#FFFFFF;strokeColor=none;fontSize=12;fontStyle=1;fontFamily=Arial;" vertex="1" parent="1"><mxGeometry x="${x}" y="${y}" width="${w}" height="${h}" as="geometry"/></mxCell>`);
+        break;
+      }
+
+      case 'annotationLegendNode': {
+        const legendId = nextId++;
+        const markers = (data.markers ?? []) as Array<{ id: string; number: number; x: number; y: number; color: string; text: string }>;
+        const rows = markers.map(m => `<b style="color:${escapeXml(m.color)}">${m.number}</b> ${escapeXml(m.text)}`).join('<br/>');
+        const legendLabel = `<div style="text-align:left;padding:8px;">${rows}</div>`;
+        const legendH = Math.max(h, markers.length * 24 + 16);
+
+        cells.push(`      <mxCell id="${legendId}" value="${escapeXml(legendLabel)}" style="rounded=1;fillColor=#FFFFFF;strokeColor=#CCCCCC;html=1;whiteSpace=wrap;fontFamily=Arial;fontSize=10;align=left;verticalAlign=top;" vertex="1" parent="1"><mxGeometry x="${x}" y="${y}" width="${w}" height="${legendH}" as="geometry"/></mxCell>`);
+        break;
+      }
+
+      case 'multipointNetworkNode': {
+        const netId = nextId++;
+        nodeIdMap.set(node.id, netId);
+        const netType = String(data.type ?? '');
+        const fillColor = NETWORK_NODE_COLORS[netType] ?? '#6B7280';
+        const netLabel = escapeXml(String(data.name ?? ''));
+
+        cells.push(`      <mxCell id="${netId}" value="${netLabel}" style="rounded=1;fillColor=${fillColor};fontColor=#FFFFFF;fontSize=10;fontStyle=1;fontFamily=Arial;whiteSpace=wrap;" vertex="1" parent="1"><mxGeometry x="${x}" y="${y}" width="${w}" height="${h}" as="geometry"/></mxCell>`);
+        break;
+      }
+
+      default:
+        break;
+    }
   }
 
   return `<?xml version="1.0" encoding="UTF-8"?>
