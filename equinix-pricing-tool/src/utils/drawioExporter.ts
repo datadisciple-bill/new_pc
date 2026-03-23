@@ -1,6 +1,6 @@
 import type { ProjectConfig } from '@/types/config';
 import type { Node, Edge } from '@xyflow/react';
-import { SERVICE_TYPE_LABELS } from '@/constants/brandColors';
+import { SERVICE_TYPE_LABELS, CLOUD_PROVIDER_COLORS } from '@/constants/brandColors';
 
 import fabricPortSvg from '@/assets/icons/fabric-port.svg?raw';
 import networkEdgeSvg from '@/assets/icons/network-edge.svg?raw';
@@ -41,6 +41,17 @@ const REGION_COLORS: Record<string, string> = {
   EMEA: '#10B981',
   APAC: '#8B5CF6',
 };
+
+export function resolveCloudColor(provider: string): string {
+  const providerLower = provider.toLowerCase();
+  for (const [name, color] of Object.entries(CLOUD_PROVIDER_COLORS)) {
+    const firstWord = name.toLowerCase().split(' ')[0];
+    if (providerLower.includes(firstWord)) {
+      return color;
+    }
+  }
+  return '#6B7280';
+}
 
 function escapeXml(str: string): string {
   return str
@@ -116,6 +127,26 @@ export function generateDrawioXml(
     const iconBase64 = btoa(rawSvg);
     const iconId = nextId++;
     cells.push(`      <mxCell id="${iconId}" value="" style="shape=image;image=data:image/svg+xml;base64,${iconBase64};imageWidth=20;imageHeight=20;" vertex="1" parent="${serviceId}"><mxGeometry x="4" y="${(sh - 24) / 2}" width="24" height="24" as="geometry"/></mxCell>`);
+  }
+
+  // Generate cloud node cells
+  for (const node of nodes) {
+    if (node.type !== 'cloudNode') continue;
+
+    const data = node.data as Record<string, unknown>;
+    const provider = String(data.provider ?? '');
+    const fillColor = resolveCloudColor(provider);
+    const label = escapeXml(provider);
+
+    const cx = node.position.x;
+    const cy = node.position.y;
+    const cw = node.width ?? (node.style as Record<string, number>)?.width ?? 160;
+    const ch = node.height ?? (node.style as Record<string, number>)?.height ?? 50;
+
+    const cloudId = nextId++;
+    nodeIdMap.set(node.id, cloudId);
+
+    cells.push(`      <mxCell id="${cloudId}" value="${label}" style="rounded=1;fillColor=${fillColor};fontColor=#FFFFFF;fontSize=10;fontStyle=1;fontFamily=Arial;whiteSpace=wrap;" vertex="1" parent="1"><mxGeometry x="${cx}" y="${cy}" width="${cw}" height="${ch}" as="geometry"/></mxCell>`);
   }
 
   return `<?xml version="1.0" encoding="UTF-8"?>

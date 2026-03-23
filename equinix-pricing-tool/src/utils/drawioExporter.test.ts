@@ -94,6 +94,24 @@ describe('generateDrawioXml', () => {
     expect(xml).toContain('data:image/svg+xml;base64,');
   });
 
+  it('generates cloud node with brand color derived from provider name', () => {
+    const nodes: Node[] = [
+      {
+        id: 'cloud-aws-1',
+        type: 'cloudNode',
+        position: { x: 600, y: 100 },
+        data: { provider: 'AWS Direct Connect', cloudRegion: 'us-east-1', cloudMetro: 'DC' },
+        style: { width: 160, height: 50 },
+        width: 160,
+        height: 50,
+      },
+    ];
+    const xml = generateDrawioXml(emptyProject, nodes, []);
+    expect(xml).toContain('AWS Direct Connect');
+    expect(xml).toContain('#FF9900'); // looked up from CLOUD_PROVIDER_COLORS via fuzzy match
+    expect(xml).toContain('rounded=1');
+  });
+
   it('uses correct region colors', () => {
     const project = { ...emptyProject, metros: [makeMetro('LN', 'EMEA')] };
     const nodes: Node[] = [
