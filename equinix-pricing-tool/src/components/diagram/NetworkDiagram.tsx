@@ -189,40 +189,6 @@ export function NetworkDiagram() {
   // Import dialog state
   const [showImportDialog, setShowImportDialog] = useState(false);
 
-  // Post-login import toast state
-  const [showImportToast, setShowImportToast] = useState(false);
-  const isAuthenticated = useConfigStore((s) => s.auth.isAuthenticated);
-  const hasMetros = useConfigStore((s) => s.project.metros.length > 0);
-  const activeTab = useConfigStore((s) => s.ui.activeTab);
-  const prevAuthRef = useRef(false);
-
-  // Show toast after login if project is empty
-  useEffect(() => {
-    if (isAuthenticated && !prevAuthRef.current && !hasMetros) {
-      setShowImportToast(true);
-    }
-    prevAuthRef.current = isAuthenticated;
-  }, [isAuthenticated, hasMetros]);
-
-  // Auto-dismiss when user adds a metro
-  useEffect(() => {
-    if (hasMetros && showImportToast) setShowImportToast(false);
-  }, [hasMetros, showImportToast]);
-
-  // Auto-dismiss on tab change
-  useEffect(() => {
-    if (showImportToast) setShowImportToast(false);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
-
-  // Auto-dismiss after 15 seconds
-  useEffect(() => {
-    if (showImportToast) {
-      const timer = setTimeout(() => setShowImportToast(false), 15000);
-      return () => clearTimeout(timer);
-    }
-  }, [showImportToast]);
-
   // Controlled nodes + edges state
   const [reactFlowNodes, setReactFlowNodes] = useState<Node[]>([]);
   const [reactFlowEdges, setReactFlowEdges] = useState<Edge[]>([]);
@@ -952,18 +918,6 @@ export function NetworkDiagram() {
           }`}
         >
           {toast.message}
-        </div>
-      )}
-
-      {/* Post-login import toast */}
-      {showImportToast && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-white border border-gray-200 rounded-lg shadow-lg px-4 py-3 flex items-center gap-3">
-          <p className="text-xs text-gray-700">Import your existing Equinix environment?</p>
-          <button
-            onClick={() => { setShowImportToast(false); setShowImportDialog(true); }}
-            className="px-3 py-1 bg-equinix-black text-white text-[10px] font-medium rounded-md hover:bg-gray-800 transition-colors"
-          >Import</button>
-          <button onClick={() => setShowImportToast(false)} className="text-gray-400 hover:text-gray-600 text-sm">&times;</button>
         </div>
       )}
 

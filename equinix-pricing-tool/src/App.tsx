@@ -18,6 +18,7 @@ import { authenticate } from '@/api/auth';
 import { setDefaultPricing, setDefaultLocations, hasDefaultPricing } from '@/data/defaultPricing';
 import { ChangelogModal, CURRENT_VERSION, RELEASE_DATE } from '@/components/shared/ChangelogModal';
 import { WalkthroughDialog, hasSeenWalkthrough } from '@/components/shared/WalkthroughDialog';
+import { EnvironmentImportDialog } from '@/components/import/EnvironmentImportDialog';
 import { PricingModeToggle } from '@/components/shared/PricingModeToggle';
 import { usePricing } from '@/hooks/usePricing';
 import type { ProjectConfig } from '@/types/config';
@@ -73,6 +74,7 @@ function App() {
   const [importResult, setImportResult] = useState<ParseResult | null>(null);
   const [showChangelog, setShowChangelog] = useState(false);
   const [showWalkthrough, setShowWalkthrough] = useState(() => !hasSeenWalkthrough());
+  const [showEnvImport, setShowEnvImport] = useState(false);
   const [metrosCollapsed, setMetrosCollapsed] = useState(() => localStorage.getItem('panel-metros-collapsed') === '1');
   const [pricingCollapsed, setPricingCollapsed] = useState(() => localStorage.getItem('panel-pricing-collapsed') === '1');
 
@@ -261,6 +263,11 @@ function App() {
         }} />
       )}
 
+      {/* Environment Import Dialog */}
+      {showEnvImport && (
+        <EnvironmentImportDialog open={showEnvImport} onClose={() => setShowEnvImport(false)} />
+      )}
+
       {/* Desktop layout: 4-panel with collapsible metros & pricing */}
       <div className="hidden lg:flex flex-1 overflow-hidden">
         {/* Panel 1: Metro list (collapsible) */}
@@ -298,8 +305,23 @@ function App() {
         {/* Panel 2: Service config for selected metro */}
         <div className="w-[360px] border-r border-gray-200 overflow-y-auto flex-shrink-0" data-walkthrough="services-panel">
           {selectedMetros.length === 0 ? (
-            <div className="flex items-center justify-center h-full">
+            <div className="flex flex-col items-center justify-center h-full gap-4 px-6">
               <p className="text-gray-400 text-sm">Select a metro to configure services</p>
+              <div className="w-full max-w-[280px] border border-gray-200 rounded-lg p-4 text-center">
+                <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-gray-100 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                  </svg>
+                </div>
+                <p className="text-xs font-medium text-gray-700 mb-1">Have an existing Equinix environment?</p>
+                <p className="text-[10px] text-gray-400 mb-3">Import your ports, connections, routers, and devices from the Equinix API</p>
+                <button
+                  onClick={() => setShowEnvImport(true)}
+                  className="w-full px-3 py-2 bg-equinix-black text-white text-xs font-medium rounded-md hover:bg-gray-800 transition-colors"
+                >
+                  Import from API
+                </button>
+              </div>
             </div>
           ) : (
             <>
@@ -378,7 +400,19 @@ function App() {
           {activeTab === 'services' && (
             <div>
               {selectedMetros.length === 0 ? (
-                <p className="text-center text-gray-400 text-sm p-8">Select metros first</p>
+                <div className="flex flex-col items-center gap-4 p-8">
+                  <p className="text-gray-400 text-sm">Select metros first</p>
+                  <div className="w-full max-w-[280px] border border-gray-200 rounded-lg p-4 text-center">
+                    <p className="text-xs font-medium text-gray-700 mb-1">Have an existing Equinix environment?</p>
+                    <p className="text-[10px] text-gray-400 mb-3">Import your ports, connections, routers, and devices from the Equinix API</p>
+                    <button
+                      onClick={() => setShowEnvImport(true)}
+                      className="w-full px-3 py-2 bg-equinix-black text-white text-xs font-medium rounded-md hover:bg-gray-800 transition-colors"
+                    >
+                      Import from API
+                    </button>
+                  </div>
+                </div>
               ) : (
                 <>
                   <div className="flex gap-1 px-4 pt-3 overflow-x-auto">
