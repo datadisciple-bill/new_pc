@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 
-export const CURRENT_VERSION = 13.5;
-export const RELEASE_DATE = new Date('2026-03-23T00:00:00');
+export const CURRENT_VERSION = 14;
+export const RELEASE_DATE = new Date('2026-04-02T00:00:00');
 
 interface ChangelogEntry {
   version: number;
@@ -10,6 +10,17 @@ interface ChangelogEntry {
 }
 
 const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: 14,
+    date: 'Apr 2, 2026',
+    items: [
+      'Import Existing Environment — log in with your Equinix API credentials and import your existing ports, connections, cloud routers, and network edge devices directly into the diagram',
+      'Progressive discovery — see a summary of your environment across all metros, then select which ones to import',
+      'Existing vs New visual distinction — imported resources appear with a green dashed border and "EXISTING" label; new services show a red "NEW" label so you can clearly show what\'s changing',
+      'Post-login prompt — a non-intrusive toast offers to import your environment after you authenticate',
+      'Import button in the diagram toolbar for re-importing at any time',
+    ],
+  },
   {
     version: 13.5,
     date: 'Mar 23, 2026',
