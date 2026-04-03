@@ -15,6 +15,7 @@ interface CustomEdgeData {
   showPricing?: boolean;
   isSameMetro?: boolean;
   isRedundant?: boolean;
+  isExisting?: boolean;
   [key: string]: unknown;
 }
 
@@ -160,18 +161,19 @@ export function CustomEdge({
 
   const hasLabel = edgeData.labelLine1;
   const isRedundant = edgeData.isRedundant === true;
+  const isExisting = edgeData.isExisting === true;
   const canDelete = !!edgeData.connectionId;
 
   // Double-line effect: outer thick stroke + white inner stroke
-  const strokeColor = (style?.stroke as string) ?? '#000000';
-  const dashArray = style?.strokeDasharray as string | undefined;
+  const strokeColor = isExisting ? '#33A85C' : (style?.stroke as string) ?? '#000000';
+  const dashArray = isExisting ? '6,4' : (style?.strokeDasharray as string | undefined);
 
   return (
     <>
       {isRedundant ? (
         <>
           {/* Outer thick stroke */}
-          <BaseEdge id={id} path={edgePath} style={{ ...style, strokeWidth: 5, pointerEvents: 'none' }} markerEnd={markerEnd} />
+          <BaseEdge id={id} path={edgePath} style={{ ...style, stroke: strokeColor, strokeWidth: 5, pointerEvents: 'none' }} markerEnd={markerEnd} />
           {/* White inner gap to create double-line effect */}
           <path
             d={edgePath}

@@ -178,6 +178,7 @@ export function buildDiagramLayout(
           config: service.config,
           pricing: service.pricing,
           showPricing,
+          isExisting: service.isExisting ?? false,
         },
         parentId: `metro-${metro.metroCode}`,
         style: { width: SERVICE_NODE_WIDTH, height: nodeHeight },
@@ -512,6 +513,7 @@ export function buildDiagramLayout(
         showPricing,
         isSameMetro,
         isRedundant: conn.redundant,
+        isExisting: conn.isExisting ?? false,
       },
       zIndex: 5,
     });
