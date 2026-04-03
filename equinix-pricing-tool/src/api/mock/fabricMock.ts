@@ -1,4 +1,4 @@
-import type { Metro, PriceSearchResponse, ServiceProfile, RouterPackage } from '@/types/equinix';
+import type { Metro, PriceSearchResponse, ServiceProfile, RouterPackage, PortResponse, ConnectionResponse, RouterResponse } from '@/types/equinix';
 import { lookupPortPrice, lookupVCPrice, lookupVCPairPrice, lookupCloudRouterPrice } from '@/data/defaultPricing';
 
 export function mockMetros(): Metro[] {
@@ -249,5 +249,103 @@ export function mockRouterPackages(): RouterPackage[] {
     { code: 'STANDARD', name: 'Standard', description: 'Standard routing package' },
     { code: 'ADVANCED', name: 'Advanced', description: 'Advanced routing with larger route tables' },
     { code: 'PREMIUM', name: 'Premium', description: 'Premium routing with full feature set' },
+  ];
+}
+
+export function mockPorts(): PortResponse[] {
+  return [
+    // DA — redundant 10G pair
+    {
+      uuid: 'port-da1-001', name: 'DA1-10G-Primary', type: 'XF_PORT', state: 'ACTIVE',
+      location: { metroCode: 'DA', metroName: 'Dallas' },
+      encapsulation: { type: 'DOT1Q' }, physicalPortSpeed: 10000, physicalPortQuantity: 1,
+      redundancy: { enabled: true, group: 'red-group-da1-10g' }, account: { orgId: 'org-001' },
+    },
+    {
+      uuid: 'port-da1-002', name: 'DA1-10G-Secondary', type: 'XF_PORT', state: 'ACTIVE',
+      location: { metroCode: 'DA', metroName: 'Dallas' },
+      encapsulation: { type: 'DOT1Q' }, physicalPortSpeed: 10000, physicalPortQuantity: 1,
+      redundancy: { enabled: true, group: 'red-group-da1-10g' }, account: { orgId: 'org-001' },
+    },
+    // SV — single 1G port
+    {
+      uuid: 'port-sv5-001', name: 'SV5-1G-Single', type: 'XF_PORT', state: 'ACTIVE',
+      location: { metroCode: 'SV', metroName: 'Silicon Valley' },
+      encapsulation: { type: 'QINQ' }, physicalPortSpeed: 1000, physicalPortQuantity: 1,
+      redundancy: { enabled: false, group: '' }, account: { orgId: 'org-001' },
+    },
+    // LD — 10G single
+    {
+      uuid: 'port-ld5-001', name: 'LD5-10G-Single', type: 'XF_PORT', state: 'ACTIVE',
+      location: { metroCode: 'LD', metroName: 'London' },
+      encapsulation: { type: 'DOT1Q' }, physicalPortSpeed: 10000, physicalPortQuantity: 1,
+      redundancy: { enabled: false, group: '' }, account: { orgId: 'org-001' },
+    },
+    // SG — redundant 1G pair
+    {
+      uuid: 'port-sg1-001', name: 'SG1-1G-Primary', type: 'XF_PORT', state: 'ACTIVE',
+      location: { metroCode: 'SG', metroName: 'Singapore' },
+      encapsulation: { type: 'DOT1Q' }, physicalPortSpeed: 1000, physicalPortQuantity: 1,
+      redundancy: { enabled: true, group: 'red-group-sg1-1g' }, account: { orgId: 'org-001' },
+    },
+    {
+      uuid: 'port-sg1-002', name: 'SG1-1G-Secondary', type: 'XF_PORT', state: 'ACTIVE',
+      location: { metroCode: 'SG', metroName: 'Singapore' },
+      encapsulation: { type: 'DOT1Q' }, physicalPortSpeed: 1000, physicalPortQuantity: 1,
+      redundancy: { enabled: true, group: 'red-group-sg1-1g' }, account: { orgId: 'org-001' },
+    },
+    // DA — deprovisioned port (should be filtered out by import logic)
+    {
+      uuid: 'port-da1-old', name: 'DA1-1G-Decom', type: 'XF_PORT', state: 'DEPROVISIONED',
+      location: { metroCode: 'DA', metroName: 'Dallas' },
+      encapsulation: { type: 'DOT1Q' }, physicalPortSpeed: 1000, physicalPortQuantity: 1,
+      redundancy: { enabled: false, group: '' }, account: { orgId: 'org-001' },
+    },
+  ];
+}
+
+export function mockRouters(): RouterResponse[] {
+  return [
+    {
+      uuid: 'router-da1-001', name: 'DA1-FCR-Standard', state: 'PROVISIONED',
+      location: { metroCode: 'DA', metroName: 'Dallas' }, package: { code: 'STANDARD' },
+    },
+    {
+      uuid: 'router-sv5-001', name: 'SV5-FCR-Premium', state: 'PROVISIONED',
+      location: { metroCode: 'SV', metroName: 'Silicon Valley' }, package: { code: 'PREMIUM' },
+    },
+    {
+      uuid: 'router-ld5-001', name: 'LD5-FCR-Standard', state: 'PROVISIONED',
+      location: { metroCode: 'LD', metroName: 'London' }, package: { code: 'STANDARD' },
+    },
+  ];
+}
+
+export function mockConnections(): ConnectionResponse[] {
+  return [
+    // DA to SV — EVPL_VC via ports
+    {
+      uuid: 'conn-001', name: 'DA-SV-EVPL-1G', type: 'EVPL_VC', state: 'ACTIVE', bandwidth: 1000,
+      aSide: { accessPoint: { type: 'COLO', port: { uuid: 'port-da1-001' }, location: { metroCode: 'DA' } } },
+      zSide: { accessPoint: { type: 'COLO', port: { uuid: 'port-sv5-001' }, location: { metroCode: 'SV' } } },
+    },
+    // DA to LD — IP_VC via routers
+    {
+      uuid: 'conn-002', name: 'DA-LD-IP-500M', type: 'IP_VC', state: 'ACTIVE', bandwidth: 500,
+      aSide: { accessPoint: { type: 'CLOUD_ROUTER', router: { uuid: 'router-da1-001' }, location: { metroCode: 'DA' } } },
+      zSide: { accessPoint: { type: 'CLOUD_ROUTER', router: { uuid: 'router-ld5-001' }, location: { metroCode: 'LD' } } },
+    },
+    // SG to DA — EVPL_VC via ports
+    {
+      uuid: 'conn-003', name: 'SG-DA-EVPL-100M', type: 'EVPL_VC', state: 'ACTIVE', bandwidth: 100,
+      aSide: { accessPoint: { type: 'COLO', port: { uuid: 'port-sg1-001' }, location: { metroCode: 'SG' } } },
+      zSide: { accessPoint: { type: 'COLO', port: { uuid: 'port-da1-001' }, location: { metroCode: 'DA' } } },
+    },
+    // Deprovisioned connection (should be filtered out)
+    {
+      uuid: 'conn-old', name: 'OLD-Connection', type: 'EVPL_VC', state: 'DEPROVISIONED', bandwidth: 50,
+      aSide: { accessPoint: { type: 'COLO', port: { uuid: 'port-da1-old' }, location: { metroCode: 'DA' } } },
+      zSide: { accessPoint: { type: 'COLO', port: { uuid: 'port-sv5-001' }, location: { metroCode: 'SV' } } },
+    },
   ];
 }
