@@ -1,8 +1,8 @@
 import { apiRequest } from './client';
 import { useConfigStore } from '@/store/configStore';
-import type { MetrosResponse, Metro, PriceSearchResponse, ServiceProfile, RouterPackage } from '@/types/equinix';
+import type { MetrosResponse, Metro, PriceSearchResponse, ServiceProfile, RouterPackage, PortResponse, ConnectionResponse, RouterResponse, PaginatedResponse } from '@/types/equinix';
 import { useMockData } from './mock/useMock';
-import { mockMetros, mockPriceSearch, mockServiceProfiles, mockRouterPackages } from './mock/fabricMock';
+import { mockMetros, mockPriceSearch, mockServiceProfiles, mockRouterPackages, mockPorts, mockConnections, mockRouters } from './mock/fabricMock';
 
 export async function fetchMetros(): Promise<Metro[]> {
   const cache = useConfigStore.getState().cache;
@@ -80,4 +80,35 @@ export async function searchPrices(
     method: 'POST',
     body,
   });
+}
+
+async function fetchAllPages<T>(basePath: string, limit = 100): Promise<T[]> {
+  const allItems: T[] = [];
+  let offset = 0;
+  let total = Infinity;
+
+  while (offset < total) {
+    const response = await apiRequest<PaginatedResponse<T>>(
+      `${basePath}?offset=${offset}&limit=${limit}`
+    );
+    allItems.push(...response.data);
+    total = response.pagination.total;
+    offset += response.data.length;
+  }
+  return allItems;
+}
+
+export async function fetchPorts(): Promise<PortResponse[]> {
+  if (useMockData()) return mockPorts();
+  return fetchAllPages<PortResponse>('/fabric/v4/ports');
+}
+
+export async function fetchConnections(): Promise<ConnectionResponse[]> {
+  if (useMockData()) return mockConnections();
+  return fetchAllPages<ConnectionResponse>('/fabric/v4/connections');
+}
+
+export async function fetchRouters(): Promise<RouterResponse[]> {
+  if (useMockData()) return mockRouters();
+  return fetchAllPages<RouterResponse>('/fabric/v4/routers');
 }
