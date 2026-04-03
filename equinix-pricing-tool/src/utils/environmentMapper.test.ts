@@ -66,6 +66,9 @@ describe('mapPortsToServices', () => {
 
     const test100G = mapPortsToServices([makePort(100000)]);
     expect((test100G[0].config as { speed: string }).speed).toBe('100G');
+
+    const test400G = mapPortsToServices([makePort(400000)]);
+    expect((test400G[0].config as { speed: string }).speed).toBe('400G');
   });
 });
 
@@ -145,6 +148,18 @@ describe('mapConnectionToVC', () => {
     expect(result.warnings[0]).toContain('port-unknown');
     expect(result.connection.aSide.serviceId).toBe('svc-aaa');
     expect(result.connection.zSide.serviceId).toBe('');
+  });
+
+  it('warns when router endpoint is unimported', () => {
+    const conn: ConnectionResponse = {
+      uuid: 'c4', name: 'Router-Missing', type: 'IP_VC', state: 'ACTIVE', bandwidth: 500,
+      aSide: { accessPoint: { type: 'CLOUD_ROUTER', router: { uuid: 'router-known' }, location: { metroCode: 'DA' } } },
+      zSide: { accessPoint: { type: 'CLOUD_ROUTER', router: { uuid: 'router-unknown' }, location: { metroCode: 'LD' } } },
+    };
+    const serviceIdMap = new Map([['router-known', 'svc-r1']]);
+    const result = mapConnectionToVC(conn, serviceIdMap);
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings[0]).toContain('router-unknown');
   });
 
   it('resolves router-based endpoints', () => {

@@ -134,10 +134,10 @@ export function mapConnectionToVC(
   const zSide = resolveEndpoint(conn.zSide.accessPoint, serviceIdMap);
 
   if (aSide.serviceId === '') {
-    warnings.push(`A-side endpoint references unimported resource (${conn.aSide.accessPoint.port?.uuid ?? conn.aSide.accessPoint.router?.uuid ?? 'unknown'})`);
+    warnings.push(`A-side endpoint references unimported resource (${conn.aSide.accessPoint.port?.uuid ?? conn.aSide.accessPoint.router?.uuid ?? conn.aSide.accessPoint.profile?.uuid ?? 'unknown'})`);
   }
   if (zSide.serviceId === '') {
-    warnings.push(`Z-side endpoint references unimported resource (${conn.zSide.accessPoint.port?.uuid ?? conn.zSide.accessPoint.router?.uuid ?? 'unknown'})`);
+    warnings.push(`Z-side endpoint references unimported resource (${conn.zSide.accessPoint.port?.uuid ?? conn.zSide.accessPoint.router?.uuid ?? conn.zSide.accessPoint.profile?.uuid ?? 'unknown'})`);
   }
 
   const connection: VirtualConnection = {
@@ -147,7 +147,7 @@ export function mapConnectionToVC(
     aSide,
     zSide,
     bandwidthMbps: conn.bandwidth,
-    redundant: conn.redundancy?.priority === 'PRIMARY',
+    redundant: conn.redundancy != null,
     pricing: null,
     showPriceTable: false,
     priceTable: null,
