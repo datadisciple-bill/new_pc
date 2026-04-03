@@ -118,6 +118,8 @@ export function buildDiagramLayout(
     cumulativeY += rowMaxHeights[r] + METRO_GAP_Y;
   }
 
+  const hasAnyExisting = metros.some((m) => m.services.some((s) => s.isExisting));
+
   metros.forEach((metro, metroIndex) => {
     const col = metroIndex % METROS_PER_ROW;
     const row = Math.floor(metroIndex / METROS_PER_ROW);
@@ -179,6 +181,7 @@ export function buildDiagramLayout(
           pricing: service.pricing,
           showPricing,
           isExisting: service.isExisting ?? false,
+          hasAnyExisting,
         },
         parentId: `metro-${metro.metroCode}`,
         style: { width: SERVICE_NODE_WIDTH, height: nodeHeight },

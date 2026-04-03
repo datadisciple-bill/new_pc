@@ -18,6 +18,7 @@ interface ServiceNodeData {
   pricing: PricingResult | null;
   showPricing: boolean;
   isExisting?: boolean;
+  hasAnyExisting?: boolean;
   [key: string]: unknown;
 }
 
@@ -32,7 +33,7 @@ const SERVICE_ICON_URLS: Record<string, string> = {
 };
 
 export const ServiceNode = memo(function ServiceNode({ data }: NodeProps) {
-  const { serviceType, config, pricing, showPricing, isExisting } = data as ServiceNodeData;
+  const { serviceType, config, pricing, showPricing, isExisting, hasAnyExisting } = data as ServiceNodeData;
   const label = SERVICE_TYPE_LABELS[serviceType as string] ?? serviceType;
   const iconUrl = SERVICE_ICON_URLS[serviceType as string];
 
@@ -96,6 +97,11 @@ export const ServiceNode = memo(function ServiceNode({ data }: NodeProps) {
       {isExisting && (
         <div className="absolute -top-4 left-0 text-[8px] font-bold tracking-wide" style={{ color: '#33A85C' }}>
           &#9679; EXISTING
+        </div>
+      )}
+      {!isExisting && hasAnyExisting && (
+        <div className="absolute -top-4 left-0 text-[8px] font-bold tracking-wide" style={{ color: '#E91C24' }}>
+          &#9679; NEW
         </div>
       )}
     <div

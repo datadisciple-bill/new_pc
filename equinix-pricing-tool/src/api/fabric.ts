@@ -82,7 +82,7 @@ export async function searchPrices(
   });
 }
 
-async function fetchAllPages<T>(basePath: string, limit = 100): Promise<T[]> {
+export async function fetchAllPages<T>(basePath: string, limit = 100): Promise<T[]> {
   const allItems: T[] = [];
   let offset = 0;
   let total = Infinity;
@@ -94,6 +94,7 @@ async function fetchAllPages<T>(basePath: string, limit = 100): Promise<T[]> {
     allItems.push(...response.data);
     total = response.pagination.total;
     offset += response.data.length;
+    if (response.data.length === 0) break; // safety valve against infinite loop
   }
   return allItems;
 }

@@ -79,7 +79,7 @@ export function mapRouterToService(router: RouterResponse): ServiceSelection {
 export function mapDeviceToService(device: DeviceResponse): ServiceSelection {
   const config: NetworkEdgeConfig = {
     deviceTypeCode: device.deviceTypeCode,
-    deviceTypeName: device.name,
+    deviceTypeName: device.deviceTypeCode,
     vendorName: device.vendorName,
     packageCode: device.packageCode,
     coreMemory: `${device.coreCount} Cores`,
