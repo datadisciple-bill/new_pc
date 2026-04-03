@@ -1,4 +1,4 @@
-import type { DeviceType, NetworkEdgePriceResponse } from '@/types/equinix';
+import type { DeviceType, NetworkEdgePriceResponse, DeviceResponse } from '@/types/equinix';
 import { lookupNEPrice } from '@/data/defaultPricing';
 
 // All metro codes from the mock metros list — NE devices are broadly available
@@ -147,4 +147,34 @@ export function mockNetworkEdgePricing(
     currency: 'USD',
     termLength,
   };
+}
+
+export function mockDevices(): DeviceResponse[] {
+  return [
+    {
+      uuid: 'device-da1-001', name: 'DA1-CSR1000v', status: 'PROVISIONED', metroCode: 'DA',
+      deviceTypeCode: 'CSR1000V', vendorName: 'Cisco', packageCode: 'SEC',
+      coreCount: 4, softwareVersion: '17.3.4a', licenseType: 'SUBSCRIPTION',
+      redundant: false, termLength: 12,
+    },
+    {
+      uuid: 'device-sv5-001', name: 'SV5-PA-VM-300', status: 'PROVISIONED', metroCode: 'SV',
+      deviceTypeCode: 'PA-VM', vendorName: 'Palo Alto', packageCode: 'VM-300',
+      coreCount: 4, softwareVersion: '10.2.3', licenseType: 'BYOL',
+      redundant: true, termLength: 24,
+    },
+    {
+      uuid: 'device-ld5-001', name: 'LD5-VSRX', status: 'PROVISIONED', metroCode: 'LD',
+      deviceTypeCode: 'VSRX', vendorName: 'Juniper', packageCode: 'STD',
+      coreCount: 2, softwareVersion: '21.4R1', licenseType: 'SUBSCRIPTION',
+      redundant: false, termLength: 12,
+    },
+    // Deprovisioned (should be filtered)
+    {
+      uuid: 'device-old', name: 'OLD-Device', status: 'DEPROVISIONED', metroCode: 'DA',
+      deviceTypeCode: 'CSR1000V', vendorName: 'Cisco', packageCode: 'SEC',
+      coreCount: 2, softwareVersion: '17.3.4a', licenseType: 'SUBSCRIPTION',
+      redundant: false, termLength: 12,
+    },
+  ];
 }

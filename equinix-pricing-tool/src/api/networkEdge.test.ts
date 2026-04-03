@@ -9,7 +9,7 @@ vi.mock('./client', () => ({
   apiRequest: vi.fn(),
 }));
 
-import { fetchDeviceTypes, fetchDeviceTypesForMetro, fetchNetworkEdgePricing } from './networkEdge';
+import { fetchDeviceTypes, fetchDeviceTypesForMetro, fetchNetworkEdgePricing, fetchDevices } from './networkEdge';
 import { useMockData } from './mock/useMock';
 import { apiRequest } from './client';
 
@@ -135,6 +135,27 @@ describe('networkEdge API', () => {
       expect(callPath).toContain('core=4');
       expect(callPath).toContain('softwarePackage=PA_NGFW');
       expect(callPath).toContain('licenseType=BYOL');
+    });
+  });
+
+  describe('fetchDevices', () => {
+    it('returns mock devices when in mock mode', async () => {
+      (useMockData as ReturnType<typeof vi.fn>).mockReturnValue(true);
+      const devices = await fetchDevices();
+      expect(devices.length).toBeGreaterThan(0);
+      expect(devices[0]).toHaveProperty('uuid');
+      expect(devices[0]).toHaveProperty('deviceTypeCode');
+    });
+
+    it('calls devices API with pagination when not in mock mode', async () => {
+      (useMockData as ReturnType<typeof vi.fn>).mockReturnValue(false);
+      (apiRequest as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        pagination: { offset: 0, limit: 100, total: 1 },
+        data: [{ uuid: 'd1', name: 'Device1', status: 'PROVISIONED', metroCode: 'DA', deviceTypeCode: 'CSR1000V', vendorName: 'Cisco', packageCode: 'SEC', coreCount: 4, softwareVersion: '17.3', licenseType: 'SUBSCRIPTION', redundant: false, termLength: 12 }],
+      });
+      const devices = await fetchDevices();
+      expect(apiRequest).toHaveBeenCalledWith('/ne/v1/devices?offset=0&limit=100');
+      expect(devices).toHaveLength(1);
     });
   });
 });

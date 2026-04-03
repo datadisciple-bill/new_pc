@@ -17,6 +17,8 @@ interface ServiceNodeData {
   config: Record<string, unknown>;
   pricing: PricingResult | null;
   showPricing: boolean;
+  isExisting?: boolean;
+  hasAnyExisting?: boolean;
   [key: string]: unknown;
 }
 
@@ -31,7 +33,7 @@ const SERVICE_ICON_URLS: Record<string, string> = {
 };
 
 export const ServiceNode = memo(function ServiceNode({ data }: NodeProps) {
-  const { serviceType, config, pricing, showPricing } = data as ServiceNodeData;
+  const { serviceType, config, pricing, showPricing, isExisting, hasAnyExisting } = data as ServiceNodeData;
   const label = SERVICE_TYPE_LABELS[serviceType as string] ?? serviceType;
   const iconUrl = SERVICE_ICON_URLS[serviceType as string];
 
@@ -91,7 +93,21 @@ export const ServiceNode = memo(function ServiceNode({ data }: NodeProps) {
   }
 
   return (
-    <div className="rounded-md overflow-hidden shadow-sm border border-gray-200 bg-white" style={{ width: '100%', height: '100%' }}>
+    <>
+      {isExisting && (
+        <div className="absolute -top-4 left-0 text-[8px] font-bold tracking-wide" style={{ color: '#33A85C' }}>
+          &#9679; EXISTING
+        </div>
+      )}
+      {!isExisting && hasAnyExisting && (
+        <div className="absolute -top-4 left-0 text-[8px] font-bold tracking-wide" style={{ color: '#E91C24' }}>
+          &#9679; NEW
+        </div>
+      )}
+    <div
+      className={`rounded-md overflow-hidden shadow-sm bg-white ${isExisting ? 'border-2 border-dashed' : 'border border-gray-200'}`}
+      style={{ width: '100%', height: '100%', ...(isExisting ? { borderColor: '#33A85C' } : {}) }}
+    >
       {/* Black Equinix product bar */}
       <div className="bg-equinix-black text-white px-2 py-1 flex items-center gap-1.5">
         {iconUrl ? (
@@ -151,5 +167,6 @@ export const ServiceNode = memo(function ServiceNode({ data }: NodeProps) {
       <Handle type="target" position={Position.Bottom} id="bottom-target" className="!bg-equinix-black !w-2 !h-2 hover:!w-3 hover:!h-3 hover:!ring-2 hover:!ring-equinix-green transition-all cursor-crosshair" />
       <Handle type="source" position={Position.Bottom} id="bottom-source" className="!bg-equinix-black !w-2 !h-2 hover:!w-3 hover:!h-3 hover:!ring-2 hover:!ring-equinix-green transition-all cursor-crosshair" />
     </div>
+    </>
   );
 });

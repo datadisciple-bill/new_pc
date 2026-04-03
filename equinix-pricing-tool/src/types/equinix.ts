@@ -105,3 +105,74 @@ export interface RouterPackage {
   name: string;
   description: string;
 }
+
+// --- Environment Import: raw API response types ---
+
+export interface PortResponse {
+  uuid: string;
+  name: string;
+  type: string;
+  state: string;
+  location: { metroCode: string; metroName: string };
+  encapsulation: { type: 'DOT1Q' | 'QINQ' };
+  physicalPortSpeed: number;
+  physicalPortQuantity: number;
+  redundancy: { enabled: boolean; group: string };
+  account: { orgId: string };
+}
+
+export interface ConnectionResponse {
+  uuid: string;
+  name: string;
+  type: 'EVPL_VC' | 'IP_VC' | 'EVPLAN_VC' | 'EPLAN_VC' | 'EVPTREE_VC' | 'EPTREE_VC';
+  state: string;
+  bandwidth: number;
+  aSide: {
+    accessPoint: {
+      type: string;
+      port?: { uuid: string };
+      router?: { uuid: string };
+      profile?: { uuid: string };
+      location?: { metroCode: string };
+    };
+  };
+  zSide: {
+    accessPoint: {
+      type: string;
+      port?: { uuid: string };
+      router?: { uuid: string };
+      profile?: { uuid: string };
+      location?: { metroCode: string };
+    };
+  };
+  redundancy?: { group: string; priority: 'PRIMARY' | 'SECONDARY' };
+}
+
+export interface RouterResponse {
+  uuid: string;
+  name: string;
+  state: string;
+  location: { metroCode: string; metroName: string };
+  package: { code: 'STANDARD' | 'PREMIUM' };
+  order?: { purchaseOrderNumber: string };
+}
+
+export interface DeviceResponse {
+  uuid: string;
+  name: string;
+  status: string;
+  metroCode: string;
+  deviceTypeCode: string;
+  vendorName: string;
+  packageCode: string;
+  coreCount: number;
+  softwareVersion: string;
+  licenseType: 'BYOL' | 'SUBSCRIPTION';
+  redundant: boolean;
+  termLength: number;
+}
+
+export interface PaginatedResponse<T> {
+  pagination: Pagination;
+  data: T[];
+}

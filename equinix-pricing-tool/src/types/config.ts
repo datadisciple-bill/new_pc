@@ -70,6 +70,8 @@ export interface ServiceSelection {
   type: ServiceType;
   config: FabricPortConfig | NetworkEdgeConfig | InternetAccessConfig | CloudRouterConfig | ColocationConfig | NspConfig | CrossConnectConfig;
   pricing: PricingResult | null;
+  isExisting?: boolean;
+  sourceId?: string;
 }
 
 export interface FabricPortConfig {
@@ -149,6 +151,8 @@ export interface VirtualConnection {
   pricing: PricingResult | null;
   showPriceTable: boolean;
   priceTable: BandwidthPriceEntry[] | null;
+  isExisting?: boolean;
+  sourceId?: string;
 }
 
 export interface BandwidthPriceEntry {
@@ -184,4 +188,22 @@ export interface PricingBreakdownItem {
   description: string;
   mrc: number;
   nrc: number;
+}
+
+export interface EnvironmentInventoryMetro {
+  metroCode: string;
+  metroName: string;
+  region: 'AMER' | 'EMEA' | 'APAC';
+  portCount: number;
+  connectionCount: number;
+  routerCount: number;
+  deviceCount: number;
+}
+
+export interface EnvironmentInventory {
+  metros: EnvironmentInventoryMetro[];
+  totalPorts: number;
+  totalConnections: number;
+  totalRouters: number;
+  totalDevices: number;
 }

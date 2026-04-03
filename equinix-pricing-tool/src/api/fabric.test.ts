@@ -9,7 +9,7 @@ vi.mock('./client', () => ({
   apiRequest: vi.fn(),
 }));
 
-import { fetchMetros, fetchServiceProfiles, fetchRouterPackages, searchPrices } from './fabric';
+import { fetchMetros, fetchServiceProfiles, fetchRouterPackages, searchPrices, fetchPorts, fetchConnections, fetchRouters } from './fabric';
 import { useMockData } from './mock/useMock';
 import { apiRequest } from './client';
 
@@ -170,6 +170,85 @@ describe('fabric API', () => {
       const body = vi.mocked(apiRequest).mock.calls[0][1]?.body as { filter: { and: Array<{ operator: string; property: string }> } };
       const bwFilter = body.filter.and.find((f) => f.property === '/port/bandwidth');
       expect(bwFilter?.operator).toBe('IN');
+    });
+  });
+
+  describe('fetchPorts', () => {
+    it('returns mock ports when in mock mode', async () => {
+      (useMockData as ReturnType<typeof vi.fn>).mockReturnValue(true);
+      const ports = await fetchPorts();
+      expect(ports.length).toBeGreaterThan(0);
+      expect(ports[0]).toHaveProperty('uuid');
+      expect(ports[0]).toHaveProperty('location');
+    });
+
+    it('calls API with pagination when not in mock mode', async () => {
+      (useMockData as ReturnType<typeof vi.fn>).mockReturnValue(false);
+      (apiRequest as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        pagination: { offset: 0, limit: 100, total: 1 },
+        data: [{ uuid: 'p1', name: 'Port1', state: 'ACTIVE', location: { metroCode: 'DA', metroName: 'Dallas' }, encapsulation: { type: 'DOT1Q' }, physicalPortSpeed: 10000, physicalPortQuantity: 1, redundancy: { enabled: false, group: '' }, account: { orgId: 'org1' } }],
+      });
+      const ports = await fetchPorts();
+      expect(apiRequest).toHaveBeenCalledWith('/fabric/v4/ports?offset=0&limit=100');
+      expect(ports).toHaveLength(1);
+    });
+
+    it('handles multiple pages', async () => {
+      (useMockData as ReturnType<typeof vi.fn>).mockReturnValue(false);
+      (apiRequest as ReturnType<typeof vi.fn>)
+        .mockResolvedValueOnce({
+          pagination: { offset: 0, limit: 1, total: 2 },
+          data: [{ uuid: 'p1', name: 'Port1', state: 'ACTIVE', location: { metroCode: 'DA', metroName: 'Dallas' }, encapsulation: { type: 'DOT1Q' }, physicalPortSpeed: 10000, physicalPortQuantity: 1, redundancy: { enabled: false, group: '' }, account: { orgId: 'org1' } }],
+        })
+        .mockResolvedValueOnce({
+          pagination: { offset: 1, limit: 1, total: 2 },
+          data: [{ uuid: 'p2', name: 'Port2', state: 'ACTIVE', location: { metroCode: 'SV', metroName: 'Silicon Valley' }, encapsulation: { type: 'QINQ' }, physicalPortSpeed: 1000, physicalPortQuantity: 1, redundancy: { enabled: false, group: '' }, account: { orgId: 'org1' } }],
+        });
+      const ports = await fetchPorts();
+      expect(ports).toHaveLength(2);
+      expect(apiRequest).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('fetchConnections', () => {
+    it('returns mock connections when in mock mode', async () => {
+      (useMockData as ReturnType<typeof vi.fn>).mockReturnValue(true);
+      const conns = await fetchConnections();
+      expect(conns.length).toBeGreaterThan(0);
+      expect(conns[0]).toHaveProperty('uuid');
+      expect(conns[0]).toHaveProperty('aSide');
+    });
+
+    it('calls connections API when not in mock mode', async () => {
+      (useMockData as ReturnType<typeof vi.fn>).mockReturnValue(false);
+      (apiRequest as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        pagination: { offset: 0, limit: 100, total: 1 },
+        data: [{ uuid: 'c1', name: 'Conn1', type: 'EVPL_VC', state: 'ACTIVE', bandwidth: 1000, aSide: { accessPoint: { type: 'COLO' } }, zSide: { accessPoint: { type: 'COLO' } } }],
+      });
+      const conns = await fetchConnections();
+      expect(apiRequest).toHaveBeenCalledWith('/fabric/v4/connections?offset=0&limit=100');
+      expect(conns).toHaveLength(1);
+    });
+  });
+
+  describe('fetchRouters', () => {
+    it('returns mock routers when in mock mode', async () => {
+      (useMockData as ReturnType<typeof vi.fn>).mockReturnValue(true);
+      const routers = await fetchRouters();
+      expect(routers.length).toBeGreaterThan(0);
+      expect(routers[0]).toHaveProperty('uuid');
+      expect(routers[0]).toHaveProperty('package');
+    });
+
+    it('calls routers API when not in mock mode', async () => {
+      (useMockData as ReturnType<typeof vi.fn>).mockReturnValue(false);
+      (apiRequest as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        pagination: { offset: 0, limit: 100, total: 1 },
+        data: [{ uuid: 'r1', name: 'Router1', state: 'PROVISIONED', location: { metroCode: 'DA', metroName: 'Dallas' }, package: { code: 'STANDARD' } }],
+      });
+      const routers = await fetchRouters();
+      expect(apiRequest).toHaveBeenCalledWith('/fabric/v4/routers?offset=0&limit=100');
+      expect(routers).toHaveLength(1);
     });
   });
 });

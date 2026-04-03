@@ -1,8 +1,9 @@
 import { apiRequest } from './client';
 import { useConfigStore } from '@/store/configStore';
-import type { DeviceType, NetworkEdgePriceResponse } from '@/types/equinix';
+import type { DeviceType, NetworkEdgePriceResponse, DeviceResponse } from '@/types/equinix';
 import { useMockData } from './mock/useMock';
-import { mockDeviceTypes, mockNetworkEdgePricing } from './mock/networkEdgeMock';
+import { mockDeviceTypes, mockNetworkEdgePricing, mockDevices } from './mock/networkEdgeMock';
+import { fetchAllPages } from './fabric';
 
 export async function fetchDeviceTypes(): Promise<DeviceType[]> {
   const cache = useConfigStore.getState().cache;
@@ -48,4 +49,9 @@ export async function fetchNetworkEdgePricing(
   if (licenseType) params.licenseType = licenseType;
   const qs = new URLSearchParams(params);
   return apiRequest<NetworkEdgePriceResponse>(`/ne/v1/prices?${qs}`);
+}
+
+export async function fetchDevices(): Promise<DeviceResponse[]> {
+  if (useMockData()) return mockDevices();
+  return fetchAllPages<DeviceResponse>('/ne/v1/devices');
 }
