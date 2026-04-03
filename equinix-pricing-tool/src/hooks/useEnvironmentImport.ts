@@ -10,7 +10,7 @@ import {
   buildInventory,
 } from '@/utils/environmentMapper';
 import type { PortResponse, ConnectionResponse, RouterResponse, DeviceResponse, Metro } from '@/types/equinix';
-import type { EnvironmentInventory } from '@/types/config';
+import type { EnvironmentInventory, FabricPortConfig, CloudRouterConfig, NetworkEdgeConfig } from '@/types/config';
 
 export type ImportPhase = 'idle' | 'fetching-inventory' | 'selecting' | 'importing' | 'complete' | 'error';
 
@@ -174,7 +174,7 @@ export function useEnvironmentImport() {
         const portServices = mapPortsToServices(metroPorts);
         for (const svc of portServices) {
           const serviceId = currentStore.addService(metroCode, svc.type);
-          currentStore.updateServiceConfig(metroCode, serviceId, svc.config);
+          currentStore.updateServiceConfig(metroCode, serviceId, svc.config as Partial<FabricPortConfig>);
 
           // Set isExisting and sourceId on the service
           useConfigStore.setState((state) => ({
@@ -219,7 +219,7 @@ export function useEnvironmentImport() {
         for (const router of metroRouters) {
           const svc = mapRouterToService(router);
           const serviceId = useConfigStore.getState().addService(metroCode, svc.type);
-          useConfigStore.getState().updateServiceConfig(metroCode, serviceId, svc.config);
+          useConfigStore.getState().updateServiceConfig(metroCode, serviceId, svc.config as Partial<CloudRouterConfig>);
 
           useConfigStore.setState((state) => ({
             project: {
@@ -250,7 +250,7 @@ export function useEnvironmentImport() {
         for (const device of metroDevices) {
           const svc = mapDeviceToService(device);
           const serviceId = useConfigStore.getState().addService(metroCode, svc.type);
-          useConfigStore.getState().updateServiceConfig(metroCode, serviceId, svc.config);
+          useConfigStore.getState().updateServiceConfig(metroCode, serviceId, svc.config as Partial<NetworkEdgeConfig>);
 
           useConfigStore.setState((state) => ({
             project: {
