@@ -35,7 +35,14 @@
       "WebFetch(domain:phoenixnap.com)",
       "WebFetch(domain:www.megaport.com)",
       "WebFetch(domain:chris.elsen.xyz)",
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(find src/components/diagram src/utils src/types src/store -type f -name *.ts -o -name *.tsx)",
+      "Bash(npm install:*)",
+      "Bash(claude update:*)",
+      "Bash(npm update:*)",
+      "Bash(cat ~/.claude/plugins/github*/manifest.json)",
+      "Bash(bash:*)",
+      "Skill(commit-commands:commit)"
     ]
   }
 }
