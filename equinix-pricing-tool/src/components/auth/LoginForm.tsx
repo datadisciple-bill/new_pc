@@ -76,7 +76,7 @@ export function LoginForm() {
           </button>
 
           <p className="text-xs text-gray-400 text-center">
-            Uses mock data in development mode. Set VITE_USE_MOCK=false for live API.
+            Uses bundled offline data in development mode. Set VITE_USE_MOCK=false for live API.
           </p>
         </form>
       </div>

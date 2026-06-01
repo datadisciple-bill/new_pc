@@ -74,7 +74,16 @@ export function MetroSelector({ compact = false }: MetroSelectorProps) {
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
-            {region === 'ALL' ? 'All' : compact ? region : REGION_LABELS[region]}
+            {region === 'ALL' ? (
+              'All'
+            ) : compact ? (
+              region
+            ) : (
+              <>
+                <span className="sm:hidden">{region}</span>
+                <span className="hidden sm:inline">{REGION_LABELS[region]}</span>
+              </>
+            )}
           </button>
         ))}
       </div>

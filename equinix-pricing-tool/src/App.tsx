@@ -20,6 +20,7 @@ import { ChangelogModal, CURRENT_VERSION, RELEASE_DATE } from '@/components/shar
 import { WalkthroughDialog, hasSeenWalkthrough } from '@/components/shared/WalkthroughDialog';
 import { EnvironmentImportDialog } from '@/components/import/EnvironmentImportDialog';
 import { PricingModeToggle } from '@/components/shared/PricingModeToggle';
+import { HeaderActionsMenu } from '@/components/shared/HeaderActionsMenu';
 import { usePricing } from '@/hooks/usePricing';
 import type { ProjectConfig } from '@/types/config';
 import equinixLogo from '@/assets/icons/equinix-logo.svg';
@@ -179,18 +180,18 @@ function App() {
   return (
     <div className="h-dvh flex flex-col bg-white">
       {/* Top header bar */}
-      <header className="bg-equinix-black text-white flex items-center justify-between px-4 py-2 flex-shrink-0">
-        <div className="flex items-center gap-3">
+      <header className="bg-equinix-black text-white flex items-center justify-between gap-2 px-4 py-2 flex-shrink-0">
+        <div className="flex items-center gap-3 min-w-0">
           <img
             src={equinixLogo}
             alt="Equinix"
-            className="h-5 w-auto cursor-pointer hover:opacity-80 transition-opacity"
+            className="h-5 w-auto flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
             title="Restart walkthrough"
             onClick={() => setShowWalkthrough(true)}
           />
-          <h1 className="text-sm font-bold">Equinix GTST Diagram Tool</h1>
+          <h1 className="hidden sm:block text-sm font-bold whitespace-nowrap">Equinix GTST Diagram Tool</h1>
           <span
-            className="text-[10px] text-gray-500 cursor-pointer hover:text-white transition-colors"
+            className="hidden sm:inline text-[10px] text-gray-500 cursor-pointer hover:text-white transition-colors"
             onClick={() => setShowChangelog(true)}
             title="View changelog"
           >v{CURRENT_VERSION}</span>
@@ -199,27 +200,49 @@ function App() {
             value={projectName}
             onChange={(e) => setProjectName(e.target.value)}
             title="Project name"
-            className="bg-transparent border-b border-gray-600 text-sm text-white px-1 py-0.5 focus:outline-none focus:border-equinix-green w-40 sm:w-60"
+            className="bg-transparent border-b border-gray-600 text-sm text-white px-1 py-0.5 focus:outline-none focus:border-equinix-green min-w-0 w-full sm:w-60"
           />
         </div>
-        <div className="flex items-center gap-3" data-walkthrough="header-actions">
+        <div className="flex items-center gap-3 flex-shrink-0" data-walkthrough="header-actions">
           <PricingModeToggle />
-          <ConfigExportImport onImport={setImportResult} />
-          <CsvExport />
-          <button
-            onClick={() => setShowRefreshDialog(true)}
-            className="hidden sm:flex items-center gap-1.5 text-xs text-gray-400 hover:text-white transition-colors"
-            title={cacheInfo ? `Data cached ${formatCacheAge(cacheInfo)}` : 'Using default data'}
-          >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            {hasDefaultPricing() ? (
-              <span>{cacheInfo ? formatCacheAge(cacheInfo) : 'API data'}</span>
-            ) : (
-              <span className="text-yellow-400">Mock data</span>
-            )}
-          </button>
+          <div className="hidden sm:flex items-center gap-3">
+            <ConfigExportImport onImport={setImportResult} />
+            <CsvExport />
+            <button
+              onClick={() => setShowRefreshDialog(true)}
+              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white transition-colors"
+              title={
+                hasDefaultPricing()
+                  ? cacheInfo
+                    ? `Refresh options data from Equinix API. Last refreshed ${formatCacheAge(cacheInfo)}.`
+                    : 'Refresh options data from Equinix API.'
+                  : 'Currently using bundled offline data. Click to connect to the Equinix API for live options data.'
+              }
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              {hasDefaultPricing() ? (
+                <span>{cacheInfo ? `Refresh (${formatCacheAge(cacheInfo)})` : 'Refresh options'}</span>
+              ) : (
+                <span className="text-yellow-400">Offline data</span>
+              )}
+            </button>
+          </div>
+          <div className="sm:hidden">
+            <HeaderActionsMenu
+              onImport={setImportResult}
+              onRefreshClick={() => setShowRefreshDialog(true)}
+              cacheBadge={
+                hasDefaultPricing()
+                  ? cacheInfo
+                    ? `Refresh options (${formatCacheAge(cacheInfo)})`
+                    : 'Refresh options'
+                  : 'Connect to API (offline data)'
+              }
+              cacheBadgeAccent={!hasDefaultPricing()}
+            />
+          </div>
         </div>
       </header>
 
@@ -534,7 +557,7 @@ function RefreshDataDialog({
             <p className="text-xs text-gray-400 mt-0.5">
               {cacheInfo
                 ? `Last updated ${formatCacheAge(cacheInfo)}`
-                : 'Using default data (no API data cached)'}
+                : 'Using bundled offline data (no API data cached)'}
             </p>
           </div>
           <button onClick={onClose} title="Close" className="text-gray-400 hover:text-white">

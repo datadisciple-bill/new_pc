@@ -458,6 +458,92 @@ async function fetchFabricPortPricing(referenceIbx, fallbackIbx) {
   return pricing;
 }
 
+/**
+ * Fetch Fabric Port pricing for every metro that has an IBX in eiaLocations.
+ * Returns { metroCode: { "1G_STANDARD": {mrc,nrc}, ... } } \u2014 one map per metro.
+ * Falls back to the reference IBX result when a per-metro IBX lookup fails.
+ */
+async function fetchFabricPortPricingByMetro(metros, eiaLocations) {
+  const speeds = [
+    { label: '1G', mbps: 1000 },
+    { label: '10G', mbps: 10000 },
+    { label: '100G', mbps: 100000 },
+    { label: '400G', mbps: 400000 },
+  ];
+  const portProducts = ['STANDARD', 'UNLIMITED', 'UNLIMITED_PLUS'];
+  const portCombos = speeds.flatMap((s) =>
+    portProducts.map((p) => ({ ...s, portProduct: p }))
+  );
+
+  // Pick one IBX per metro from the EIA locations catalog
+  const metroIbx = new Map();
+  for (const loc of eiaLocations) {
+    if (loc.metroCode && loc.ibx && !metroIbx.has(loc.metroCode)) {
+      metroIbx.set(loc.metroCode, loc.ibx);
+    }
+  }
+
+  // Build a flat list of (metro, ibx, combo) so we can batch concurrently
+  const targets = [];
+  for (const m of metros) {
+    const ibx = metroIbx.get(m.code);
+    if (!ibx) continue; // metro has no known IBX in EIA catalog; skip
+    for (const combo of portCombos) {
+      targets.push({ metroCode: m.code, ibx, ...combo });
+    }
+  }
+  const total = targets.length;
+  if (total === 0) {
+    console.log(`  ${c.dim}  Fabric Ports (per-metro) \u2014 no metros with IBX${c.reset}`);
+    return {};
+  }
+
+  const byMetro = {};
+  let completed = 0;
+  const failedCombos = [];
+
+  await runConcurrent(targets, async ({ metroCode, ibx, label, mbps, portProduct }) => {
+    const key = `${label}_${portProduct}`;
+    try {
+      const res = await apiPost('/fabric/v4/prices/search', priceFilter({
+        '/type': 'VIRTUAL_PORT_PRODUCT',
+        '/port/location/ibx': ibx,
+        '/port/type': 'XF_PORT',
+        '/port/bandwidth': mbps,
+        '/port/package/code': portProduct,
+        '/port/connectivitySource/type': 'COLO',
+        '/port/settings/buyout': false,
+        '/port/lag/enabled': false,
+      }));
+      const charges = res.data?.[0]?.charges ?? [];
+      const mrc = charges.find((ch) => ch.type === 'MONTHLY_RECURRING')?.price ?? 0;
+      const nrc = charges.find((ch) => ch.type === 'NON_RECURRING')?.price ?? 0;
+      if (!byMetro[metroCode]) byMetro[metroCode] = {};
+      byMetro[metroCode][key] = { mrc, nrc };
+    } catch (err) {
+      failedCombos.push({ label: `${metroCode}/${key}`, error: err.message || 'Unknown error' });
+    } finally {
+      completed++;
+      process.stdout.write(`\r${progressBar(completed, total)} ${c.dim}per-metro ports${c.reset}       `);
+    }
+  });
+  process.stdout.write('\r' + ' '.repeat(80) + '\r');
+  const metroCount = Object.keys(byMetro).length;
+  const priceCount = Object.values(byMetro).reduce((s, m) => s + Object.keys(m).length, 0);
+  const status = failedCombos.length
+    ? `${c.green}${metroCount} metros (${priceCount} prices)${c.reset}, ${c.red}${failedCombos.length} failed${c.reset}`
+    : `${c.green}${metroCount} metros (${priceCount} prices)${c.reset}`;
+  console.log(`  ${CHECK} Fabric Ports (per-metro) \u2014 ${status}`);
+  if (failedCombos.length && failedCombos.length <= 20) {
+    for (const f of failedCombos) {
+      console.log(`    ${CROSS} ${c.dim}${f.label}:${c.reset} ${c.red}${f.error}${c.reset}`);
+    }
+  } else if (failedCombos.length > 20) {
+    console.log(`    ${c.dim}(${failedCombos.length} failures omitted)${c.reset}`);
+  }
+  return byMetro;
+}
+
 async function fetchVCPricing(referenceMetro, fallbackMetro) {
   const bandwidths = [50, 100, 200, 500, 1000, 2000, 5000, 10000, 50000];
   const total = bandwidths.length;
@@ -666,8 +752,193 @@ async function fetchNetworkEdgePricing(deviceTypes, referenceMetro, fallbackMetr
   return pricing;
 }
 
-async function fetchVCPairPricing() {
-  const KEY_METROS = ['DC', 'NY', 'SV', 'CH', 'DA', 'LD', 'AM', 'FR', 'PA', 'SG', 'HK', 'MB', 'SP'];
+/**
+ * Per-metro VC same-metro pricing.
+ * Returns { metroCode: { "1000": {mrc,nrc}, ... } }.
+ */
+async function fetchVCPricingByMetro(metros) {
+  const bandwidths = [50, 100, 200, 500, 1000, 2000, 5000, 10000, 50000];
+  const targets = metros.flatMap((m) => bandwidths.map((bw) => ({ metroCode: m.code, bw })));
+  const total = targets.length;
+  const byMetro = {};
+  let completed = 0;
+  const failedCombos = [];
+
+  await runConcurrent(targets, async ({ metroCode, bw }) => {
+    try {
+      const res = await apiPost('/fabric/v4/prices/search', priceFilter({
+        '/type': 'VIRTUAL_CONNECTION_PRODUCT',
+        '/connection/type': 'EVPL_VC',
+        '/connection/bandwidth': bw,
+        '/connection/aSide/accessPoint/type': 'COLO',
+        '/connection/aSide/accessPoint/location/metroCode': metroCode,
+        '/connection/aSide/accessPoint/port/settings/buyout': false,
+        '/connection/zSide/accessPoint/type': 'COLO',
+        '/connection/zSide/accessPoint/location/metroCode': metroCode,
+      }));
+      const charges = res.data?.[0]?.charges ?? [];
+      const mrc = charges.find((ch) => ch.type === 'MONTHLY_RECURRING')?.price ?? 0;
+      const nrc = charges.find((ch) => ch.type === 'NON_RECURRING')?.price ?? 0;
+      if (!byMetro[metroCode]) byMetro[metroCode] = {};
+      byMetro[metroCode][String(bw)] = { mrc, nrc };
+    } catch (err) {
+      failedCombos.push({ label: `${metroCode}/${bw}`, error: err.message || 'Unknown error' });
+    } finally {
+      completed++;
+      process.stdout.write(`\r${progressBar(completed, total)} ${c.dim}per-metro VCs${c.reset}       `);
+    }
+  });
+  process.stdout.write('\r' + ' '.repeat(80) + '\r');
+  const metroCount = Object.keys(byMetro).length;
+  const priceCount = Object.values(byMetro).reduce((s, m) => s + Object.keys(m).length, 0);
+  const status = failedCombos.length
+    ? `${c.green}${metroCount} metros (${priceCount} prices)${c.reset}, ${c.red}${failedCombos.length} failed${c.reset}`
+    : `${c.green}${metroCount} metros (${priceCount} prices)${c.reset}`;
+  console.log(`  ${CHECK} Virtual Connections (per-metro) — ${status}`);
+  if (failedCombos.length > 20) console.log(`    ${c.dim}(${failedCombos.length} failures omitted)${c.reset}`);
+  return byMetro;
+}
+
+/**
+ * Per-metro Cloud Router pricing.
+ * Returns { metroCode: { "STANDARD": {mrc,nrc}, ... } }.
+ */
+async function fetchCloudRouterPricingByMetro(routerPackages, metros) {
+  const targets = metros.flatMap((m) => routerPackages.map((pkg) => ({ metroCode: m.code, pkg })));
+  const total = targets.length;
+  if (total === 0) {
+    console.log(`  ${c.dim}  Cloud Router (per-metro) — no packages${c.reset}`);
+    return {};
+  }
+  const byMetro = {};
+  let completed = 0;
+  const failedCombos = [];
+
+  await runConcurrent(targets, async ({ metroCode, pkg }) => {
+    try {
+      const res = await apiPost('/fabric/v4/prices/search', priceFilter({
+        '/type': 'CLOUD_ROUTER_PRODUCT',
+        '/router/package/code': pkg.code,
+        '/router/location/metroCode': metroCode,
+      }));
+      const charges = res.data?.[0]?.charges ?? [];
+      const mrc = charges.find((ch) => ch.type === 'MONTHLY_RECURRING')?.price ?? 0;
+      const nrc = charges.find((ch) => ch.type === 'NON_RECURRING')?.price ?? 0;
+      if (!byMetro[metroCode]) byMetro[metroCode] = {};
+      byMetro[metroCode][pkg.code] = { mrc, nrc };
+    } catch (err) {
+      failedCombos.push({ label: `${metroCode}/${pkg.code}`, error: err.message || 'Unknown error' });
+    } finally {
+      completed++;
+      process.stdout.write(`\r${progressBar(completed, total)} ${c.dim}per-metro FCR${c.reset}       `);
+    }
+  });
+  process.stdout.write('\r' + ' '.repeat(80) + '\r');
+  const metroCount = Object.keys(byMetro).length;
+  const priceCount = Object.values(byMetro).reduce((s, m) => s + Object.keys(m).length, 0);
+  const status = failedCombos.length
+    ? `${c.green}${metroCount} metros (${priceCount} prices)${c.reset}, ${c.red}${failedCombos.length} failed${c.reset}`
+    : `${c.green}${metroCount} metros (${priceCount} prices)${c.reset}`;
+  console.log(`  ${CHECK} Cloud Router (per-metro) — ${status}`);
+  if (failedCombos.length > 20) console.log(`    ${c.dim}(${failedCombos.length} failures omitted)${c.reset}`);
+  return byMetro;
+}
+
+/**
+ * Per-metro EIA pricing (one IBX per metro from eiaLocations).
+ * Returns { metroCode: { "IA_C_FIXED_1000": {mrc,nrc}, ... } }.
+ */
+async function fetchEIAPricingByMetro(metros, eiaLocations) {
+  const bandwidths = [50, 100, 200, 500, 1000, 2000, 5000, 10000];
+
+  const metroIbx = new Map();
+  for (const loc of eiaLocations) {
+    if (loc.metroCode && loc.ibx && !metroIbx.has(loc.metroCode)) {
+      metroIbx.set(loc.metroCode, loc.ibx);
+    }
+  }
+
+  const targets = [];
+  for (const m of metros) {
+    const ibx = metroIbx.get(m.code);
+    if (!ibx) continue;
+    for (const bw of bandwidths) {
+      targets.push({ metroCode: m.code, ibx, bw });
+    }
+  }
+  const total = targets.length;
+  if (total === 0) {
+    console.log(`  ${c.dim}  Internet Access (per-metro) — no metros with IBX${c.reset}`);
+    return {};
+  }
+
+  const byMetro = {};
+  let completed = 0;
+  const failedCombos = [];
+
+  await runConcurrent(targets, async ({ metroCode, ibx, bw }) => {
+    const key = `IA_C_FIXED_${bw}`;
+    const portSpeed = bw <= 1000 ? 1000 : bw <= 10000 ? 10000 : 100000;
+    try {
+      const body = {
+        filter: {
+          and: [
+            { property: '/type', operator: '=', values: ['INTERNET_ACCESS_PRODUCT'] },
+            { property: '/account/accountNumber', operator: '=', values: ['1'] },
+            { property: '/service/type', operator: '=', values: ['SINGLE_PORT'] },
+            { property: '/service/bandwidth', operator: '=', values: [String(bw)] },
+            { property: '/service/billing', operator: '=', values: ['FIXED'] },
+            { property: '/service/useCase', operator: '=', values: ['MAIN'] },
+            { property: '/service/connection/type', operator: '=', values: ['IA_C'] },
+            { property: '/service/connection/aSide/accessPoint/type', operator: '=', values: ['COLO'] },
+            { property: '/service/connection/aSide/accessPoint/location/ibx', operator: '=', values: [ibx] },
+            { property: '/service/connection/aSide/accessPoint/port/physicalPort/speed', operator: '=', values: [String(portSpeed)] },
+            { property: '/service/connection/aSide/accessPoint/port/physicalPortQuantity', operator: '=', values: ['1'] },
+          ],
+        },
+      };
+      const res = await apiPost('/internetAccess/v1/prices/search', body);
+      const charges = res.data?.[0]?.summary?.charges ?? [];
+      const mrc = charges.find((ch) => ch.type === 'MONTHLY_RECURRING')?.price ?? 0;
+      const nrc = charges.find((ch) => ch.type === 'NON_RECURRING')?.price ?? 0;
+      if (!byMetro[metroCode]) byMetro[metroCode] = {};
+      byMetro[metroCode][key] = { mrc, nrc };
+      // Mirror IA_C → IA_VC (v1 API only prices IA_C; same value used as pre-sales estimate for Fabric delivery)
+      byMetro[metroCode][`IA_VC_FIXED_${bw}`] = { mrc, nrc };
+    } catch (err) {
+      failedCombos.push({ label: `${metroCode}/${key}`, error: err.message || 'Unknown error' });
+    } finally {
+      completed++;
+      process.stdout.write(`\r${progressBar(completed, total)} ${c.dim}per-metro EIA${c.reset}       `);
+    }
+  });
+  process.stdout.write('\r' + ' '.repeat(80) + '\r');
+  const metroCount = Object.keys(byMetro).length;
+  const priceCount = Object.values(byMetro).reduce((s, m) => s + Object.keys(m).length, 0);
+  const status = failedCombos.length
+    ? `${c.green}${metroCount} metros (${priceCount} prices)${c.reset}, ${c.red}${failedCombos.length} failed${c.reset}`
+    : `${c.green}${metroCount} metros (${priceCount} prices)${c.reset}`;
+  console.log(`  ${CHECK} Internet Access (per-metro) — ${status}`);
+  if (failedCombos.length > 20) console.log(`    ${c.dim}(${failedCombos.length} failures omitted)${c.reset}`);
+  return byMetro;
+}
+
+async function fetchVCPairPricing(metros) {
+  // Expanded coverage: top metros by region, evenly distributed (was 13, now ~30).
+  // Picks the metros most commonly used in customer designs across AMER / EMEA / APAC.
+  const KEY_METROS_DEFAULT = [
+    // AMER (10)
+    'DC', 'NY', 'SV', 'CH', 'DA', 'AT', 'LA', 'SE', 'MI', 'SP',
+    // EMEA (10)
+    'LD', 'AM', 'FR', 'PA', 'ZH', 'ML', 'MA', 'DU', 'JB', 'IL',
+    // APAC (10)
+    'SG', 'HK', 'TY', 'SY', 'MB', 'SL', 'OS', 'JK', 'PE', 'CN',
+  ];
+  // Use metros parameter if provided to honor real-data-only mode; otherwise the default 30.
+  const provided = (metros ?? []).map((m) => m.code);
+  const KEY_METROS = provided.length
+    ? KEY_METROS_DEFAULT.filter((code) => provided.includes(code))
+    : KEY_METROS_DEFAULT;
   const bandwidths = [50, 100, 200, 500, 1000, 2000, 5000, 10000, 50000];
   const pricing = {};
 
@@ -858,12 +1129,22 @@ async function main() {
     fetchCloudRouterPricing(routerPackages, referenceMetro, fallbackMetro),
     fetchNetworkEdgePricing(deviceTypes, referenceMetro, fallbackMetro),
     fetchEIAPricing(referenceIbx, fallbackIbx),
-    fetchVCPairPricing(),
+    fetchVCPairPricing(metros),
+    // Per-metro expansions for richer offline data:
+    fetchFabricPortPricingByMetro(metros, eiaLocations),
+    fetchVCPricingByMetro(metros),
+    fetchCloudRouterPricingByMetro(routerPackages, metros),
+    fetchEIAPricingByMetro(metros, eiaLocations),
   ]);
 
-  const pricingLabels = ['Fabric Port', 'VC', 'Cloud Router', 'Network Edge', 'Internet Access', 'VC Pairs'];
-  const [fabricPortPricing, vcPricing, cloudRouterPricing, nePricing, eiaPricing, vcPairPricing] =
-    pricingResults.map((r, i) => {
+  const pricingLabels = [
+    'Fabric Port', 'VC', 'Cloud Router', 'Network Edge', 'Internet Access', 'VC Pairs',
+    'Fabric Port (per-metro)', 'VC (per-metro)', 'Cloud Router (per-metro)', 'Internet Access (per-metro)',
+  ];
+  const [
+    fabricPortPricing, vcPricing, cloudRouterPricing, nePricing, eiaPricing, vcPairPricing,
+    fabricPortsByMetro, vcByMetro, cloudRouterByMetro, eiaByMetro,
+  ] = pricingResults.map((r, i) => {
       if (r.status === 'fulfilled') return r.value;
       console.log(`  ${WARN} ${pricingLabels[i]} pricing ${c.yellow}skipped${c.reset} ${c.dim}\u2014 ${r.reason?.message}${c.reset}`);
       return {};
@@ -883,12 +1164,18 @@ async function main() {
     routerPackages,
     eiaLocations,
     pricing: {
+      // Reference (single-metro) tables — used as the fallback when a per-metro lookup misses
       fabricPorts: fabricPortPricing,
       virtualConnections: vcPricing,
       virtualConnectionPairs: vcPairPricing,
       cloudRouter: cloudRouterPricing,
       networkEdge: nePricing,
       internetAccess: eiaPricing,
+      // Per-metro tables for richer offline data (introduced for the Offline Data mode)
+      fabricPortsByMetro,
+      virtualConnectionsByMetro: vcByMetro,
+      cloudRouterByMetro,
+      internetAccessByMetro: eiaByMetro,
     },
   };
 
@@ -919,9 +1206,16 @@ async function main() {
   console.log(`  ${c.dim}Catalog${c.reset}    Metros ${c.bold}${metros.length}${c.reset}  \u2502  Devices ${c.bold}${deviceTypes.length}${c.reset}  \u2502  Profiles ${c.bold}${serviceProfiles.length}${c.reset}`);
   console.log(`             Packages ${c.bold}${routerPackages.length}${c.reset}  \u2502  EIA Locations ${c.bold}${eiaLocations.length}${c.reset}`);
   console.log('');
-  console.log(`  ${c.dim}Pricing${c.reset}    Ports ${c.bold}${Object.keys(fabricPortPricing).length}${c.reset}  \u2502  VCs ${c.bold}${Object.keys(vcPricing).length}${c.reset}  \u2502  VC Pairs ${c.bold}${Object.keys(vcPairPricing).length}${c.reset} (${c.bold}${vcPairPriceCount}${c.reset} prices)  \u2502  FCR ${c.bold}${Object.keys(cloudRouterPricing).length}${c.reset}  \u2502  NE ${c.bold}${Object.keys(nePricing).length}${c.reset}  \u2502  EIA ${c.bold}${Object.keys(eiaPricing).length}${c.reset}`);
+  const perMetroPortsPrices = Object.values(fabricPortsByMetro).reduce((s, m) => s + Object.keys(m).length, 0);
+  const perMetroVcPrices = Object.values(vcByMetro).reduce((s, m) => s + Object.keys(m).length, 0);
+  const perMetroFcrPrices = Object.values(cloudRouterByMetro).reduce((s, m) => s + Object.keys(m).length, 0);
+  const perMetroEiaPrices = Object.values(eiaByMetro).reduce((s, m) => s + Object.keys(m).length, 0);
+  const perMetroTotal = perMetroPortsPrices + perMetroVcPrices + perMetroFcrPrices + perMetroEiaPrices;
+
+  console.log(`  ${c.dim}Reference${c.reset}  Ports ${c.bold}${Object.keys(fabricPortPricing).length}${c.reset}  \u2502  VCs ${c.bold}${Object.keys(vcPricing).length}${c.reset}  \u2502  VC Pairs ${c.bold}${Object.keys(vcPairPricing).length}${c.reset} (${c.bold}${vcPairPriceCount}${c.reset} prices)  \u2502  FCR ${c.bold}${Object.keys(cloudRouterPricing).length}${c.reset}  \u2502  NE ${c.bold}${Object.keys(nePricing).length}${c.reset}  \u2502  EIA ${c.bold}${Object.keys(eiaPricing).length}${c.reset}`);
+  console.log(`  ${c.dim}Per-metro${c.reset}  Ports ${c.bold}${Object.keys(fabricPortsByMetro).length}${c.reset} metros (${c.bold}${perMetroPortsPrices}${c.reset})  \u2502  VCs ${c.bold}${Object.keys(vcByMetro).length}${c.reset} (${c.bold}${perMetroVcPrices}${c.reset})  \u2502  FCR ${c.bold}${Object.keys(cloudRouterByMetro).length}${c.reset} (${c.bold}${perMetroFcrPrices}${c.reset})  \u2502  EIA ${c.bold}${Object.keys(eiaByMetro).length}${c.reset} (${c.bold}${perMetroEiaPrices}${c.reset})`);
   console.log('');
-  console.log(`  ${c.dim}Total${c.reset}      ${c.bold}${totalPrices}${c.reset} prices  \u2502  ${c.bold}${apiCalls}${c.reset} API calls  \u2502  ${c.bold}${totalElapsed}s${c.reset}`);
+  console.log(`  ${c.dim}Total${c.reset}      ${c.bold}${totalPrices + perMetroTotal}${c.reset} prices  \u2502  ${c.bold}${apiCalls}${c.reset} API calls  \u2502  ${c.bold}${totalElapsed}s${c.reset}`);
   console.log('');
   console.log(`  ${c.green}${c.bold}\u2714 Done!${c.reset} Commit ${c.bold}public/data/defaults.json${c.reset} and rebuild to deploy.`);
   console.log('');

@@ -1,5 +1,5 @@
 import type { Metro, PriceSearchResponse, ServiceProfile, RouterPackage, PortResponse, ConnectionResponse, RouterResponse } from '@/types/equinix';
-import { lookupPortPrice, lookupVCPrice, lookupVCPairPrice, lookupCloudRouterPrice } from '@/data/defaultPricing';
+import { lookupPortPrice, lookupVCPrice, lookupVCPairPrice, lookupCloudRouterPrice, lookupMetroForIbx } from '@/data/defaultPricing';
 
 export function mockMetros(): Metro[] {
   return [
@@ -42,20 +42,20 @@ export function mockMetros(): Metro[] {
     { code: 'MU', name: 'Munich', region: 'EMEA', connectedMetros: [{ code: 'FR', avgLatency: 2.5 }, { code: 'ZH', avgLatency: 3.5 }] },
     { code: 'LS', name: 'Lisbon', region: 'EMEA', connectedMetros: [{ code: 'MA', avgLatency: 4.0 }] },
     { code: 'JB', name: 'Johannesburg', region: 'EMEA', connectedMetros: [{ code: 'LD', avgLatency: 70.0 }] },
-    { code: 'LA', name: 'Lagos', region: 'EMEA', connectedMetros: [{ code: 'JB', avgLatency: 35.0 }] },
+    { code: 'LG', name: 'Lagos', region: 'EMEA', connectedMetros: [{ code: 'JB', avgLatency: 35.0 }] },
     // APAC
     { code: 'SG', name: 'Singapore', region: 'APAC', connectedMetros: [{ code: 'HK', avgLatency: 18.5 }, { code: 'TY', avgLatency: 36.0 }, { code: 'SY', avgLatency: 48.0 }] },
     { code: 'HK', name: 'Hong Kong', region: 'APAC', connectedMetros: [{ code: 'SG', avgLatency: 18.5 }, { code: 'TY', avgLatency: 25.0 }] },
     { code: 'TY', name: 'Tokyo', region: 'APAC', connectedMetros: [{ code: 'SG', avgLatency: 36.0 }, { code: 'HK', avgLatency: 25.0 }, { code: 'SV', avgLatency: 55.0 }] },
     { code: 'SY', name: 'Sydney', region: 'APAC', connectedMetros: [{ code: 'SG', avgLatency: 48.0 }, { code: 'ME', avgLatency: 8.0 }] },
     { code: 'OS', name: 'Osaka', region: 'APAC', connectedMetros: [{ code: 'TY', avgLatency: 4.2 }] },
-    { code: 'MB', name: 'Mumbai', region: 'APAC', connectedMetros: [{ code: 'SG', avgLatency: 32.0 }, { code: 'CH', avgLatency: 28.0 }] },
+    { code: 'MB', name: 'Mumbai', region: 'APAC', connectedMetros: [{ code: 'SG', avgLatency: 32.0 }, { code: 'CN', avgLatency: 28.0 }] },
     { code: 'SL', name: 'Seoul', region: 'APAC', connectedMetros: [{ code: 'TY', avgLatency: 15.0 }, { code: 'HK', avgLatency: 20.0 }] },
     { code: 'ME', name: 'Melbourne', region: 'APAC', connectedMetros: [{ code: 'SY', avgLatency: 8.0 }] },
     { code: 'PE', name: 'Perth', region: 'APAC', connectedMetros: [{ code: 'SG', avgLatency: 30.0 }, { code: 'SY', avgLatency: 25.0 }] },
     { code: 'KL', name: 'Kuala Lumpur', region: 'APAC', connectedMetros: [{ code: 'SG', avgLatency: 5.0 }] },
     { code: 'JK', name: 'Jakarta', region: 'APAC', connectedMetros: [{ code: 'SG', avgLatency: 10.0 }] },
-    { code: 'CH', name: 'Chennai', region: 'APAC', connectedMetros: [{ code: 'MB', avgLatency: 12.0 }, { code: 'SG', avgLatency: 22.0 }] },
+    { code: 'CN', name: 'Chennai', region: 'APAC', connectedMetros: [{ code: 'MB', avgLatency: 12.0 }, { code: 'SG', avgLatency: 22.0 }] },
   ];
 }
 
@@ -66,9 +66,9 @@ const METRO_REGIONS: Record<string, string> = {
   MT: 'AMER', BO: 'AMER', MX: 'AMER', RJ: 'AMER', CL: 'AMER', PH: 'AMER', MN: 'AMER',
   LD: 'EMEA', AM: 'EMEA', FR: 'EMEA', PA: 'EMEA', ZH: 'EMEA', ML: 'EMEA',
   MA: 'EMEA', SK: 'EMEA', HE: 'EMEA', WA: 'EMEA', DU: 'EMEA', SO: 'EMEA',
-  IL: 'EMEA', BA: 'EMEA', DB: 'EMEA', MU: 'EMEA', LS: 'EMEA', JB: 'EMEA',
+  IL: 'EMEA', BA: 'EMEA', DB: 'EMEA', MU: 'EMEA', LS: 'EMEA', JB: 'EMEA', LG: 'EMEA',
   SG: 'APAC', HK: 'APAC', TY: 'APAC', SY: 'APAC', OS: 'APAC', MB: 'APAC',
-  SL: 'APAC', ME: 'APAC', PE: 'APAC', KL: 'APAC', JK: 'APAC',
+  SL: 'APAC', ME: 'APAC', PE: 'APAC', KL: 'APAC', JK: 'APAC', CN: 'APAC',
 };
 
 /**
@@ -138,8 +138,10 @@ export function mockPriceSearch(
     case 'VIRTUAL_PORT_PRODUCT': {
       const bw = Number(properties['/port/bandwidth'] ?? 10000);
       const product = String(properties['/port/package/code'] ?? 'STANDARD');
+      const ibx = String(properties['/port/location/ibx'] ?? '');
+      const metro = ibx ? lookupMetroForIbx(ibx) ?? undefined : undefined;
       key = `PORT_${bw}_${product}`;
-      price = lookupPortPrice(String(bw), product) ?? PRICING[key] ?? price;
+      price = lookupPortPrice(String(bw), product, metro) ?? PRICING[key] ?? price;
       break;
     }
     case 'VIRTUAL_CONNECTION_PRODUCT': {
@@ -148,14 +150,23 @@ export function mockPriceSearch(
       const zSide = String(properties['/connection/zSide/accessPoint/location/metroCode'] ?? '');
       key = `VC_${bw}`;
 
-      // 1. Try per-pair real data first (13 key metros, 819 cached prices)
+      // 1. Try per-pair real data first (expanded metro coverage)
       const pairPrice = lookupVCPairPrice(aSide, zSide, bw);
       if (pairPrice) {
         price = pairPrice;
         break;
       }
 
-      // 2. Fallback: base price × region multiplier
+      // 2. Same-metro: prefer per-metro VC price when available
+      if (aSide && aSide === zSide) {
+        const sameMetro = lookupVCPrice(bw, aSide);
+        if (sameMetro) {
+          price = sameMetro;
+          break;
+        }
+      }
+
+      // 3. Fallback: base price × region multiplier
       const basePrice = lookupVCPrice(bw) ?? PRICING[key] ?? price;
       const multiplier = getMetroPairMultiplier(aSide, zSide);
       price = { mrc: Math.round(basePrice.mrc * multiplier), nrc: basePrice.nrc };
@@ -163,8 +174,9 @@ export function mockPriceSearch(
     }
     case 'CLOUD_ROUTER_PRODUCT': {
       const pkg = String(properties['/router/package/code'] ?? 'STANDARD');
+      const metro = String(properties['/router/location/metroCode'] ?? '') || undefined;
       key = `FCR_${pkg}`;
-      price = lookupCloudRouterPrice(pkg) ?? PRICING[key] ?? price;
+      price = lookupCloudRouterPrice(pkg, metro) ?? PRICING[key] ?? price;
       break;
     }
     default:

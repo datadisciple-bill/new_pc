@@ -43,7 +43,7 @@ export async function fetchEIAPricing(
   bandwidthMbps: number,
   forceLive?: boolean
 ): Promise<EIAPricingResult> {
-  if (!forceLive && useMockData()) return mockEIAPricing(connectionType, bandwidthMbps);
+  if (!forceLive && useMockData()) return mockEIAPricing(connectionType, bandwidthMbps, metroCode);
 
   const ibx = lookupIbxForMetro(metroCode);
 
