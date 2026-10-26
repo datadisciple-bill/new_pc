@@ -23,11 +23,15 @@ services:
       net.unraid.docker.webui: "http://[IP]:[PORT:8088]"
       net.unraid.docker.icon: "https://raw.githubusercontent.com/datadisciple-bill/new_pc/main/equinix-pricing-tool/public/favicon.png"
 
+  # Cloudflare Tunnel connector. The token comes from .env next to this file, which is
+  # not tracked in git; this repo is public, so never put the token in this file.
+  # To rotate: set TUNNEL_TOKEN in .env, then `docker compose up -d --force-recreate cloudflared`.
+  # To upgrade: bump the tag below, then `docker compose pull cloudflared && docker compose up -d cloudflared`.
   cloudflared:
-    image: cloudflare/cloudflared
+    image: cloudflare/cloudflared:2026.10.4
     container_name: cloudflared
     environment:
-      - TUNNEL_TOKEN=${TUNNEL_TOKEN}
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN:?Set TUNNEL_TOKEN in .env (see .env.example)}
     command: tunnel --no-autoupdate run
     restart: unless-stopped
     depends_on:
